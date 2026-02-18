@@ -1,15 +1,13 @@
 <template>
-  <div class="h-screen flex flex-col bg-gray-200">
-    <EditorHeader />
-    <EditorToolbar :editor="activeEditor" />
-    <main class="flex-1 overflow-y-auto p-12">
-      <ClientOnly>
-        <EditorMain @update:editor="activeEditor = $event" />
-      </ClientOnly>
-    </main>
+  <div class="h-screen flex flex-col overflow-hidden font-sans">
+    <ClientOnly>
+      <EditorHeader />
+      <EditorToolbar :editor="activeEditor" />
+      <EditorMain @update:editor="(e) => activeEditor = e" />
+    </ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
-const activeEditor = ref(null)
+const activeEditor = ref<any>(null)
 </script>

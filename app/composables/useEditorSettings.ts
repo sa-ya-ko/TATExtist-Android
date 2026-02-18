@@ -1,6 +1,7 @@
 export const useEditorSettings = () => {
   const pageSize = useState<'A4' | 'A5' | 'B6'>('pageSize', () => 'A5')
   const selectedFont = useState('selectedFont', () => 'Noto Serif JP')
+  const fontSize = useState('fontSize', () => 12)
 
   const paperDimensions = computed(() => {
     const dimensions = {
@@ -11,5 +12,5 @@ export const useEditorSettings = () => {
     return dimensions[pageSize.value]
   })
 
-  return { pageSize, selectedFont, paperDimensions }
+  return { pageSize, selectedFont, fontSize, paperDimensions }
 }
