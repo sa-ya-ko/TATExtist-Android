@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --spacing-toolbar-height: 56px;
+  --spacing-sidebar-width: 280px;
+  --spacing-page-margin-x: 80px;
+  --spacing-page-margin-y: 60px;
+  
+  --color-primary: #000666;
+  --color-on-primary: #ffffff;
+  --color-surface: #f7f9ff;
+  --color-on-surface: #091d2e;
+  --color-surface-container-low: #edf4ff;
+  --color-outline-variant: #c6c5d4;
+  --color-outline: #767683;
+}
+
+/* Fix Tailwind typography reset for contenteditable */
+.writing-vertical b,
+.writing-vertical strong {
+  font-weight: bold;
+}
+
+.writing-vertical i,
+.writing-vertical em {
+  font-style: italic;
+}
+
+.writing-vertical u {
+  text-decoration: underline;
+}
+
+/* Base styles from sample */
+body {
+  background-color: #F5F7F9;
+  overflow: hidden;
+}
+
+.writing-vertical {
+  writing-mode: vertical-rl;
+}
+
+.manuscript-paper {
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.ruler-markings {
+  background-image: repeating-linear-gradient(to right, #767683 0px, #767683 1px, transparent 1px, transparent 10px);
+  height: 8px;
+  width: 100%;
+}
+
+.ruler-markings-cm {
+  background-image: repeating-linear-gradient(to right, #767683 0px, #767683 1px, transparent 1px, transparent 50px);
+  height: 12px;
+  width: 100%;
+}
+
+.selection-highlight {
+  background-color: rgba(189, 194, 255, 0.4);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c6c5d4;
+  border-radius: 4px;
+}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  body {
+    background: #ccc;
+    display: flex;
+    justify-content: center;
+    padding: 50px;
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    background: white;
+    /* Block size (width) restricted so it wraps */
+    width: 210mm;
+    /* Inline size (height) of a column */
+    column-width: 297mm;
+    column-gap: 20px;
+    /* Need some way to show boundaries */
+    column-rule: 2px solid red;
+    padding: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+</style>
+</head>
+<body>
+  <div class="editor" contenteditable="true">
+    あいうえお。<br>
+    かきくけこ。<br>
+    さしすせそ。<br>
+    <script>
+      // Add lots of text to overflow
+      for(let i=0; i<100; i++) {
+        document.write('あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん。');
+      }
+    </script>
+  </div>
+</body>
+</html>

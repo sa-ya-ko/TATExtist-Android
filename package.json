@@ -1,5 +1,5 @@
 {
-  "name": "tategaki",
+  "name": "tategaki_editor",
   "type": "module",
   "private": true,
   "scripts": {
@@ -10,11 +10,17 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@nuxt/ui": "^4.4.0",
-    "@tiptap/extension-text-style": "^3.19.0",
-    "nuxt": "^4.3.1",
-    "tailwindcss": "^4.1.18",
-    "vue": "^3.5.28",
-    "vue-router": "^4.6.4"
+    "jsdom": "^29.1.1",
+    "nuxt": "^4.4.8",
+    "puppeteer": "^25.3.0",
+    "vue": "^3.5.38",
+    "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "autoprefixer": "^10.5.2",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.1",
+    "vite-tsconfig-paths": "^6.1.1"
   }
 }

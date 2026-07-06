@@ -1,13 +1,10 @@
 <template>
-  <div class="h-screen flex flex-col overflow-hidden font-sans">
-    <ClientOnly>
-      <EditorHeader />
-      <EditorToolbar :editor="activeEditor" />
-      <EditorMain @update:editor="(e) => activeEditor = e" />
-    </ClientOnly>
+  <div class="min-h-screen bg-gray-100">
+    
+    <VerticalEditor />
   </div>
 </template>
 
 <script setup lang="ts">
-const activeEditor = ref<any>(null)
+import VerticalEditor from '@/components/VerticalEditor.vue'
 </script>
