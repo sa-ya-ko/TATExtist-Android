@@ -4,6 +4,7 @@ export interface Page {
   id: number;
   content: string;
   isOverflowing?: boolean;
+  isWarningDismissed?: boolean;
 }
 
 const pages = ref<Page[]>([])

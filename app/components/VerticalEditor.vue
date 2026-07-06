@@ -4,19 +4,19 @@
     <EditorHeader />
 
     <!-- Main Content -->
-    <main class="flex flex-1 pt-toolbar-height overflow-hidden">
+    <main class="flex flex-1 pt-toolbar-height overflow-hidden print:overflow-visible print:block print:pt-0">
       <!-- Sidebar Right (Page Setup) -->
-      <EditorSidebar />
+      <EditorSidebar class="print:hidden" />
 
       <!-- Editor Canvas (Vertical Scroll) -->
-      <div class="flex-1 flex flex-col items-center py-page-margin-y pr-sidebar-width pl-12 overflow-y-auto bg-surface">
+      <div class="flex-1 flex flex-col items-center py-page-margin-y pr-sidebar-width pl-12 overflow-y-auto bg-surface print:overflow-visible print:block print:p-0 print:bg-white">
         
         <!-- Render each page -->
-        <div v-for="page in pages" :key="page.id" class="flex flex-col items-center mr-12 mb-12">
+        <div v-for="page in pages" :key="page.id" class="flex flex-col items-center mr-12 mb-12 print:m-0 print:block print:break-after-page">
           
           <!-- Content -->
-          <div class="manuscript-paper relative transition-all duration-300 bg-white border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden" 
-               :class="{ 'ring-4 ring-red-500 !shadow-[0_0_15px_rgba(239,68,68,0.6)]': page.isOverflowing }"
+          <div class="manuscript-paper relative transition-all duration-300 bg-white border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden print:shadow-none print:border-none print:ring-0 print:!shadow-none" 
+               :class="{ 'ring-4 ring-red-500 !shadow-[0_0_15px_rgba(239,68,68,0.6)]': page.isOverflowing && !page.isWarningDismissed }"
                :style="paperStyle">
             <div :ref="el => setEditorRef(page.id, el)"
                  class="writing-vertical outline-none"
@@ -31,12 +31,17 @@
           </div>
 
           <!-- Page Controls (Warning & Delete Button) -->
-          <div class="w-full flex justify-between items-start mt-6" style="max-width: var(--page-width);">
+          <div class="w-full flex justify-between items-start mt-6 print:hidden" style="max-width: var(--page-width);">
             <!-- Warning Message -->
-            <div :class="{ 'opacity-100 translate-y-0': page.isOverflowing, 'opacity-0 -translate-y-4 pointer-events-none': !page.isOverflowing }" 
-                 class="text-red-600 font-bold flex items-center gap-2 transition-all duration-300 text-sm bg-red-50 px-4 py-3 rounded-lg border border-red-200 shadow-sm">
+            <div :class="{ 'opacity-100 translate-y-0': page.isOverflowing && !page.isWarningDismissed, 'opacity-0 -translate-y-4 pointer-events-none': !(page.isOverflowing && !page.isWarningDismissed) }" 
+                 class="text-red-600 font-bold flex items-center gap-2 transition-all duration-300 text-sm bg-red-50 pl-4 pr-10 py-2 rounded-lg border border-red-200 shadow-sm relative">
               <span>⚠️</span>
               <span>このページに入力できる文字数を超えました。｢新しいページを追加｣して続きを書いてください。</span>
+              <button @click="dismissWarning(page.id)" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-red-700 bg-red-200 hover:bg-red-300 hover:text-red-900 rounded-md transition-colors shadow-sm" title="警告を閉じる">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             
             <!-- Delete Button -->
@@ -51,7 +56,7 @@
 
         </div>
 
-        <button @click="addPage" class="mb-12 px-6 py-3 bg-white border border-gray-300 rounded-lg shadow hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors">
+        <button @click="addPage" class="mb-12 px-6 py-3 bg-white border border-gray-300 rounded-lg shadow hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors print:hidden">
           <span class="i-heroicons-plus text-xl"></span>
           新しいページを追加
         </button>
@@ -113,7 +118,21 @@ const checkOverflow = (id: number, el: HTMLElement) => {
   const MM_TO_PX = 3.78
   const availableWidth = pageWidthPx.value - (margins.value.left + margins.value.right) * MM_TO_PX
   
-  page.isOverflowing = rect.width > availableWidth + 2
+  const isNowOverflowing = rect.width > availableWidth + 2
+  
+  // 以前はあふれていたが、修正されて収まった場合は「×ボタンで消した」状態をリセットする
+  if (page.isOverflowing && !isNowOverflowing) {
+    page.isWarningDismissed = false
+  }
+  
+  page.isOverflowing = isNowOverflowing
+}
+
+const dismissWarning = (id: number) => {
+  const page = pages.value.find(p => p.id === id)
+  if (page) {
+    page.isWarningDismissed = true
+  }
 }
 
 const handleInput = (id: number, e: Event) => {
