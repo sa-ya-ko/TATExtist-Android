@@ -8,6 +8,7 @@ export interface Page {
 }
 
 const pages = ref<Page[]>([])
+const documentTitle = ref<string>('無題のドキュメント')
 const editor = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -17,10 +18,32 @@ const isUnderline = ref(false)
 const rubyModalVisible = ref(false)
 const currentFontSize = ref(12)
 const showFontSizeDropdown = ref(false)
+
+const layoutMode = ref<'auto' | 'manual'>('auto')
+const scrollStyle = ref<'paged' | 'continuous'>('paged')
+
+const setLayoutMode = (mode: 'auto' | 'manual') => {
+  if (layoutMode.value === mode) return
+  
+  if (mode === 'auto' && pages.value.length > 1) {
+    const mergedContent = pages.value.map(p => p.content).join('<br><br>')
+    pages.value = [{
+      id: pages.value[0].id,
+      content: mergedContent,
+      isOverflowing: false,
+      isWarningDismissed: false
+    }]
+  }
+  layoutMode.value = mode
+}
 const selectedColor = ref('#000000')
+
+const showRulers = ref(true)
 
 const paperSize = ref<'A4' | 'B5'>('A4')
 const margins = ref({ top: 30, bottom: 30, left: 30, right: 30 })
+
+const isDraggingRuler = ref<'left' | 'right' | 'top' | 'bottom' | null>(null)
 
 const MM_TO_PX = 3.78
 const paperDimensions = {
@@ -622,15 +645,56 @@ function handleFileRead(event: Event) {
     const reader = new FileReader()
     reader.onload = (e) => {
       let content = e.target?.result as string
+      
+      try {
+        const data = JSON.parse(content)
+        if (data.pages && data.version) {
+          pages.value = data.pages.map((p: any) => ({ ...p, id: Date.now() + Math.random() }))
+          if (data.documentTitle) documentTitle.value = data.documentTitle
+          if (data.paperSize) paperSize.value = data.paperSize
+          if (data.margins) margins.value = data.margins
+          localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+          target.value = ''
+          return
+        }
+      } catch (err) {
+        // Not a JSON file, or not our format. Fall through to text fallback.
+      }
+      
+      // Fallback for regular text files
       if (file.name.endsWith('.txt')) {
         content = content.replace(/\n/g, '<br>')
       }
       pages.value = [{ id: Date.now(), content }]
       localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+      
+      target.value = ''
     }
     reader.readAsText(file)
   }
   target.value = ''
+}
+
+function saveDocumentLocal() {
+  const data = {
+    documentTitle: documentTitle.value,
+    pages: pages.value,
+    paperSize: paperSize.value,
+    margins: margins.value,
+    version: '1.0'
+  }
+  
+  let fileName = documentTitle.value || '無題のドキュメント'
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${fileName}.tategaki`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 function exportDocument(format: 'pdf' | 'html' = 'pdf') {
@@ -663,6 +727,7 @@ export const useEditorState = () => {
   return {
     editor,
     pages,
+    documentTitle,
     initPages,
     fileInput,
     isBold,
@@ -672,6 +737,7 @@ export const useEditorState = () => {
     currentFontSize,
     showFontSizeDropdown,
     selectedColor,
+    showRulers,
     paperSize,
     margins,
     paperStyle,
@@ -681,6 +747,7 @@ export const useEditorState = () => {
     applyHeading,
     updateFakeSelection,
     removeFakeSelection,
+    isDraggingRuler,
     commitFontSize,
     handleFontSizeEnter,
     selectDropdownFontSize,
@@ -694,6 +761,12 @@ export const useEditorState = () => {
     triggerFileInput,
     handleFileRead,
     exportDocument,
-    handleKeyDown
+    saveDocumentLocal,
+    handleKeyDown,
+    layoutMode,
+    scrollStyle,
+    setLayoutMode,
+    MM_TO_PX,
+    paperDimensions
   }
 }

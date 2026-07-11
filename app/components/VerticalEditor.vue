@@ -8,17 +8,43 @@
       <!-- Sidebar Right (Page Setup) -->
       <EditorSidebar class="print:hidden" />
 
-      <!-- Editor Canvas (Vertical Scroll) -->
-      <div class="flex-1 flex flex-col items-center py-page-margin-y pr-sidebar-width pl-12 overflow-y-auto bg-surface print:overflow-visible print:block print:p-0 print:bg-white">
-        
-        <!-- Render each page -->
-        <div v-for="page in pages" :key="page.id" class="flex flex-col items-center mr-12 mb-12 print:m-0 print:block print:break-after-page">
+      <!-- Editor Canvas Area -->
+      <div class="flex-1 relative flex overflow-hidden">
+        <!-- Vertical Ruler (Fixed to the right of the canvas, left of the sidebar, manual mode only) -->
+        <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 z-40 print:hidden shadow-sm" style="right: 280px;" />
+
+        <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
+        <div ref="scrollContainer" 
+             class="flex-1 bg-surface print:overflow-visible print:block print:p-0 print:bg-white pr-sidebar-width"
+             :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-center' : 'overflow-y-auto'"
+             :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
+          
+          <!-- MANUAL MODE -->
+          <div v-if="layoutMode === 'manual'" class="flex flex-col items-center print:block py-page-margin-y print:py-0 print:pr-0 pl-12 print:pl-0 min-h-max print:min-h-0">
+            
+            <!-- Horizontal Ruler (Perfectly aligned with pages in manual mode) -->
+            <EditorRulerHorizontal class="print:hidden mb-4" />
+            
+            <!-- Render each page -->
+            <div v-for="(page, index) in pages" :key="page.id" 
+                 class="flex flex-col items-center mb-12 print:m-0 print:block relative"
+                 :class="{'print:break-after-page': index < pages.length - 1}">
           
           <!-- Content -->
-          <div class="manuscript-paper relative transition-all duration-300 bg-white border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden print:shadow-none print:border-none print:ring-0 print:!shadow-none" 
+          <div class="manuscript-paper relative transition-all duration-300 bg-white border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] overflow-visible print:shadow-none print:border-none print:ring-0 print:m-0 print:mx-auto print:overflow-hidden print:break-inside-avoid" 
                :class="{ 'ring-4 ring-red-500 !shadow-[0_0_15px_rgba(239,68,68,0.6)]': page.isOverflowing && !page.isWarningDismissed }"
                :style="paperStyle">
-            <div :ref="el => setEditorRef(page.id, el)"
+               
+            <!-- Margin Guide Lines -->
+            <div v-if="isDraggingRuler" class="absolute inset-0 pointer-events-none z-10 print:hidden">
+              <div v-if="isDraggingRuler === 'right'" class="absolute top-0 bottom-0 border-r-2 border-red-400 border-dashed" :style="{ right: `var(--margin-right)` }"></div>
+              <div v-if="isDraggingRuler === 'left'" class="absolute top-0 bottom-0 border-l-2 border-red-400 border-dashed" :style="{ left: `var(--margin-left)` }"></div>
+              <div v-if="isDraggingRuler === 'top'" class="absolute left-0 right-0 border-t-2 border-red-400 border-dashed" :style="{ top: `var(--margin-top)` }"></div>
+              <div v-if="isDraggingRuler === 'bottom'" class="absolute left-0 right-0 border-b-2 border-red-400 border-dashed" :style="{ bottom: `var(--margin-bottom)` }"></div>
+            </div>
+
+            <div
+                 :ref="el => setEditorRef(page.id, el)"
                  class="writing-vertical outline-none"
                  contenteditable="true"
                  dir="ltr"
@@ -27,7 +53,7 @@
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown"
                  style="font-family: serif; font-size: 16px; line-height: 1.8;">
-            </div>
+             </div>
           </div>
 
           <!-- Page Controls (Warning & Delete Button) -->
@@ -53,13 +79,42 @@
               ページを削除
             </button>
           </div>
+          </div>
+          
+          <button @click="addPage" class="mt-8 mb-12 px-6 py-3 bg-white border border-gray-300 rounded-lg shadow hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors print:hidden">
+            <span class="i-heroicons-plus text-xl"></span>
+            新しいページを追加
+          </button>
+          </div>
+          
+          <!-- AUTO PAGINATION MODE -->
+          <div v-else-if="layoutMode === 'auto' && pages[0]" 
+               class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] ml-12 my-auto w-max"
+               :class="scrollStyle === 'paged' ? 'bg-paged' : 'bg-continuous'"
+               :style="autoStripStyle"
+               dir="rtl">
+            
+            <!-- Margin Guide Lines for Auto Mode -->
+            <div v-if="isDraggingRuler" class="absolute inset-0 pointer-events-none z-10 print:hidden overflow-hidden">
+              <div v-if="isDraggingRuler === 'top'" class="absolute left-0 right-0 border-t-2 border-red-400 border-dashed" :style="{ top: `var(--margin-top)` }"></div>
+              <div v-if="isDraggingRuler === 'bottom'" class="absolute left-0 right-0 border-b-2 border-red-400 border-dashed" :style="{ bottom: `var(--margin-bottom)` }"></div>
+            </div>
+
+            <div
+                 :ref="el => setEditorRef(pages[0].id, el)"
+                 class="writing-vertical outline-none"
+                 contenteditable="true"
+                 dir="ltr"
+                 :data-page-id="pages[0].id"
+                 @focus="handleFocus($event.target)"
+                 @input="handleInput(pages[0].id, $event)"
+                 @keydown="handleKeyDown"
+                 :style="autoEditorStyle">
+            </div>
+          </div>
 
         </div>
 
-        <button @click="addPage" class="mb-12 px-6 py-3 bg-white border border-gray-300 rounded-lg shadow hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors print:hidden">
-          <span class="i-heroicons-plus text-xl"></span>
-          新しいページを追加
-        </button>
       </div>
     </main>
 
@@ -69,10 +124,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import EditorHeader from './EditorHeader.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import RubyModal from './RubyModal.vue'
+import EditorRulerHorizontal from './EditorRulerHorizontal.vue'
+import EditorRulerVertical from './EditorRulerVertical.vue'
+
+const scrollContainer = ref<HTMLElement | null>(null)
 
 const {
   editor,
@@ -82,6 +141,12 @@ const {
   rubyModalVisible,
   pageWidthPx,
   margins,
+  isDraggingRuler,
+  layoutMode,
+  scrollStyle,
+  paperDimensions,
+  paperSize,
+  MM_TO_PX,
   onInput,
   handleKeyDown,
   applyRuby,
@@ -107,6 +172,46 @@ const setEditorRef = (id: number, el: any) => {
   }
 }
 
+// Styles for Auto Mode Strip
+const autoStripStyle = computed(() => {
+  const dim = paperDimensions[paperSize.value]
+  const fullWidth = dim.width * MM_TO_PX
+  const fullHeight = dim.height * MM_TO_PX
+  const gap = 48 // 48px gap between pages
+  
+  const contentWidth = fullWidth - (margins.value.right * MM_TO_PX) - (margins.value.left * MM_TO_PX)
+  const columnGap = (margins.value.left * MM_TO_PX) + gap + (margins.value.right * MM_TO_PX)
+  
+  return {
+    writingMode: 'horizontal-tb',
+    height: `${fullHeight}px`,
+    minWidth: `${fullWidth}px`,
+    paddingTop: `${margins.value.top * MM_TO_PX}px`,
+    paddingRight: `${margins.value.right * MM_TO_PX}px`,
+    paddingBottom: `${margins.value.bottom * MM_TO_PX}px`,
+    paddingLeft: `${margins.value.left * MM_TO_PX}px`,
+    columnWidth: `${contentWidth}px`,
+    columnGap: `${columnGap}px`,
+    
+    '--paper-full-width': `${fullWidth}px`,
+    '--paper-gap': `${gap}px`,
+    '--margin-top': `${margins.value.top * MM_TO_PX}px`,
+    '--margin-right': `${margins.value.right * MM_TO_PX}px`,
+    '--margin-bottom': `${margins.value.bottom * MM_TO_PX}px`,
+    '--margin-left': `${margins.value.left * MM_TO_PX}px`
+  }
+})
+
+// Styles for the editable content inside Auto Mode Strip
+const autoEditorStyle = computed(() => {
+  return {
+    fontFamily: 'serif',
+    fontSize: '16px',
+    lineHeight: '1.8',
+    height: '100%',
+  }
+})
+
 const checkOverflow = (id: number, el: HTMLElement) => {
   const page = pages.value.find(p => p.id === id)
   if (!page) return
@@ -115,18 +220,25 @@ const checkOverflow = (id: number, el: HTMLElement) => {
   range.selectNodeContents(el)
   const rect = range.getBoundingClientRect()
   
-  const MM_TO_PX = 3.78
   const availableWidth = pageWidthPx.value - (margins.value.left + margins.value.right) * MM_TO_PX
   
   const isNowOverflowing = rect.width > availableWidth + 2
   
-  // 以前はあふれていたが、修正されて収まった場合は「×ボタンで消した」状態をリセットする
   if (page.isOverflowing && !isNowOverflowing) {
     page.isWarningDismissed = false
   }
   
   page.isOverflowing = isNowOverflowing
 }
+
+watch(() => margins.value, () => {
+  pages.value.forEach(page => {
+    const el = editorRefs.value[page.id]
+    if (el) {
+      checkOverflow(page.id, el)
+    }
+  })
+}, { deep: true })
 
 const dismissWarning = (id: number) => {
   const page = pages.value.find(p => p.id === id)
@@ -175,7 +287,6 @@ onUnmounted(() => {
 .manuscript-paper {
   height: var(--page-height);
   width: var(--page-width);
-  background-image: none !important;
 }
 
 .writing-vertical {
@@ -194,12 +305,7 @@ onUnmounted(() => {
 
 @media print {
   @page {
-    margin: 2cm; /* Set print margins natively so they apply to all printed pages */
-  }
-
-  /* 印刷時のみ発動する強力な非表示設定 */
-  .print-hidden, body .print-hidden {
-    display: none !important;
+    margin: 0; /* Remove browser margins so our manuscript-paper fills the page exactly */
   }
 
   /* スクロールバーや画面固定を解除し、全ページ印刷できるようにする */
@@ -210,35 +316,6 @@ onUnmounted(() => {
     background-color: white;
     margin: 0;
     padding: 0;
-  }
-  
-  /* エディタ親要素のパディング（サイドバーやツールバー分の余白）をリセット */
-  body main {
-    padding-top: 0 !important;
-  }
-  body .pr-sidebar-width {
-    padding-right: 0 !important;
-  }
-  body .py-page-margin-y {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-  }
-  
-  /* 影や枠線を消し、紙に綺麗に収める */
-  body .manuscript-paper {
-    background-image: none !important;
-    padding: 0 !important;
-    height: auto !important;
-    min-height: 0 !important;
-    width: auto !important;
-    min-width: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-  
-  /* 段組みを解除して自然な改ページを促す */
-  body .writing-vertical {
-    height: auto !important;
   }
 }
 
@@ -268,5 +345,24 @@ ruby {
 }
 rt {
   font-size: 0.5em;
+}
+
+/* CSS for the Auto Pagination Backgrounds */
+.bg-paged {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to left,
+    white 0,
+    white calc(var(--paper-full-width) - 1px),
+    #d1d5db calc(var(--paper-full-width) - 1px), /* 1px gray border */
+    #d1d5db var(--paper-full-width),
+    transparent var(--paper-full-width),
+    transparent calc(var(--paper-full-width) + var(--paper-gap))
+  );
+  background-position: right top;
+}
+
+.bg-continuous {
+  background-color: white;
 }
 </style>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+  <div id="app">
+    <button @click="loadData">Load Data</button>
+    <div v-for="page in pages" :key="page.id" style="border: 1px solid black; margin: 10px;">
+      <div v-once :ref="el => setRef(page.id, el)"></div>
+    </div>
+  </div>
+  <script>
+    const { createApp, ref } = Vue
+    createApp({
+      setup() {
+        const pages = ref([
+          { id: 1, content: 'Page 1' }
+        ])
+        
+        const setRef = (id, el) => {
+          if (el) {
+            console.log('setRef called for id:', id, el)
+            const page = pages.value.find(p => p.id === id)
+            if (page) {
+              el.innerHTML = page.content
+              console.log('Set innerHTML to:', page.content)
+            }
+          }
+        }
+        
+        const loadData = () => {
+          pages.value = [
+            { id: 10, content: 'Loaded Page A' },
+            { id: 20, content: 'Loaded Page B' }
+          ]
+        }
+        
+        return { pages, setRef, loadData }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>

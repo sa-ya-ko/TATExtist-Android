@@ -4,10 +4,28 @@
           <div>
               <h2 class="font-sidebar-header text-sidebar-header text-on-surface mb-4">ページ設定</h2>
               <div class="space-y-6">
+                  <!-- Layout Mode -->
+                  <div class="flex flex-col gap-sm border-b border-outline-variant pb-4">
+                      <label class="text-[10px] uppercase font-bold text-outline">レイアウト</label>
+                      <select :value="layoutMode" @change="setLayoutMode($event.target.value)" class="w-full bg-white border-b border-outline-variant focus:border-primary focus:ring-0 text-ui-label-md py-2 pl-2 pr-8">
+                          <option value="auto">横にページを追加(自動改ページ)</option>
+                          <option value="manual">縦にページを追加(手動改ページ)</option>
+                      </select>
+                  </div>
+
+                  <!-- Scroll Style (Only shown in auto mode) -->
+                  <div v-if="layoutMode === 'auto'" class="flex flex-col gap-sm border-b border-outline-variant pb-4">
+                      <label class="text-[10px] uppercase font-bold text-outline">見た目</label>
+                      <select v-model="scrollStyle" class="w-full bg-white border-b border-outline-variant focus:border-primary focus:ring-0 text-ui-label-md py-2 pl-2 pr-8">
+                          <option value="paged">分割ページ</option>
+                          <option value="continuous">巻物</option>
+                      </select>
+                  </div>
+
                   <!-- Paper Size -->
                   <div class="flex flex-col gap-sm">
                       <label class="text-[10px] uppercase font-bold text-outline">用紙サイズ</label>
-                      <select v-model="paperSize" class="w-full bg-white border-b border-outline-variant focus:border-primary focus:ring-0 text-ui-label-md py-2 px-0">
+                      <select v-model="paperSize" class="w-full bg-white border-b border-outline-variant focus:border-primary focus:ring-0 text-ui-label-md py-2 pl-2 pr-8">
                           <option value="A4">A4 (210 x 297 mm)</option>
                           <option value="B5">B5 (182 x 257 mm)</option>
                       </select>
@@ -36,8 +54,15 @@
                   </div>
                   <!-- Structure Section -->
                   <div class="pt-4 border-t border-outline-variant">
-                      <h3 class="font-sidebar-header text-sidebar-header text-on-surface mb-2">ドキュメントの構造</h3>
+                      <h3 class="font-sidebar-header text-sidebar-header text-on-surface mb-2">表示設定</h3>
                       <div class="flex flex-col gap-sm">
+                          <label class="flex items-center gap-2 p-2 rounded transition-colors"
+                                 :class="layoutMode === 'auto' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white cursor-pointer group'">
+                              <input type="checkbox" v-model="showRulers" :disabled="layoutMode === 'auto'" 
+                                     class="rounded border-outline-variant text-primary focus:ring-primary"
+                                     :class="{'cursor-not-allowed': layoutMode === 'auto'}">
+                              <span class="text-ui-label-md">ルーラーを表示</span>
+                          </label>
                           <div class="flex items-center gap-2 p-2 hover:bg-white rounded transition-colors cursor-pointer group">
                               <span class="material-symbols-outlined text-outline group-hover:text-primary" data-icon="account_tree">account_tree</span>
                               <span class="text-ui-label-md">アウトラインを表示</span>
@@ -73,5 +98,7 @@
 // Note: @change handlers for updateMargins and updatePaperSize were removed
 // because Vue v-model already handles updating the reactive state, and the
 // empty functions were causing warnings.
-const { paperSize, margins } = useEditorState()
+import { useEditorState } from '../composables/useEditorState'
+
+const { paperSize, margins, showRulers, layoutMode, scrollStyle, setLayoutMode } = useEditorState()
 </script>
