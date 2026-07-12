@@ -11,7 +11,7 @@
       <!-- Editor Canvas Area -->
       <div class="flex-1 relative flex overflow-hidden">
         <!-- Vertical Ruler (Fixed to the right of the canvas, left of the sidebar, manual mode only) -->
-        <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 z-40 print:hidden shadow-sm" style="right: 280px;" />
+        <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 z-40 print:hidden shadow-sm" style="right: var(--spacing-sidebar-width);" />
 
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
@@ -87,22 +87,26 @@
           </button>
           </div>
           
-          <!-- AUTO PAGINATION MODE -->
           <div v-else-if="layoutMode === 'auto' && pages[0]" 
                class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] ml-12 my-auto w-max"
-               :class="scrollStyle === 'paged' ? 'bg-paged' : 'bg-continuous'"
                :style="autoStripStyle"
                dir="rtl">
             
+            <!-- BACKGROUND PAGES LAYER -->
+            <div class="absolute right-0 top-0 bottom-0 pointer-events-none"
+                 :class="scrollStyle === 'paged' ? 'bg-paged' : 'bg-continuous'"
+                 :style="{ width: `${autoStripStyle.minWidth}` }"></div>
+            
             <!-- Margin Guide Lines for Auto Mode -->
-            <div v-if="isDraggingRuler" class="absolute inset-0 pointer-events-none z-10 print:hidden overflow-hidden">
+            <div v-if="isDraggingRuler" class="absolute right-0 top-0 bottom-0 pointer-events-none z-10 print:hidden overflow-hidden" :style="{ width: `${autoStripStyle.minWidth}` }">
               <div v-if="isDraggingRuler === 'top'" class="absolute left-0 right-0 border-t-2 border-red-400 border-dashed" :style="{ top: `var(--margin-top)` }"></div>
               <div v-if="isDraggingRuler === 'bottom'" class="absolute left-0 right-0 border-b-2 border-red-400 border-dashed" :style="{ bottom: `var(--margin-bottom)` }"></div>
             </div>
 
+            <!-- TEXT EDITOR LAYER -->
             <div
                  :ref="el => setEditorRef(pages[0].id, el)"
-                 class="writing-vertical outline-none"
+                 class="writing-vertical outline-none relative z-20"
                  contenteditable="true"
                  dir="ltr"
                  :data-page-id="pages[0].id"
@@ -132,6 +136,24 @@ import EditorRulerHorizontal from './EditorRulerHorizontal.vue'
 import EditorRulerVertical from './EditorRulerVertical.vue'
 
 const scrollContainer = ref<HTMLElement | null>(null)
+const autoTextWidthPx = ref(0)
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.target.scrollWidth !== autoTextWidthPx.value) {
+          autoTextWidthPx.value = entry.target.scrollWidth
+        }
+      }
+    })
+  }
+})
+
+onUnmounted(() => {
+  if (resizeObserver) resizeObserver.disconnect()
+})
 
 const {
   editor,
@@ -169,46 +191,56 @@ const setEditorRef = (id: number, el: any) => {
         editor.value = el
       }
     }
+    
+    if (layoutMode.value === 'auto' && id === pages.value[0]?.id && resizeObserver) {
+      resizeObserver.observe(el as HTMLElement)
+      if (el.scrollWidth !== autoTextWidthPx.value) {
+        autoTextWidthPx.value = el.scrollWidth
+      }
+    }
   }
 }
 
-// Styles for Auto Mode Strip
+// Styles for Auto Mode Strip (Container)
 const autoStripStyle = computed(() => {
   const dim = paperDimensions[paperSize.value]
   const fullWidth = dim.width * MM_TO_PX
   const fullHeight = dim.height * MM_TO_PX
-  const gap = 48 // 48px gap between pages
   
   const contentWidth = fullWidth - (margins.value.right * MM_TO_PX) - (margins.value.left * MM_TO_PX)
-  const columnGap = (margins.value.left * MM_TO_PX) + gap + (margins.value.right * MM_TO_PX)
+  const textW = autoTextWidthPx.value || contentWidth
+  const pageCount = Math.max(1, Math.ceil(textW / contentWidth))
+  const totalWidth = pageCount * fullWidth
   
   return {
     writingMode: 'horizontal-tb',
+    position: 'relative',
+    display: 'block',
     height: `${fullHeight}px`,
-    minWidth: `${fullWidth}px`,
-    paddingTop: `${margins.value.top * MM_TO_PX}px`,
-    paddingRight: `${margins.value.right * MM_TO_PX}px`,
-    paddingBottom: `${margins.value.bottom * MM_TO_PX}px`,
-    paddingLeft: `${margins.value.left * MM_TO_PX}px`,
-    columnWidth: `${contentWidth}px`,
-    columnGap: `${columnGap}px`,
+    width: 'max-content',
+    minWidth: `${totalWidth}px`,
     
     '--paper-full-width': `${fullWidth}px`,
-    '--paper-gap': `${gap}px`,
-    '--margin-top': `${margins.value.top * MM_TO_PX}px`,
-    '--margin-right': `${margins.value.right * MM_TO_PX}px`,
-    '--margin-bottom': `${margins.value.bottom * MM_TO_PX}px`,
-    '--margin-left': `${margins.value.left * MM_TO_PX}px`
   }
 })
 
-// Styles for the editable content inside Auto Mode Strip
+// Styles for the editable content inside Auto Mode Strip (Text Layer)
 const autoEditorStyle = computed(() => {
+  const dim = paperDimensions[paperSize.value]
+  const fullHeight = dim.height * MM_TO_PX
+  
   return {
     fontFamily: 'serif',
     fontSize: '16px',
     lineHeight: '1.8',
-    height: '100%',
+    height: `${fullHeight}px`,
+    width: 'max-content',
+    direction: 'ltr',
+    position: 'relative',
+    paddingTop: `${margins.value.top * MM_TO_PX}px`,
+    paddingRight: `${margins.value.right * MM_TO_PX}px`,
+    paddingBottom: `${margins.value.bottom * MM_TO_PX}px`,
+    paddingLeft: `${margins.value.left * MM_TO_PX}px`,
   }
 })
 
@@ -349,15 +381,13 @@ rt {
 
 /* CSS for the Auto Pagination Backgrounds */
 .bg-paged {
-  background-color: transparent;
+  background-color: white;
   background-image: repeating-linear-gradient(
     to left,
-    white 0,
-    white calc(var(--paper-full-width) - 1px),
-    #d1d5db calc(var(--paper-full-width) - 1px), /* 1px gray border */
-    #d1d5db var(--paper-full-width),
-    transparent var(--paper-full-width),
-    transparent calc(var(--paper-full-width) + var(--paper-gap))
+    transparent 0,
+    transparent calc(var(--paper-full-width) - 1px),
+    #e2e8f0 calc(var(--paper-full-width) - 1px), /* 1px very light slate-200 border */
+    #e2e8f0 var(--paper-full-width)
   );
   background-position: right top;
 }
