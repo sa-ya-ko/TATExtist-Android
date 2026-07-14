@@ -23,6 +23,17 @@ const selectedColor = ref('#000000')
 const currentEditorPageId = ref<string | null>(null)
 const indentSize = ref(2)
 
+export const fontOptions = [
+  { label: 'Noto Serif JP (明朝)', value: '"Noto Serif JP", serif' },
+  { label: 'Noto Sans JP (ゴシック)', value: '"Noto Sans JP", sans-serif' },
+  { label: 'しっぽり明朝', value: '"Shippori Mincho", serif' },
+  { label: 'クレー (手書き風)', value: '"Klee One", cursive' },
+  { label: 'Zen角ゴシック', value: '"Zen Kaku Gothic New", sans-serif' },
+  { label: '游明朝 (標準明朝)', value: '"Yu Mincho", "YuMincho", serif' },
+  { label: '游ゴシック (標準ゴシック)', value: '"Yu Gothic", "YuGothic", sans-serif' }
+]
+const currentFontFamily = ref('"Noto Serif JP", serif')
+
 const layoutMode = ref<'auto' | 'manual'>('auto')
 const scrollStyle = ref<'paged' | 'continuous'>('paged')
 
@@ -877,6 +888,8 @@ export const useEditorState = () => {
     selectedColor,
     currentEditorPageId,
     indentSize,
+    currentFontFamily,
+    fontOptions,
     showRulers,
     paperSize,
     margins,

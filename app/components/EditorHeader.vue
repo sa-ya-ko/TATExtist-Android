@@ -17,13 +17,14 @@
                   </button>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
                   <!-- Font Name -->
-                  <select @change="execCommand('fontName', ($event.target as HTMLSelectElement).value)" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
-                    <option value="serif">明朝体</option>
-                    <option value="sans-serif">ゴシック体</option>
+                  <select @change="execCommand('fontName', ($event.target as HTMLSelectElement).value)" @focus="updateFakeSelection" @blur="removeFakeSelection" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
+                    <option v-for="font in fontOptions" :key="font.value" :value="font.value" :style="{ fontFamily: font.value }">
+                        {{ font.label }}
+                    </option>
                   </select>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
                   <!-- Heading -->
-                  <select @change="applyHeading(($event.target as HTMLSelectElement).value)" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
+                  <select @change="applyHeading(($event.target as HTMLSelectElement).value)" @focus="updateFakeSelection" @blur="removeFakeSelection" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
                       <option value="P">標準テキスト</option>
                       <option value="H1">タイトル</option>
                       <option value="H2">見出し 1</option>
@@ -131,6 +132,8 @@ const {
   updateFakeSelection,
   removeFakeSelection,
   customIndent,
-  customOutdent
+  customOutdent,
+  currentFontFamily,
+  fontOptions
 } = useEditorState()
 </script>

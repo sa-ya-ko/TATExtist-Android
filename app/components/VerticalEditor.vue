@@ -52,7 +52,7 @@
                  @focus="handleFocus($event.target)"
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown"
-                 style="font-family: serif; font-size: 16px; line-height: 1.8;">
+                 style="font-size: 16px; line-height: 1.8; font-family: 'Noto Serif JP', serif;">
              </div>
           </div>
 
@@ -173,7 +173,8 @@ const {
   handleKeyDown,
   applyRuby,
   removeRuby,
-  updateSelection
+  updateSelection,
+  currentFontFamily
 } = useEditorState()
 
 const editorRefs = ref<Record<number, HTMLElement>>({})
