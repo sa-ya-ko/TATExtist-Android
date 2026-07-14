@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  .scrollContainer {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    align-items: center;
+    background: #ccc;
+    direction: rtl; /* RTL scroll */
+  }
+  .strip {
+    height: 500px;
+    background: white;
+    width: max-content;
+    min-width: 1000px;
+    direction: ltr; /* Safari shield! */
+    display: flex;
+    justify-content: flex-end;
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 100%;
+    direction: ltr; /* Reset text direction to avoid Safari bugs */
+  }
+</style>
+</head>
+<body>
+  <div class="scrollContainer" id="scroll">
+    <div class="strip">
+      <div class="editor" id="ed" contenteditable="true">
+        あいうえお<br>かきくけこ
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  .scroll-container {
+    flex: 1;
+    overflow: auto;
+    direction: rtl; /* Scroll starts at right */
+    background: #ccc;
+  }
+  .strip {
+    height: 500px;
+    background: white;
+    margin: 50px;
+    width: max-content;
+    min-width: 1000px;
+    direction: ltr; /* RESET DIRECTION to avoid text bugs! */
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 100%;
+    /* No direction here, inherits ltr from strip */
+  }
+</style>
+</head>
+<body>
+  <div class="scroll-container">
+    <div class="strip">
+      <div class="editor" id="ed" contenteditable="true">
+        あいうえお<br>かきくけこ
+      </div>
+    </div>
+  </div>
+</body>
+</html>

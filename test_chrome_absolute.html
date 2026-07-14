@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  .scrollContainer {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    align-items: center;
+    background: #ccc;
+    direction: rtl; /* RTL scroll */
+  }
+  .flex-col-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-width: max-content;
+    padding: 50px;
+    direction: ltr; /* Reset to LTR for the children! */
+  }
+  .strip {
+    height: 500px;
+    background: white;
+    min-width: 1000px;
+    position: relative; /* Anchor for absolute child */
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 100%;
+    direction: ltr;
+    position: absolute;
+    right: 0; /* Always anchor to right */
+    top: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="scrollContainer" id="scroll">
+    <div class="flex-col-wrapper">
+      <div class="strip" id="strip">
+        <div class="editor" id="ed" contenteditable="true">
+          あいうえお<br>かきくけこ
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    setTimeout(() => {
+      const ed = document.getElementById('ed');
+      let text = '';
+      for(let i=0; i<100; i++) text += 'あいうえお<br>かきくけこ<br>';
+      ed.innerHTML = text;
+      
+      setTimeout(() => {
+        // Change parent min-width dynamically
+        document.getElementById('strip').style.minWidth = "3000px";
+      }, 500);
+    }, 500);
+  </script>
+</body>
+</html>

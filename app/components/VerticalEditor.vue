@@ -371,6 +371,17 @@ onUnmounted(() => {
   content: '\200B'; /* Zero-width space */
 }
 
+/* List styling */
+.writing-vertical ul {
+  list-style-type: disc;
+  padding-inline-start: 2em; /* Indent from top */
+  margin-block-start: 0.5em;
+  margin-block-end: 0.5em;
+}
+.writing-vertical li {
+  margin-inline-end: 0.2em;
+}
+
 /* Fix ruby alignment */
 ruby {
   ruby-align: center;

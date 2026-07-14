@@ -63,6 +63,15 @@
                                      :class="{'cursor-not-allowed': layoutMode === 'auto'}">
                               <span class="text-ui-label-md">ルーラーを表示</span>
                           </label>
+                          <div class="flex items-center gap-2 p-2 hover:bg-white rounded transition-colors group">
+                              <label class="flex items-center gap-2 flex-1">
+                                  <span class="text-ui-label-md">字下げ幅</span>
+                              </label>
+                              <div class="flex items-center gap-1">
+                                  <input type="number" v-model.number="indentSize" min="0" max="10" class="w-12 bg-white border-b border-outline-variant focus:border-primary focus:ring-0 text-ui-label-md py-0.5 px-1 text-center">
+                                  <span class="text-[10px] text-outline">文字</span>
+                              </div>
+                          </div>
                           <div class="flex items-center gap-2 p-2 hover:bg-white rounded transition-colors cursor-pointer group">
                               <span class="material-symbols-outlined text-outline group-hover:text-primary" data-icon="account_tree">account_tree</span>
                               <span class="text-ui-label-md">アウトラインを表示</span>
@@ -100,5 +109,13 @@
 // empty functions were causing warnings.
 import { useEditorState } from '../composables/useEditorState'
 
-const { paperSize, margins, showRulers, layoutMode, scrollStyle, setLayoutMode } = useEditorState()
+const {
+  paperSize,
+  margins,
+  showRulers,
+  layoutMode,
+  scrollStyle,
+  setLayoutMode,
+  indentSize
+} = useEditorState()
 </script>

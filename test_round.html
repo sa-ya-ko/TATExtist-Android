@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .box {
+    background: lightblue;
+    /* Round up max-content to the nearest multiple of 100px */
+    width: round(up, max-content, 100px);
+    height: 50px;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="box">50px text</div>
+  <div class="box">120px text which is longer</div>
+  <div class="box">250px text which is even longer and should round up to 300px</div>
+</body>
+</html>

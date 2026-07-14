@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 50px; background: #ccc; }
+  .strip {
+    writing-mode: horizontal-tb;
+    height: 500px;
+    column-width: 400px;
+    column-gap: 50px;
+    direction: rtl; /* RTL for columns right-to-left */
+    background: white;
+    width: max-content;
+    min-width: 1300px; /* 3 pages wide */
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 100%;
+    /* Inherits dir="rtl" ! */
+    background: yellow;
+  }
+</style>
+</head>
+<body>
+  <div class="strip">
+    <div class="editor" id="ed"></div>
+  </div>
+  <script>
+    const ed = document.getElementById('ed');
+    let text = '';
+    for(let i=0; i<100; i++) text += 'あいうえお<br>かきくけこ<br>';
+    ed.innerHTML = text;
+  </script>
+</body>
+</html>

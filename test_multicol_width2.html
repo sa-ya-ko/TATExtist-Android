@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 50px; }
+  .multicol-container {
+    writing-mode: horizontal-tb;
+    direction: rtl;
+    column-width: 400px;
+    column-gap: 50px;
+    height: 500px; 
+    background: #e0e0e0;
+    width: max-content; 
+  }
+  .content {
+    writing-mode: vertical-rl;
+    direction: ltr; 
+    height: 100%; 
+  }
+</style>
+</head>
+<body>
+  <div class="multicol-container" id="cont">
+    <div class="content" id="editor">
+    </div>
+  </div>
+  <script>
+    const ed = document.getElementById('editor');
+    let text = '';
+    // 500px height. 16px font -> ~31 chars per line. 400px width -> ~25 lines. 1 col = ~775 chars.
+    // Let's add ~1200 chars to fill 1.5 columns.
+    for(let i=0; i<1200; i++) text += 'あ';
+    ed.innerHTML = text;
+    console.log("Width with 1.5 cols:", document.getElementById('cont').getBoundingClientRect().width);
+  </script>
+</body>
+</html>

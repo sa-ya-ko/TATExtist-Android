@@ -15,9 +15,13 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const isBold = ref(false)
 const isItalic = ref(false)
 const isUnderline = ref(false)
+const isList = ref(false)
 const rubyModalVisible = ref(false)
 const currentFontSize = ref(12)
 const showFontSizeDropdown = ref(false)
+const selectedColor = ref('#000000')
+const currentEditorPageId = ref<string | null>(null)
+const indentSize = ref(2)
 
 const layoutMode = ref<'auto' | 'manual'>('auto')
 const scrollStyle = ref<'paged' | 'continuous'>('paged')
@@ -36,7 +40,6 @@ const setLayoutMode = (mode: 'auto' | 'manual') => {
   }
   layoutMode.value = mode
 }
-const selectedColor = ref('#000000')
 
 const showRulers = ref(true)
 
@@ -110,6 +113,7 @@ function updateSelection() {
           isBold.value = comp.fontWeight === 'bold' || parseInt(comp.fontWeight) >= 700
           isItalic.value = comp.fontStyle === 'italic'
           isUnderline.value = comp.textDecoration.includes('underline') || document.queryCommandState('underline')
+          isList.value = !!parent.closest('ul') || document.queryCommandState('insertUnorderedList')
           
           const fontSizeMatch = comp.fontSize.match(/(\d+(?:\.\d+)?)(px|pt)/)
           if (fontSizeMatch) {
@@ -132,6 +136,7 @@ function updateSelection() {
         isBold.value = document.queryCommandState('bold')
         isItalic.value = document.queryCommandState('italic')
         isUnderline.value = document.queryCommandState('underline')
+        isList.value = document.queryCommandState('insertUnorderedList')
       }
     }
   }
@@ -264,6 +269,88 @@ function execCommand(command: string, value: string | undefined = undefined) {
   document.execCommand(command, false, value)
   editor.value?.focus()
   updateSelection()
+}
+
+function updateSelectionState() {
+  updateSelection()
+  onInput()
+}
+
+function getClosestBlockElement(node: Node | null): HTMLElement | null {
+  if (!node) return null;
+  let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+  while (element) {
+    if (element.classList?.contains('bg-white') || element.getAttribute('contenteditable') === 'true') break;
+    const tagName = element.tagName.toLowerCase();
+    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
+      return element;
+    }
+    element = element.parentElement;
+  }
+  return null;
+}
+
+function getBlocksInRange(range: Range): HTMLElement[] {
+  const blocks = new Set<HTMLElement>();
+  const ancestor = range.commonAncestorContainer;
+  const ancestorEl = ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentElement : ancestor as HTMLElement;
+  
+  const closestBlock = getClosestBlockElement(ancestorEl);
+  if (closestBlock) {
+    blocks.add(closestBlock);
+    return Array.from(blocks);
+  }
+  
+  const walker = document.createTreeWalker(ancestorEl, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (node: Element) => {
+      const tagName = node.tagName.toLowerCase();
+      if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
+        if (range.intersectsNode(node)) {
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+      return NodeFilter.FILTER_SKIP;
+    }
+  });
+  
+  while (walker.nextNode()) {
+    blocks.add(walker.currentNode as HTMLElement);
+  }
+  
+  return Array.from(blocks);
+}
+
+function customIndent() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  const blocks = getBlocksInRange(range);
+  
+  blocks.forEach(block => {
+    const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
+    block.style.paddingInlineStart = `${currentPadding + indentSize.value}em`;
+  });
+  
+  updateSelectionState();
+}
+
+function customOutdent() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  const blocks = getBlocksInRange(range);
+  
+  blocks.forEach(block => {
+    const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
+    const newPadding = Math.max(0, currentPadding - indentSize.value);
+    if (newPadding > 0) {
+      block.style.paddingInlineStart = `${newPadding}em`;
+    } else {
+      block.style.paddingInlineStart = '';
+    }
+  });
+  
+  updateSelectionState();
 }
 
 function applyHeading(blockTag: string) {
@@ -718,6 +805,56 @@ function handleKeyDown(e: KeyboardEvent) {
     if (e.isComposing) return
     e.preventDefault()
     document.execCommand('insertText', false, '\n')
+    return
+  }
+
+  if (e.key === 'Backspace' && !e.isComposing) {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    
+    if (range.collapsed) {
+      const ancestor = range.commonAncestorContainer;
+      const block = getClosestBlockElement(ancestor);
+      
+      if (block) {
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(block);
+        preCaretRange.setEnd(range.startContainer, range.startOffset);
+        const textBefore = preCaretRange.toString();
+        
+        if (textBefore.length === 0) {
+          if (block.tagName.toLowerCase() === 'li') {
+            e.preventDefault();
+            const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
+            document.execCommand('outdent', false, undefined);
+            
+            const newSel = window.getSelection();
+            if (newSel && newSel.rangeCount > 0) {
+              const newBlock = getClosestBlockElement(newSel.anchorNode);
+              if (newBlock && newBlock.tagName.toLowerCase() !== 'li') {
+                newBlock.style.paddingInlineStart = `${currentPadding + 1.5}em`;
+              }
+            }
+            updateSelectionState();
+            return;
+          } else {
+            const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
+            if (currentPadding > 0) {
+              e.preventDefault();
+              const newPadding = Math.max(0, currentPadding - indentSize.value);
+              if (newPadding > 0) {
+                block.style.paddingInlineStart = `${newPadding}em`;
+              } else {
+                block.style.paddingInlineStart = '';
+              }
+              updateSelectionState();
+              return;
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -733,10 +870,13 @@ export const useEditorState = () => {
     isBold,
     isItalic,
     isUnderline,
+    isList,
     rubyModalVisible,
     currentFontSize,
     showFontSizeDropdown,
     selectedColor,
+    currentEditorPageId,
+    indentSize,
     showRulers,
     paperSize,
     margins,
@@ -744,6 +884,8 @@ export const useEditorState = () => {
     pageWidthPx,
     updateSelection,
     execCommand,
+    customIndent,
+    customOutdent,
     applyHeading,
     updateFakeSelection,
     removeFakeSelection,

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  .scroll-container {
+    flex: 1;
+    overflow: auto;
+    background: #ccc;
+    direction: rtl; /* Scroll container is RTL */
+  }
+  .flex-col-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-width: max-content;
+    padding: 50px;
+    direction: ltr; /* Reset to LTR for the children! */
+  }
+  .strip {
+    height: 500px;
+    background: white;
+    width: max-content;
+    min-width: 1000px;
+    
+    /* Align editor to the right! */
+    display: flex;
+    justify-content: flex-end;
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 100%;
+    /* direction is inherently LTR */
+  }
+</style>
+</head>
+<body>
+  <div class="scroll-container" id="scroll">
+    <div class="flex-col-wrapper">
+      <div class="strip">
+        <div class="editor" id="ed" contenteditable="true">
+          あいうえお<br>かきくけこ
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

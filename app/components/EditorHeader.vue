@@ -66,6 +66,16 @@
                   <button @mousedown.prevent="execCommand('underline')" :class="['p-2 transition-colors rounded', isUnderline ? 'bg-primary/10 text-primary' : 'hover:bg-surface-container-low']" title="傍線（下線）">
                       <span class="material-symbols-outlined" data-icon="format_underlined">format_underlined</span>
                   </button>
+                  <div class="w-px h-6 bg-outline-variant mx-1"></div>
+                  <button @mousedown.prevent="execCommand('insertUnorderedList')" :class="['p-2 transition-colors rounded', isList ? 'bg-primary/10 text-primary' : 'hover:bg-surface-container-low']" title="箇条書き">
+                      <span class="material-symbols-outlined" data-icon="format_list_bulleted">format_list_bulleted</span>
+                  </button>
+                  <button @mousedown.prevent="customOutdent" class="p-2 transition-colors rounded hover:bg-surface-container-low" title="インデントを減らす（字上げ）">
+                      <span class="material-symbols-outlined" data-icon="format_indent_decrease">format_indent_decrease</span>
+                  </button>
+                  <button @mousedown.prevent="customIndent" class="p-2 transition-colors rounded hover:bg-surface-container-low" title="インデントを増やす（字下げ）">
+                      <span class="material-symbols-outlined" data-icon="format_indent_increase">format_indent_increase</span>
+                  </button>
                   <div class="relative flex items-center p-2 hover:bg-surface-container-low transition-colors rounded cursor-pointer" title="文字色">
                       <span class="material-symbols-outlined text-primary" data-icon="format_color_text">format_color_text</span>
                       <input type="color" v-model="selectedColor" @input="applyColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
@@ -99,6 +109,7 @@ const {
   isBold,
   isItalic,
   isUnderline,
+  isList,
   currentFontSize,
   showFontSizeDropdown,
   selectedColor,
@@ -118,6 +129,8 @@ const {
   exportDocument,
   saveDocumentLocal,
   updateFakeSelection,
-  removeFakeSelection
+  removeFakeSelection,
+  customIndent,
+  customOutdent
 } = useEditorState()
 </script>

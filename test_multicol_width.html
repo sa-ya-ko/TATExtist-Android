@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 50px; }
+  .multicol-container {
+    writing-mode: horizontal-tb;
+    direction: rtl;
+    column-width: 400px;
+    column-gap: 50px;
+    height: 500px; 
+    background: #e0e0e0;
+    width: max-content; /* TEST THIS */
+  }
+  .content {
+    writing-mode: vertical-rl;
+    direction: ltr; 
+    height: 100%; 
+  }
+</style>
+</head>
+<body>
+  <div class="multicol-container" id="cont">
+    <div class="content" id="editor">
+    </div>
+  </div>
+  <script>
+    const ed = document.getElementById('editor');
+    let text = '';
+    for(let i=0; i<5000; i++) text += 'あいうえお';
+    ed.innerHTML = text;
+    console.log("Width with huge text:", document.getElementById('cont').getBoundingClientRect().width);
+  </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  .strip {
+    height: 500px;
+    background: white;
+    width: max-content;
+    min-width: 1000px;
+    display: block;
+    text-align: right;
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 100%;
+    direction: ltr;
+    display: inline-block;
+    text-align: left;
+  }
+</style>
+</head>
+<body>
+  <div class="strip" id="strip">
+    <div class="editor" id="ed" contenteditable="true">
+      あいうえお<br>かきくけこ
+    </div>
+  </div>
+  <script>
+    setTimeout(() => {
+      const ed = document.getElementById('ed');
+      let text = '';
+      for(let i=0; i<100; i++) text += 'あいうえお<br>かきくけこ<br>';
+      ed.innerHTML = text;
+      
+      setTimeout(() => {
+        // Change parent min-width dynamically
+        document.getElementById('strip').style.minWidth = "2000px";
+      }, 500);
+    }, 500);
+  </script>
+</body>
+</html>

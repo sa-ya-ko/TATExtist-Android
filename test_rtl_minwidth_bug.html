@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; display: flex; height: 100vh; background: #333; }
+  .scrollContainer {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: #ccc;
+    direction: rtl; /* RTL scroll */
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .content-wrapper {
+    display: block;
+    height: 500px;
+    min-width: 1000px;
+    position: relative;
+    direction: rtl; /* Force child to grow left */
+    background: rgba(255,0,0,0.2);
+  }
+  .editor {
+    writing-mode: vertical-rl;
+    height: 500px;
+    direction: ltr;
+    position: relative;
+    z-index: 2;
+    padding: 50px;
+    font-size: 16px;
+    line-height: 1.8;
+    outline: none;
+    background: transparent;
+  }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div class="scrollContainer" id="scroll">
+      <div class="content-wrapper" id="strip">
+        <div class="editor" id="ed" contenteditable="true">
+          あいうえお<br>かきくけこ
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    setTimeout(() => {
+      const ed = document.getElementById('ed');
+      let text = '';
+      for(let i=0; i<100; i++) text += 'あいうえお<br>かきくけこ<br>';
+      ed.innerHTML = text;
+      
+      setTimeout(() => {
+        document.getElementById('strip').style.minWidth = "3000px";
+      }, 500);
+    }, 500);
+  </script>
+</body>
+</html>
