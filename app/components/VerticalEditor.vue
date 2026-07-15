@@ -172,6 +172,7 @@ const {
   handleKeyDown,
   applyRuby,
   removeRuby,
+  closeRubyModal,
   updateSelection,
   currentFontFamily
 } = useEditorState()

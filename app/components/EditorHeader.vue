@@ -17,14 +17,14 @@
                   </button>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
                   <!-- Font Name -->
-                  <select @change="execCommand('fontName', ($event.target as HTMLSelectElement).value)" @focus="updateFakeSelection" @blur="removeFakeSelection" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
+                  <select v-model="currentFontFamily" @change="execCommand('fontName', ($event.target as HTMLSelectElement).value)" @focus="updateFakeSelection" @blur="removeFakeSelection" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
                     <option v-for="font in fontOptions" :key="font.value" :value="font.value" :style="{ fontFamily: font.value }">
                         {{ font.label }}
                     </option>
                   </select>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
                   <!-- Heading -->
-                  <select @change="applyHeading(($event.target as HTMLSelectElement).value)" @focus="updateFakeSelection" @blur="removeFakeSelection" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
+                  <select v-model="currentHeading" @change="applyHeading(($event.target as HTMLSelectElement).value)" @focus="updateFakeSelection" @blur="removeFakeSelection" class="bg-transparent border-none text-ui-label-md font-ui-label-md focus:ring-0 pr-8">
                       <option value="P">標準テキスト</option>
                       <option value="H1">タイトル</option>
                       <option value="H2">見出し 1</option>
@@ -78,7 +78,7 @@
                       <span class="material-symbols-outlined" data-icon="format_indent_increase">format_indent_increase</span>
                   </button>
                   <div class="relative flex items-center p-2 hover:bg-surface-container-low transition-colors rounded cursor-pointer" title="文字色">
-                      <span class="material-symbols-outlined text-primary" data-icon="format_color_text">format_color_text</span>
+                      <span class="material-symbols-outlined" :style="{ color: selectedColor }" data-icon="format_color_text">format_color_text</span>
                       <input type="color" v-model="selectedColor" @input="applyColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                   </div>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
@@ -134,6 +134,8 @@ const {
   customIndent,
   customOutdent,
   currentFontFamily,
+  currentHeading,
+  currentIndent,
   fontOptions
 } = useEditorState()
 </script>

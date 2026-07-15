@@ -33,6 +33,8 @@ export const fontOptions = [
   { label: '游ゴシック (標準ゴシック)', value: '"Yu Gothic", "YuGothic", sans-serif' }
 ]
 const currentFontFamily = ref('"Noto Serif JP", serif')
+const currentHeading = ref('P')
+const currentIndent = ref(0)
 
 const layoutMode = ref<'auto' | 'manual'>('auto')
 const scrollStyle = ref<'paged' | 'continuous'>('paged')
@@ -142,6 +144,33 @@ function updateSelection() {
             const g = parseInt(colorMatch[2]).toString(16).padStart(2, '0')
             const b = parseInt(colorMatch[3]).toString(16).padStart(2, '0')
             selectedColor.value = `#${r}${g}${b}`
+          }
+
+          // Font Family
+          if (comp.fontFamily) {
+            // "Noto Serif JP", serif などのフォーマットをある程度標準化してマッチさせる
+            const normalizedFont = comp.fontFamily.replace(/"/g, '').toLowerCase()
+            const match = fontOptions.find(opt => opt.value.replace(/"/g, '').toLowerCase().includes(normalizedFont.split(',')[0].trim()))
+            if (match) {
+              currentFontFamily.value = match.value
+            }
+          }
+
+          // Heading
+          const block = parent.closest('h1, h2, h3, h4, p')
+          if (block) {
+            currentHeading.value = block.tagName.toUpperCase()
+          } else {
+            currentHeading.value = 'P'
+          }
+
+          // Indent
+          const blockForIndent = parent.closest('div, p, h1, h2, h3, h4, blockquote, li')
+          if (blockForIndent) {
+            const padding = window.getComputedStyle(blockForIndent).paddingInlineStart
+            currentIndent.value = parseFloat(padding || '0')
+          } else {
+            currentIndent.value = 0
           }
         }
       } catch (e) {
@@ -915,6 +944,8 @@ export const useEditorState = () => {
     currentEditorPageId,
     indentSize,
     currentFontFamily,
+    currentHeading,
+    currentIndent,
     fontOptions,
     showRulers,
     paperSize,
