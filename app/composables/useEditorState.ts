@@ -39,7 +39,7 @@ const scrollStyle = ref<'paged' | 'continuous'>('paged')
 
 const setLayoutMode = (mode: 'auto' | 'manual') => {
   if (layoutMode.value === mode) return
-  
+
   if (mode === 'auto' && pages.value.length > 1) {
     const mergedContent = pages.value.map(p => p.content).join('<br><br>')
     pages.value = [{
@@ -67,17 +67,17 @@ const paperDimensions = {
 
 const paperStyle = computed(() => {
   const dim = paperDimensions[paperSize.value]
-  
+
   const pageHeight = dim.height * MM_TO_PX
   const pageWidth = dim.width * MM_TO_PX
   const paddingTop = margins.value.top * MM_TO_PX
   const paddingBottom = margins.value.bottom * MM_TO_PX
   const paddingLeft = margins.value.left * MM_TO_PX
   const paddingRight = margins.value.right * MM_TO_PX
-  
+
   const contentHeight = pageHeight - paddingTop - paddingBottom
   const contentWidth = pageWidth - paddingLeft - paddingRight
-  
+
   return {
     '--page-height': `${pageHeight}px`,
     '--page-width': `${pageWidth}px`,
@@ -90,6 +90,7 @@ const paperStyle = computed(() => {
 
 let savedRange: Range | null = null
 let lastEditorRange: Range | null = null
+
 
 function updateSelection() {
   const sel = window.getSelection()
@@ -105,7 +106,7 @@ function updateSelection() {
     }
     if (isInside) {
       lastEditorRange = sel.getRangeAt(0).cloneRange()
-      
+
       try {
         let anchor = sel.anchorNode
         if (anchor && anchor.nodeType === Node.ELEMENT_NODE && sel.anchorOffset < anchor.childNodes.length) {
@@ -114,7 +115,7 @@ function updateSelection() {
             anchor = selectedNode
           }
         }
-        
+
         let parent = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement
         if (parent && parent.nodeName.toUpperCase() === 'RT') {
           parent = parent.parentElement as HTMLElement
@@ -125,16 +126,16 @@ function updateSelection() {
           isItalic.value = comp.fontStyle === 'italic'
           isUnderline.value = comp.textDecoration.includes('underline') || document.queryCommandState('underline')
           isList.value = !!parent.closest('ul') || document.queryCommandState('insertUnorderedList')
-          
+
           const fontSizeMatch = comp.fontSize.match(/(\d+(?:\.\d+)?)(px|pt)/)
           if (fontSizeMatch) {
             if (fontSizeMatch[2] === 'px') {
-               currentFontSize.value = Math.round(parseFloat(fontSizeMatch[1]) * 0.75)
+              currentFontSize.value = Math.round(parseFloat(fontSizeMatch[1]) * 0.75)
             } else {
-               currentFontSize.value = Math.round(parseFloat(fontSizeMatch[1]))
+              currentFontSize.value = Math.round(parseFloat(fontSizeMatch[1]))
             }
           }
-          
+
           const colorMatch = comp.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
           if (colorMatch) {
             const r = parseInt(colorMatch[1]).toString(16).padStart(2, '0')
@@ -158,7 +159,7 @@ function updateSelection() {
 function syncRubyStyles() {
   if (!editor.value) return
   const rubies = editor.value.querySelectorAll('ruby')
-  
+
   rubies.forEach(ruby => {
     const walker = document.createTreeWalker(ruby, NodeFilter.SHOW_TEXT, null)
     let node
@@ -167,12 +168,12 @@ function syncRubyStyles() {
     let allSameColor = true
     let allSameFontSize = true
     let hasText = false
-    
+
     const rts = Array.from(ruby.querySelectorAll('rt'))
 
     while ((node = walker.nextNode())) {
       if (!node.textContent?.trim()) continue
-      
+
       let isRt = false
       let curr = node.parentElement
       while (curr && curr !== ruby) {
@@ -183,7 +184,7 @@ function syncRubyStyles() {
         curr = curr.parentElement
       }
       if (isRt) continue
-      
+
       hasText = true
       const comp = window.getComputedStyle(node.parentElement!)
       const nodeColor = comp.color
@@ -194,7 +195,7 @@ function syncRubyStyles() {
       } else if (commonColor !== nodeColor) {
         allSameColor = false
       }
-      
+
       if (commonFontSize === null) {
         commonFontSize = nodeFontSize
       } else if (commonFontSize !== nodeFontSize) {
@@ -210,7 +211,7 @@ function syncRubyStyles() {
         ruby.style.color = ''
         rts.forEach(rt => rt.style.color = '')
       }
-      
+
       if (allSameFontSize && commonFontSize) {
         ruby.style.fontSize = commonFontSize
       } else {
@@ -262,9 +263,9 @@ function syncUnderlineColors() {
       u.style.textDecorationColor = '';
       const coloredChildren = Array.from(u.querySelectorAll('[style*="color"], font[color]')) as HTMLElement[];
       coloredChildren.forEach(child => {
-         if (child.style.color || child.getAttribute('color')) {
-           child.style.textDecoration = 'underline';
-         }
+        if (child.style.color || child.getAttribute('color')) {
+          child.style.textDecoration = 'underline';
+        }
       });
     }
   });
@@ -303,54 +304,107 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
 
 function getBlocksInRange(range: Range): HTMLElement[] {
   const blocks = new Set<HTMLElement>();
-  const ancestor = range.commonAncestorContainer;
-  const ancestorEl = ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentElement : ancestor as HTMLElement;
-  
-  const closestBlock = getClosestBlockElement(ancestorEl);
-  if (closestBlock) {
-    blocks.add(closestBlock);
+
+  if (range.collapsed) {
+    const block = getClosestBlockElement(range.startContainer);
+    if (block) blocks.add(block);
     return Array.from(blocks);
   }
-  
-  const walker = document.createTreeWalker(ancestorEl, NodeFilter.SHOW_ELEMENT, {
-    acceptNode: (node: Element) => {
-      const tagName = node.tagName.toLowerCase();
-      if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
-        if (range.intersectsNode(node)) {
-          return NodeFilter.FILTER_ACCEPT;
-        }
+
+  const walker = document.createTreeWalker(
+    range.commonAncestorContainer,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
-      return NodeFilter.FILTER_SKIP;
     }
-  });
-  
-  while (walker.nextNode()) {
-    blocks.add(walker.currentNode as HTMLElement);
+  );
+
+  let currentNode = walker.currentNode;
+  if (currentNode && currentNode.nodeType === Node.TEXT_NODE && range.intersectsNode(currentNode)) {
+    const block = getClosestBlockElement(currentNode);
+    if (block) blocks.add(block);
   }
-  
+
+  while (walker.nextNode()) {
+    const block = getClosestBlockElement(walker.currentNode);
+    if (block) blocks.add(block);
+  }
+
   return Array.from(blocks);
 }
 
 function customIndent() {
+  if (lastEditorRange) {
+    editor.value?.focus()
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(lastEditorRange)
+  }
+
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return;
-  const range = selection.getRangeAt(0);
-  const blocks = getBlocksInRange(range);
-  
+
+  let node = selection.anchorNode;
+  let isInsideEditor = false;
+  while (node) {
+    if (node.nodeType === Node.ELEMENT_NODE && (node as Element).getAttribute('contenteditable') === 'true') {
+      isInsideEditor = true;
+      break;
+    }
+    node = node.parentNode || null;
+  }
+  if (!isInsideEditor) return;
+
+  let range = selection.getRangeAt(0);
+  let blocks = getBlocksInRange(range);
+
+  if (blocks.length === 0) {
+    document.execCommand('formatBlock', false, 'DIV');
+    range = selection.getRangeAt(0);
+    blocks = getBlocksInRange(range);
+  }
+
   blocks.forEach(block => {
     const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
     block.style.paddingInlineStart = `${currentPadding + indentSize.value}em`;
   });
-  
+
   updateSelectionState();
 }
 
 function customOutdent() {
+  if (lastEditorRange) {
+    editor.value?.focus()
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(lastEditorRange)
+  }
+
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return;
-  const range = selection.getRangeAt(0);
-  const blocks = getBlocksInRange(range);
-  
+
+  let node = selection.anchorNode;
+  let isInsideEditor = false;
+  while (node) {
+    if (node.nodeType === Node.ELEMENT_NODE && (node as Element).getAttribute('contenteditable') === 'true') {
+      isInsideEditor = true;
+      break;
+    }
+    node = node.parentNode || null;
+  }
+  if (!isInsideEditor) return;
+
+  let range = selection.getRangeAt(0);
+  let blocks = getBlocksInRange(range);
+
+  if (blocks.length === 0) {
+    document.execCommand('formatBlock', false, 'DIV');
+    range = selection.getRangeAt(0);
+    blocks = getBlocksInRange(range);
+  }
+
   blocks.forEach(block => {
     const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
     const newPadding = Math.max(0, currentPadding - indentSize.value);
@@ -360,7 +414,7 @@ function customOutdent() {
       block.style.paddingInlineStart = '';
     }
   });
-  
+
   updateSelectionState();
 }
 
@@ -371,49 +425,9 @@ function applyHeading(blockTag: string) {
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
   }
-  
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
-  
-  let node = sel.anchorNode
-  let blockNode: Element | null = null
-  
-  while (node && node !== editor.value) {
-    if (node instanceof Element && /^(DIV|P|H[1-6])$/i.test(node.nodeName)) {
-      blockNode = node
-      break
-    }
-    node = node.parentNode || null
-  }
-  
-  if (blockNode && blockNode !== editor.value) {
-    const newBlock = document.createElement(blockTag)
-    const innerElements = blockNode.querySelectorAll('*')
-    innerElements.forEach(el => {
-      if (el instanceof HTMLElement) {
-        el.style.removeProperty('font-size')
-        el.style.removeProperty('font-weight')
-        if (el.nodeName === 'FONT') el.removeAttribute('size')
-        if (el.getAttribute('style') === '') el.removeAttribute('style')
-      }
-    })
-    
-    while (blockNode.firstChild) {
-      newBlock.appendChild(blockNode.firstChild)
-    }
-    blockNode.parentNode?.replaceChild(newBlock, blockNode)
-    
-    const newRange = document.createRange()
-    newRange.selectNodeContents(newBlock)
-    sel.removeAllRanges()
-    sel.addRange(newRange)
-    if (sel.rangeCount > 0) {
-      lastEditorRange = sel.getRangeAt(0).cloneRange()
-    }
-  } else {
-    document.execCommand('formatBlock', false, blockTag)
-  }
-  
+
+  document.execCommand('formatBlock', false, blockTag)
+
   editor.value?.focus()
   onInput()
 }
@@ -520,34 +534,29 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
   })
 
   const fragment = document.createDocumentFragment()
-  const blockTags = /^(DIV|P|H[1-6]|BLOCKQUOTE|UL|OL|LI|TABLE)$/i
-  
-  while (extracted.firstChild) {
-    const child = extracted.firstChild
-    if (child.nodeType === Node.TEXT_NODE) {
-      const span = document.createElement('span')
-      span.style.setProperty(styleName, styleValue)
-      span.appendChild(child)
-      fragment.appendChild(span)
-    } else if (child instanceof HTMLElement) {
-      if (blockTags.test(child.nodeName)) {
-        child.style.setProperty(styleName, styleValue)
-        fragment.appendChild(child)
-      } else {
+
+  function wrapTextNodes(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.textContent && node.textContent.trim().length > 0) {
         const span = document.createElement('span')
         span.style.setProperty(styleName, styleValue)
-        span.appendChild(child)
-        fragment.appendChild(span)
+        const clone = node.cloneNode(true)
+        span.appendChild(clone)
+        node.parentNode?.replaceChild(span, node)
       }
-    } else {
-      fragment.appendChild(child)
+    } else if (node instanceof HTMLElement) {
+      Array.from(node.childNodes).forEach(wrapTextNodes)
     }
   }
+
+  Array.from(extracted.childNodes).forEach(wrapTextNodes)
+  fragment.appendChild(extracted)
+
   const firstChild = fragment.firstChild
   const lastChild = fragment.lastChild
-  
+
   range.insertNode(fragment)
-  
+
   if (firstChild && lastChild) {
     const newRange = document.createRange()
     newRange.setStartBefore(firstChild)
@@ -560,11 +569,11 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
     }
     lastEditorRange = newRange.cloneRange()
   }
-  
+
   if (document.activeElement && document.activeElement.tagName === 'INPUT') {
     updateFakeSelection()
   }
-  
+
   onInput()
   syncUnderlineColors()
   syncRubyStyles()
@@ -616,7 +625,7 @@ function applyRuby(reading: string) {
   rubyModalVisible.value = false
   removeFakeSelection()
   if (!savedRange) return
-  
+
   const sel = window.getSelection()
   if (sel) {
     sel.removeAllRanges()
@@ -630,22 +639,22 @@ function applyRuby(reading: string) {
   const extracted = savedRange.extractContents()
   const ruby = document.createElement('ruby')
   ruby.appendChild(extracted)
-  
+
   const rt = document.createElement('rt')
   rt.textContent = reading
   ruby.appendChild(rt)
   savedRange.insertNode(ruby)
-  
+
   const zwsp = document.createTextNode('\u200B')
   ruby.parentNode?.insertBefore(zwsp, ruby.nextSibling)
-  
+
   sel?.removeAllRanges()
   const newRange = document.createRange()
   newRange.setStartAfter(zwsp)
   newRange.collapse(true)
   sel?.addRange(newRange)
   lastEditorRange = newRange.cloneRange()
-  
+
   savedRange = null
   editor.value?.focus()
   onInput()
@@ -659,7 +668,7 @@ function removeRuby() {
     alert("ルビを解除するには、解除したいルビを選択してからボタンを押してください。")
     return
   }
-  
+
   const range = sel.getRangeAt(0)
   let found = false
   const rubies = editor.value?.querySelectorAll('ruby')
@@ -686,7 +695,7 @@ function removeRuby() {
       }
     })
   }
-  
+
   if (found) {
     onInput()
     syncUnderlineColors()
@@ -716,7 +725,20 @@ export function initPages() {
   }
 }
 
-function onInput() {
+function onInput(e?: Event) {
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0) {
+    lastEditorRange = sel.getRangeAt(0).cloneRange()
+  }
+
+  if (e && e.target) {
+    const el = e.target as HTMLElement;
+    if (el.textContent?.trim() === '') {
+      el.innerHTML = '';
+      currentFontSize.value = 12;
+    }
+  }
+
   if (editor.value) {
     const pageIdStr = editor.value.getAttribute('data-page-id')
     if (pageIdStr) {
@@ -743,7 +765,7 @@ function handleFileRead(event: Event) {
     const reader = new FileReader()
     reader.onload = (e) => {
       let content = e.target?.result as string
-      
+
       try {
         const data = JSON.parse(content)
         if (data.pages && data.version) {
@@ -758,14 +780,14 @@ function handleFileRead(event: Event) {
       } catch (err) {
         // Not a JSON file, or not our format. Fall through to text fallback.
       }
-      
+
       // Fallback for regular text files
       if (file.name.endsWith('.txt')) {
         content = content.replace(/\n/g, '<br>')
       }
       pages.value = [{ id: Date.now(), content }]
       localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
-      
+
       target.value = ''
     }
     reader.readAsText(file)
@@ -781,9 +803,9 @@ function saveDocumentLocal() {
     margins: margins.value,
     version: '1.0'
   }
-  
+
   let fileName = documentTitle.value || '無題のドキュメント'
-  
+
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -812,41 +834,45 @@ function exportDocument(format: 'pdf' | 'html' = 'pdf') {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Tab') {
+    if (e.isComposing) return;
+    e.preventDefault();
+    if (e.shiftKey) {
+      customOutdent();
+    } else {
+      customIndent();
+    }
+    return;
+  }
+
   if (e.key === 'Enter') {
-    if (e.isComposing) return
-    e.preventDefault()
-    document.execCommand('insertText', false, '\n')
-    return
+    if (e.isComposing) return;
+    if (e.shiftKey) {
+      e.preventDefault();
+      document.execCommand('insertLineBreak', false, undefined);
+    }
+    return;
   }
 
   if (e.key === 'Backspace' && !e.isComposing) {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
-    
+
     if (range.collapsed) {
       const ancestor = range.commonAncestorContainer;
       const block = getClosestBlockElement(ancestor);
-      
+
       if (block) {
         const preCaretRange = range.cloneRange();
         preCaretRange.selectNodeContents(block);
         preCaretRange.setEnd(range.startContainer, range.startOffset);
         const textBefore = preCaretRange.toString();
-        
+
         if (textBefore.length === 0) {
           if (block.tagName.toLowerCase() === 'li') {
             e.preventDefault();
-            const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
             document.execCommand('outdent', false, undefined);
-            
-            const newSel = window.getSelection();
-            if (newSel && newSel.rangeCount > 0) {
-              const newBlock = getClosestBlockElement(newSel.anchorNode);
-              if (newBlock && newBlock.tagName.toLowerCase() !== 'li') {
-                newBlock.style.paddingInlineStart = `${currentPadding + 1.5}em`;
-              }
-            }
             updateSelectionState();
             return;
           } else {

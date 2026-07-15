@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 flex items-center justify-center bg-black/30">
+  <div class="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
     <div class="bg-white rounded-lg p-4 w-80 shadow-lg">
       <h2 class="text-lg font-medium mb-2">ルビを入力</h2>
       <input v-model="reading" class="border w-full p-2 mb-4" placeholder="例: ふりがな" />

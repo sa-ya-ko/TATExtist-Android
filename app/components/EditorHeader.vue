@@ -9,10 +9,10 @@
               <div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
               <!-- Format Controls -->
               <nav class="flex items-center gap-sm">
-                  <button class="p-2 hover:bg-surface-container-low transition-colors rounded">
+                  <button @mousedown.prevent="execCommand('undo')" class="p-2 hover:bg-surface-container-low transition-colors rounded" title="元に戻す (Undo)">
                       <span class="material-symbols-outlined" data-icon="undo">undo</span>
                   </button>
-                  <button class="p-2 hover:bg-surface-container-low transition-colors rounded">
+                  <button @mousedown.prevent="execCommand('redo')" class="p-2 hover:bg-surface-container-low transition-colors rounded" title="やり直す (Redo)">
                       <span class="material-symbols-outlined" data-icon="redo">redo</span>
                   </button>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>

@@ -9,25 +9,25 @@
       <EditorSidebar class="print:hidden" />
 
       <!-- Editor Canvas Area -->
-      <div class="flex-1 relative flex overflow-hidden">
+      <div class="flex-1 relative flex overflow-hidden" style="margin-right: 320px;">
         <!-- Vertical Ruler (Fixed to the right of the canvas, left of the sidebar, manual mode only) -->
-        <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 z-40 print:hidden shadow-sm" style="right: var(--spacing-sidebar-width);" />
+        <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 right-0 z-40 print:hidden shadow-sm" />
 
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
-             class="flex-1 bg-surface print:overflow-visible print:block print:p-0 print:bg-white pr-sidebar-width"
-             :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-center' : 'overflow-y-auto'"
+             class="flex-1 bg-surface print:overflow-visible print:block print:p-0 print:bg-white pl-6 pr-6"
+             :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-center' : 'overflow-auto'"
              :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
           
           <!-- MANUAL MODE -->
-          <div v-if="layoutMode === 'manual'" class="flex flex-col items-center print:block py-page-margin-y print:py-0 print:pr-0 pl-12 print:pl-0 min-h-max print:min-h-0">
+          <div v-if="layoutMode === 'manual'" class="print:block py-page-margin-y print:py-0 print:pr-0 min-h-max min-w-max print:min-h-0 print:min-w-0">
             
             <!-- Horizontal Ruler (Perfectly aligned with pages in manual mode) -->
-            <EditorRulerHorizontal class="print:hidden mb-4" />
+            <EditorRulerHorizontal class="print:hidden mb-4 mx-auto w-max" />
             
             <!-- Render each page -->
             <div v-for="(page, index) in pages" :key="page.id" 
-                 class="flex flex-col items-center mb-12 print:m-0 print:block relative"
+                 class="flex flex-col items-center mb-12 print:m-0 print:block relative mx-auto w-max"
                  :class="{'print:break-after-page': index < pages.length - 1}">
           
           <!-- Content -->
@@ -37,27 +37,26 @@
                
             <!-- Margin Guide Lines -->
             <div v-if="isDraggingRuler" class="absolute inset-0 pointer-events-none z-10 print:hidden">
-              <div v-if="isDraggingRuler === 'right'" class="absolute top-0 bottom-0 border-r-2 border-red-400 border-dashed" :style="{ right: `var(--margin-right)` }"></div>
-              <div v-if="isDraggingRuler === 'left'" class="absolute top-0 bottom-0 border-l-2 border-red-400 border-dashed" :style="{ left: `var(--margin-left)` }"></div>
-              <div v-if="isDraggingRuler === 'top'" class="absolute left-0 right-0 border-t-2 border-red-400 border-dashed" :style="{ top: `var(--margin-top)` }"></div>
-              <div v-if="isDraggingRuler === 'bottom'" class="absolute left-0 right-0 border-b-2 border-red-400 border-dashed" :style="{ bottom: `var(--margin-bottom)` }"></div>
+              <div v-if="isDraggingRuler === 'right'" class="absolute top-0 bottom-0 border-r-2 border-red-400 border-dashed right-[var(--margin-right)]"></div>
+              <div v-if="isDraggingRuler === 'left'" class="absolute top-0 bottom-0 border-l-2 border-red-400 border-dashed left-[var(--margin-left)]"></div>
+              <div v-if="isDraggingRuler === 'top'" class="absolute left-0 right-0 border-t-2 border-red-400 border-dashed top-[var(--margin-top)]"></div>
+              <div v-if="isDraggingRuler === 'bottom'" class="absolute left-0 right-0 border-b-2 border-red-400 border-dashed bottom-[var(--margin-bottom)]"></div>
             </div>
 
             <div
                  :ref="el => setEditorRef(page.id, el)"
-                 class="writing-vertical outline-none"
+                 class="writing-vertical outline-none text-[16px] leading-[1.8] font-['Noto_Serif_JP',_serif]"
                  contenteditable="true"
                  dir="ltr"
                  :data-page-id="page.id"
                  @focus="handleFocus($event.target)"
                  @input="handleInput(page.id, $event)"
-                 @keydown="handleKeyDown"
-                 style="font-size: 16px; line-height: 1.8; font-family: 'Noto Serif JP', serif;">
+                 @keydown="handleKeyDown">
              </div>
           </div>
 
           <!-- Page Controls (Warning & Delete Button) -->
-          <div class="w-full flex justify-between items-start mt-6 print:hidden" style="max-width: var(--page-width);">
+          <div class="w-full flex justify-between items-start mt-6 print:hidden max-w-[var(--page-width)]">
             <!-- Warning Message -->
             <div :class="{ 'opacity-100 translate-y-0': page.isOverflowing && !page.isWarningDismissed, 'opacity-0 -translate-y-4 pointer-events-none': !(page.isOverflowing && !page.isWarningDismissed) }" 
                  class="text-red-600 font-bold flex items-center gap-2 transition-all duration-300 text-sm bg-red-50 pl-4 pr-10 py-2 rounded-lg border border-red-200 shadow-sm relative">
@@ -88,7 +87,7 @@
           </div>
           
           <div v-else-if="layoutMode === 'auto' && pages[0]" 
-               class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] ml-12 my-auto w-max"
+               class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] m-auto w-max"
                :style="autoStripStyle"
                dir="rtl">
             
