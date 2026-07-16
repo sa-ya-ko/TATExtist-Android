@@ -123,6 +123,18 @@
 
     <!-- Ruby Modal -->
     <RubyModal v-if="rubyModalVisible" @confirm="applyRuby" @cancel="closeRubyModal" />
+
+    <!-- Word Count Modal -->
+    <WordCountModal v-if="wordCountModalVisible" />
+
+    <!-- Live Word Count Widget -->
+    <div v-if="showWordCountWhileTyping" 
+         class="fixed bottom-4 left-4 bg-surface px-4 py-2 rounded-full shadow-md border border-outline-variant z-40 flex items-center gap-2 text-ui-label-md text-on-surface print:hidden cursor-pointer hover:bg-surface-container-low transition-colors"
+         @click="openWordCountModal"
+         title="クリックして詳細を表示">
+      <span class="material-symbols-outlined text-[22px] font-bold">123</span>
+      <span>{{ characterCount }} 文字</span>
+    </div>
   </div>
 </template>
 
@@ -131,6 +143,7 @@ import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import EditorHeader from './EditorHeader.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import RubyModal from './RubyModal.vue'
+import WordCountModal from './WordCountModal.vue'
 import EditorRulerHorizontal from './EditorRulerHorizontal.vue'
 import EditorRulerVertical from './EditorRulerVertical.vue'
 
@@ -174,7 +187,11 @@ const {
   removeRuby,
   closeRubyModal,
   updateSelection,
-  currentFontFamily
+  currentFontFamily,
+  wordCountModalVisible,
+  showWordCountWhileTyping,
+  characterCount,
+  openWordCountModal
 } = useEditorState()
 
 const editorRefs = ref<Record<number, HTMLElement>>({})

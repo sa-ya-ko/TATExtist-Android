@@ -7,6 +7,21 @@
                   <input v-model="documentTitle" class="bg-transparent border-none p-0 focus:ring-0 font-ui-label-md text-on-surface-variant w-40" type="text" placeholder="無題のドキュメント">
               </div>
               <div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+
+              <!-- Tools Dropdown -->
+              <div class="relative flex items-center">
+                  <button @click="showToolsMenu = !showToolsMenu" @blur="setTimeout(() => showToolsMenu = false, 150)" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ツール">
+                      ツール
+                      <span class="material-symbols-outlined pointer-events-none" style="font-size: 16px;">arrow_drop_down</span>
+                  </button>
+                  <ul v-if="showToolsMenu" class="absolute top-full left-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-lg z-50 list-none p-0 m-0 py-1">
+                      <li @mousedown.prevent="openWordCountModal(); showToolsMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0">
+                          文字カウント
+                      </li>
+                  </ul>
+              </div>
+
+              <div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
               <!-- Format Controls -->
               <nav class="flex items-center gap-sm">
                   <button @mousedown.prevent="execCommand('undo')" class="p-2 hover:bg-surface-container-low transition-colors rounded" title="元に戻す (Undo)">
@@ -87,6 +102,12 @@
               </nav>
           </div>
           <div class="flex items-center gap-md">
+              <button @click="saveToDrive" class="px-3 py-1.5 border border-[#4285F4] text-[#4285F4] hover:bg-[#4285F4]/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="Google Driveに保存">
+                  <span class="material-symbols-outlined text-[18px]" data-icon="cloud_upload">cloud_upload</span>
+                  Driveに保存
+              </button>
+              <div class="w-px h-6 bg-outline-variant mx-1"></div>
+
               <button @click="saveDocumentLocal" class="px-3 py-1.5 border border-primary text-primary hover:bg-primary/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="パソコンに保存">
                   <span class="material-symbols-outlined text-[18px]" data-icon="save">save</span>
                   保存
@@ -106,6 +127,21 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useGoogleDrive } from '../composables/useGoogleDrive'
+
+const showToolsMenu = ref(false)
+
+const {
+  initGoogleDrive,
+  saveToDrive
+} = useGoogleDrive()
+
+onMounted(() => {
+  // スクリプトの読み込み完了を待ってから初期化するため少し遅延させます
+  setTimeout(initGoogleDrive, 1000)
+})
+
 const {
   isBold,
   isItalic,
@@ -125,6 +161,7 @@ const {
   applyColor,
   openRubyModal,
   removeRuby,
+  openWordCountModal,
   triggerFileInput,
   handleFileRead,
   exportDocument,

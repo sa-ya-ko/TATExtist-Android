@@ -23,6 +23,44 @@ const selectedColor = ref('#000000')
 const currentEditorPageId = ref<string | null>(null)
 const indentSize = ref(2)
 
+const wordCountModalVisible = ref(false)
+const showWordCountWhileTyping = ref(false)
+
+const rawTextContent = computed(() => {
+  if (typeof document === 'undefined') return ''
+  const combinedHtml = pages.value.map(p => p.content).join(' ')
+  const temp = document.createElement('div')
+  
+  let html = combinedHtml.replace(/<br\s*[\/]?>/gi, '\n')
+  html = html.replace(/<\/div>/gi, '</div>\n')
+  html = html.replace(/<\/p>/gi, '</p>\n')
+  
+  temp.innerHTML = html
+  
+  const rts = temp.querySelectorAll('rt')
+  rts.forEach(rt => rt.remove())
+  
+  let text = temp.textContent || ''
+  text = text.replace(/\u200B/g, '')
+  return text.replace(/\n+$/, '')
+})
+
+const characterCountWithSpaces = computed(() => {
+  return rawTextContent.value.length
+})
+
+const characterCount = computed(() => {
+  return rawTextContent.value.replace(/\s+/g, '').length
+})
+
+function openWordCountModal() {
+  wordCountModalVisible.value = true
+}
+
+function closeWordCountModal() {
+  wordCountModalVisible.value = false
+}
+
 export const fontOptions = [
   { label: 'Noto Serif JP (明朝)', value: '"Noto Serif JP", serif' },
   { label: 'Noto Sans JP (ゴシック)', value: '"Noto Sans JP", sans-serif' },
@@ -957,6 +995,12 @@ export const useEditorState = () => {
     customIndent,
     customOutdent,
     applyHeading,
+    wordCountModalVisible,
+    showWordCountWhileTyping,
+    characterCount,
+    characterCountWithSpaces,
+    openWordCountModal,
+    closeWordCountModal,
     updateFakeSelection,
     removeFakeSelection,
     isDraggingRuler,
