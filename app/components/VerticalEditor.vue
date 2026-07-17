@@ -87,6 +87,7 @@
           </div>
           
           <div v-else-if="layoutMode === 'auto' && pages[0]" 
+               :key="'auto-' + pages[0].id"
                class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] m-auto w-max"
                :style="autoStripStyle"
                dir="rtl">
@@ -124,8 +125,9 @@
     <!-- Ruby Modal -->
     <RubyModal v-if="rubyModalVisible" @confirm="applyRuby" @cancel="closeRubyModal" />
 
-    <!-- Word Count Modal -->
+    <!-- Modals -->
     <WordCountModal v-if="wordCountModalVisible" />
+    <GoogleDriveModal v-if="isDriveModalOpen" />
 
     <!-- Live Word Count Widget -->
     <div v-if="showWordCountWhileTyping" 
@@ -142,10 +144,13 @@
 import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import EditorHeader from './EditorHeader.vue'
 import EditorSidebar from './EditorSidebar.vue'
-import RubyModal from './RubyModal.vue'
 import WordCountModal from './WordCountModal.vue'
+import GoogleDriveModal from './GoogleDriveModal.vue'
+import { useEditorState } from '../composables/useEditorState'
+import { useGoogleDrive } from '../composables/useGoogleDrive'
 import EditorRulerHorizontal from './EditorRulerHorizontal.vue'
 import EditorRulerVertical from './EditorRulerVertical.vue'
+import RubyModal from './RubyModal.vue'
 
 const scrollContainer = ref<HTMLElement | null>(null)
 const autoTextWidthPx = ref(0)
@@ -193,6 +198,8 @@ const {
   characterCount,
   openWordCountModal
 } = useEditorState()
+
+const { isDriveModalOpen } = useGoogleDrive()
 
 const editorRefs = ref<Record<number, HTMLElement>>({})
 

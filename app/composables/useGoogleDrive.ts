@@ -11,14 +11,19 @@ declare global {
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
 const SCOPES = 'https://www.googleapis.com/auth/drive.file'
 
+// 状態変数を関数の外に置き、アプリ全体で共有されるようにします
+const isGoogleApiReady = ref(false)
+const isAuthenticated = ref(false)
+const tokenClient = ref<any>(null)
+const isDriveModalOpen = ref(false)
+const driveFiles = ref<any[]>([])
+const isLoadingFiles = ref(false)
+let pendingAction: (() => void) | null = null // ログイン後に実行する処理を記憶する変数
+
 export const useGoogleDrive = () => {
   const config = useRuntimeConfig()
   const CLIENT_ID = config.public.googleClientId as string
   const API_KEY = config.public.googleApiKey as string
-
-  const isGoogleApiReady = ref(false)
-  const isAuthenticated = ref(false)
-  const tokenClient = ref<any>(null)
 
   const { documentTitle, pages, paperSize, margins } = useEditorState()
 
@@ -49,9 +54,16 @@ export const useGoogleDrive = () => {
         callback: (tokenResponse: any) => {
           if (tokenResponse.error !== undefined) {
             console.error('Auth Error:', tokenResponse.error)
+            pendingAction = null // エラー時はキャンセル
             throw tokenResponse
           }
           isAuthenticated.value = true
+          
+          // ログイン成功時、待たせていた処理（保存や開く）があれば自動で実行する
+          if (pendingAction) {
+            pendingAction()
+            pendingAction = null
+          }
         },
       })
     }
@@ -61,9 +73,9 @@ export const useGoogleDrive = () => {
   const handleAuthClick = () => {
     if (tokenClient.value) {
       if (window.gapi.client.getToken() === null) {
-        tokenClient.value.requestAccessToken({prompt: 'consent'})
+        tokenClient.value.requestAccessToken({ prompt: 'consent' })
       } else {
-        tokenClient.value.requestAccessToken({prompt: ''})
+        tokenClient.value.requestAccessToken({ prompt: '' })
       }
     } else {
       alert("Google APIの準備が完了していません。時間をおいて再度お試しください。")
@@ -84,7 +96,8 @@ export const useGoogleDrive = () => {
   // 現在のエディタの内容を保存
   const saveToDrive = async () => {
     if (!isAuthenticated.value) {
-      alert("Google Driveに保存するには、先にGoogleアカウントで認証（ログイン）してください。")
+      // 未ログインの場合は、保存処理を予約してからログイン画面を出す
+      pendingAction = saveToDrive
       handleAuthClick()
       return
     }
@@ -100,7 +113,7 @@ export const useGoogleDrive = () => {
 
     const fileContent = JSON.stringify(data, null, 2)
     const fileName = (documentTitle.value || '無題のドキュメント') + '.tategaki'
-    
+
     // Google Drive APIでマルチパートアップロードするためのデータ作成
     const boundary = '-------314159265358979323846'
     const delimiter = "\r\n--" + boundary + "\r\n"
@@ -144,12 +157,78 @@ export const useGoogleDrive = () => {
     }
   }
 
+  const loadFileListFromDrive = async () => {
+    if (!isAuthenticated.value) {
+      // 未ログインの場合は、読み込み処理を予約してからログイン画面を出す
+      pendingAction = loadFileListFromDrive
+      handleAuthClick()
+      return
+    }
+    isLoadingFiles.value = true
+    isDriveModalOpen.value = true
+    try {
+      const response = await window.gapi.client.drive.files.list({
+        q: "mimeType='application/json' and name contains '.tategaki'",
+        spaces: 'drive',
+        fields: "files(id, name, modifiedTime)"
+      })
+      driveFiles.value = response.result.files || []
+    } catch (err) {
+      console.error('File list error:', err)
+      alert("ファイル一覧の取得に失敗しました。")
+      isDriveModalOpen.value = false
+    } finally {
+      isLoadingFiles.value = false
+    }
+  }
+
+  const loadFromDrive = async (fileId: string) => {
+    try {
+      const response = await window.gapi.client.drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      })
+
+      let data;
+      if (typeof response.result === 'string') {
+        data = JSON.parse(response.result)
+      } else if (response.body) {
+        data = JSON.parse(response.body)
+      } else {
+        data = response.result
+      }
+
+      if (data && data.pages) {
+        if (data.documentTitle) documentTitle.value = data.documentTitle
+        pages.value = data.pages.map((p: any) => ({ ...p, id: Date.now() + Math.random() }))
+        if (data.paperSize) paperSize.value = data.paperSize
+        if (data.margins) margins.value = data.margins
+
+        localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+
+        alert("ファイルを読み込みました。")
+        isDriveModalOpen.value = false
+      } else {
+        throw new Error("ファイルの内容が正しい形式ではありません。")
+      }
+    } catch (err: any) {
+      console.error('File load error:', err)
+      const errorMessage = err?.result?.error?.message || err?.message || String(err)
+      alert("ファイルの読み込みに失敗しました。\nエラー詳細: " + errorMessage)
+    }
+  }
+
   return {
     isGoogleApiReady,
     isAuthenticated,
+    isDriveModalOpen,
+    driveFiles,
+    isLoadingFiles,
     initGoogleDrive,
     handleAuthClick,
     handleSignoutClick,
-    saveToDrive
+    saveToDrive,
+    loadFileListFromDrive,
+    loadFromDrive
   }
 }

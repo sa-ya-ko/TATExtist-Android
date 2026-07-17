@@ -8,11 +8,36 @@
               </div>
               <div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
 
+              <!-- File Dropdown -->
+              <div class="relative flex items-center">
+                  <button @click="showFileMenu = !showFileMenu" @blur="setTimeout(() => showFileMenu = false, 150)" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ファイル">
+                      ファイル
+                  </button>
+                  <ul v-if="showFileMenu" class="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded shadow-lg z-50 list-none p-0 m-0 py-1">
+                      <li @mousedown.prevent="triggerFileInput(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">folder_open</span> パソコンから開く
+                      </li>
+                      <li @mousedown.prevent="saveDocumentLocal(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">save</span> パソコンに保存
+                      </li>
+                      <div class="h-px bg-gray-200 my-1"></div>
+                      <li @mousedown.prevent="loadFileListFromDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-[#4285F4] m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">cloud_download</span> Driveから開く
+                      </li>
+                      <li @mousedown.prevent="saveToDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-[#4285F4] m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">cloud_upload</span> Driveに保存
+                      </li>
+                      <div class="h-px bg-gray-200 my-1"></div>
+                      <li @mousedown.prevent="exportDocument('pdf'); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span> PDFとして書き出し
+                      </li>
+                  </ul>
+              </div>
+
               <!-- Tools Dropdown -->
               <div class="relative flex items-center">
                   <button @click="showToolsMenu = !showToolsMenu" @blur="setTimeout(() => showToolsMenu = false, 150)" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ツール">
                       ツール
-                      <span class="material-symbols-outlined pointer-events-none" style="font-size: 16px;">arrow_drop_down</span>
                   </button>
                   <ul v-if="showToolsMenu" class="absolute top-full left-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-lg z-50 list-none p-0 m-0 py-1">
                       <li @mousedown.prevent="openWordCountModal(); showToolsMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0">
@@ -97,30 +122,14 @@
                       <input type="color" v-model="selectedColor" @input="applyColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                   </div>
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
-                  <button @mousedown.prevent="openRubyModal" class="px-2 py-1 border rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ルビ付与">ルビ付与</button>
-                  <button @mousedown.prevent="removeRuby" class="px-2 py-1 border rounded hover:bg-surface-container-low text-ui-label-md text-red-500 transition-colors whitespace-nowrap" title="ルビ解除">ルビ解除</button>
+                  <div class="flex items-center gap-2">
+                      <button @mousedown.prevent="openRubyModal" class="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-ui-label-md transition-colors whitespace-nowrap shadow-sm font-medium" title="ルビ付与">ルビ付与</button>
+                      <button @mousedown.prevent="removeRuby" class="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded text-ui-label-md transition-colors whitespace-nowrap shadow-sm font-medium" title="ルビ解除">ルビ解除</button>
+                  </div>
               </nav>
           </div>
           <div class="flex items-center gap-md">
-              <button @click="saveToDrive" class="px-3 py-1.5 border border-[#4285F4] text-[#4285F4] hover:bg-[#4285F4]/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="Google Driveに保存">
-                  <span class="material-symbols-outlined text-[18px]" data-icon="cloud_upload">cloud_upload</span>
-                  Driveに保存
-              </button>
-              <div class="w-px h-6 bg-outline-variant mx-1"></div>
-
-              <button @click="saveDocumentLocal" class="px-3 py-1.5 border border-primary text-primary hover:bg-primary/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="パソコンに保存">
-                  <span class="material-symbols-outlined text-[18px]" data-icon="save">save</span>
-                  保存
-              </button>
-              <button @click="triggerFileInput" class="px-3 py-1.5 border border-primary text-primary hover:bg-primary/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="ファイルを開く">
-                  <span class="material-symbols-outlined text-[18px]" data-icon="folder_open">folder_open</span>
-                  開く
-              </button>
               <input type="file" ref="fileInput" @change="handleFileRead" accept=".tategaki,.txt" class="hidden" />
-              <button @click="exportDocument('pdf')" class="bg-primary text-on-primary px-4 py-1.5 rounded-full font-ui-button text-ui-button flex items-center gap-2 hover:opacity-90 transition-opacity" title="PDF書き出し">
-                  <span class="material-symbols-outlined" data-icon="picture_as_pdf" style="font-size: 18px;">picture_as_pdf</span>
-                  PDF書き出し
-              </button>
           </div>
       </div>
   </header>
@@ -131,10 +140,12 @@ import { ref, onMounted } from 'vue'
 import { useGoogleDrive } from '../composables/useGoogleDrive'
 
 const showToolsMenu = ref(false)
+const showFileMenu = ref(false)
 
 const {
   initGoogleDrive,
-  saveToDrive
+  saveToDrive,
+  loadFileListFromDrive
 } = useGoogleDrive()
 
 onMounted(() => {
