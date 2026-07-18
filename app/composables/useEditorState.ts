@@ -17,6 +17,7 @@ const isItalic = ref(false)
 const isUnderline = ref(false)
 const isList = ref(false)
 const rubyModalVisible = ref(false)
+const helpModalVisible = ref(false)
 const currentFontSize = ref(12)
 const showFontSizeDropdown = ref(false)
 const selectedColor = ref('#000000')
@@ -968,6 +969,10 @@ export const useEditorState = () => {
     onInput,
     openRubyModal,
     closeRubyModal,
+    helpModalVisible,
+    openHelpModal,
+    closeHelpModal,
+    downloadPDF,
     applyRuby,
     removeRuby,
     triggerFileInput,

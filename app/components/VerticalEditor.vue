@@ -123,6 +123,7 @@
 
     <!-- Ruby Modal -->
     <RubyModal v-if="rubyModalVisible" @confirm="applyRuby" @cancel="closeRubyModal" />
+    <HelpModal v-if="helpModalVisible" />
   </div>
 </template>
 
@@ -131,6 +132,7 @@ import { onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import EditorHeader from './EditorHeader.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import RubyModal from './RubyModal.vue'
+import HelpModal from './HelpModal.vue'
 import EditorRulerHorizontal from './EditorRulerHorizontal.vue'
 import EditorRulerVertical from './EditorRulerVertical.vue'
 
@@ -160,6 +162,7 @@ const {
   initPages,
   paperStyle,
   rubyModalVisible,
+  helpModalVisible,
   pageWidthPx,
   margins,
   isDraggingRuler,

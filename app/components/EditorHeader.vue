@@ -23,6 +23,9 @@
                       </li>
 
                       <div class="h-px bg-gray-200 my-1"></div>
+                      <li @mousedown.prevent="downloadPDF(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">download</span> PDFとしてダウンロード
+                      </li>
                       <li @mousedown.prevent="exportDocument('print'); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
                           <span class="material-symbols-outlined text-[18px]">print</span> 印刷する
                       </li>
@@ -120,6 +123,10 @@
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
                   <button @mousedown.prevent="openRubyModal" class="px-2 py-1 border rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ルビ付与">ルビ付与</button>
                   <button @mousedown.prevent="removeRuby" class="px-2 py-1 border rounded hover:bg-surface-container-low text-ui-label-md text-red-500 transition-colors whitespace-nowrap" title="ルビ解除">ルビ解除</button>
+                  <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
+                  <button @click="openHelpModal" class="p-2 hover:bg-surface-container-low transition-colors rounded flex items-center justify-center" title="ヘルプ">
+                      <span class="material-symbols-outlined" data-icon="help">help</span>
+                  </button>
               </nav>
           </div>
           <div class="flex items-center gap-md">
@@ -189,6 +196,8 @@ const {
   applyColor,
   openRubyModal,
   removeRuby,
+  openHelpModal,
+  downloadPDF,
   triggerFileInput,
   handleFileRead,
   exportDocument,
