@@ -617,6 +617,46 @@ function applyColor() {
   applyInlineStyleSafe('color', selectedColor.value)
 }
 
+function openHelpModal() {
+  helpModalVisible.value = true
+}
+
+function closeHelpModal() {
+  helpModalVisible.value = false
+}
+
+async function downloadPDF() {
+  try {
+    const htmlContent = pages.value.map(p => p.content).join('<hr style="page-break-after: always; visibility: hidden;">')
+    
+    // サーバーサイドAPIにHTMLを送信してPDFを生成
+    const response = await fetch('/api/export-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ html: htmlContent })
+    })
+
+    if (!response.ok) {
+      throw new Error('PDFの生成に失敗しました')
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${documentTitle.value || 'document'}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('PDF Export Error:', error)
+    alert('PDFの書き出しに失敗しました。')
+  }
+}
+
 function openRubyModal() {
   let sel = window.getSelection()
   let node = sel?.anchorNode
