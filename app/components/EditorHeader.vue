@@ -130,19 +130,7 @@
               </nav>
           </div>
           <div class="flex items-center gap-md">
-              <button @click="saveDocumentLocal" class="px-3 py-1.5 border border-primary text-primary hover:bg-primary/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="パソコンに保存">
-                  <span class="material-symbols-outlined text-[18px]" data-icon="save">save</span>
-                  保存
-              </button>
-              <button @click="triggerFileInput" class="px-3 py-1.5 border border-primary text-primary hover:bg-primary/5 rounded font-ui-button text-ui-button flex items-center gap-1 transition-colors" title="ファイルを開く">
-                  <span class="material-symbols-outlined text-[18px]" data-icon="folder_open">folder_open</span>
-                  開く
-              </button>
               <input type="file" ref="fileInput" @change="handleFileRead" accept=".tategaki,.txt" class="hidden" />
-              <button @click="exportDocument('pdf')" class="bg-primary text-on-primary px-4 py-1.5 rounded-full font-ui-button text-ui-button flex items-center gap-2 hover:opacity-90 transition-opacity" title="PDF書き出し">
-                  <span class="material-symbols-outlined" data-icon="picture_as_pdf" style="font-size: 18px;">picture_as_pdf</span>
-                  PDF書き出し
-              </button>
           </div>
       </div>
   </header>
