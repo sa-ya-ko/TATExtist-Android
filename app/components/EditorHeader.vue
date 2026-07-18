@@ -21,13 +21,7 @@
                       <li @mousedown.prevent="saveDocumentLocal(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
                           <span class="material-symbols-outlined text-[18px]">save</span> パソコンに保存
                       </li>
-                      <div class="h-px bg-gray-200 my-1"></div>
-                      <li @mousedown.prevent="loadFileListFromDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-[#4285F4] m-0 flex items-center gap-2">
-                          <span class="material-symbols-outlined text-[18px]">cloud_download</span> Driveから開く
-                      </li>
-                      <li @mousedown.prevent="saveToDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-[#4285F4] m-0 flex items-center gap-2">
-                          <span class="material-symbols-outlined text-[18px]">cloud_upload</span> Driveに保存
-                      </li>
+
                       <div class="h-px bg-gray-200 my-1"></div>
                       <li @mousedown.prevent="exportDocument('print'); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
                           <span class="material-symbols-outlined text-[18px]">print</span> 印刷する
@@ -150,16 +144,9 @@
 <script setup lang="ts">
 
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useGoogleDrive } from '../composables/useGoogleDrive'
 
 const showToolsMenu = ref(false)
 const showFileMenu = ref(false)
-
-const {
-  initGoogleDrive,
-  saveToDrive,
-  loadFileListFromDrive
-} = useGoogleDrive()
 
 const fileMenuContainer = ref<HTMLElement | null>(null)
 const toolsMenuContainer = ref<HTMLElement | null>(null)
@@ -175,8 +162,7 @@ const closeMenus = (e: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('mousedown', closeMenus)
-  // スクリプトの読み込み完了を待ってから初期化するため少し遅延させます
-  setTimeout(initGoogleDrive, 1000)
+
 })
 
 onUnmounted(() => {
