@@ -846,9 +846,9 @@ function saveDocumentLocal() {
   URL.revokeObjectURL(url)
 }
 
-function exportDocument(format: 'pdf' | 'html' = 'pdf') {
+function exportDocument(format: 'print' | 'html' = 'print') {
   if (!editor.value) return
-  if (format === 'pdf') {
+  if (format === 'print') {
     window.print()
   } else if (format === 'html') {
     const content = pages.value.map(p => p.content).join('<hr>')

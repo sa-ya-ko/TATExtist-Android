@@ -7,6 +7,48 @@
                   <input v-model="documentTitle" class="bg-transparent border-none p-0 focus:ring-0 font-ui-label-md text-on-surface-variant w-40" type="text" placeholder="無題のドキュメント">
               </div>
               <div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+
+
+              <!-- File Dropdown -->
+              <div class="relative flex items-center" ref="fileMenuContainer">
+                  <button @click="showFileMenu = !showFileMenu" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ファイル">
+                      ファイル
+                  </button>
+                  <ul v-if="showFileMenu" class="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded shadow-lg z-50 list-none p-0 m-0 py-1">
+                      <li @mousedown.prevent="triggerFileInput(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">folder_open</span> パソコンから開く
+                      </li>
+                      <li @mousedown.prevent="saveDocumentLocal(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">save</span> パソコンに保存
+                      </li>
+                      <div class="h-px bg-gray-200 my-1"></div>
+                      <li @mousedown.prevent="loadFileListFromDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-[#4285F4] m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">cloud_download</span> Driveから開く
+                      </li>
+                      <li @mousedown.prevent="saveToDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-[#4285F4] m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">cloud_upload</span> Driveに保存
+                      </li>
+                      <div class="h-px bg-gray-200 my-1"></div>
+                      <li @mousedown.prevent="exportDocument('print'); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0 flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[18px]">print</span> 印刷する
+                      </li>
+                  </ul>
+              </div>
+
+              <!-- Tools Dropdown -->
+              <div class="relative flex items-center" ref="toolsMenuContainer">
+                  <button @click="showToolsMenu = !showToolsMenu" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ツール">
+                      ツール
+                  </button>
+                  <ul v-if="showToolsMenu" class="absolute top-full left-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-lg z-50 list-none p-0 m-0 py-1">
+                      <li @mousedown.prevent="openWordCountModal(); showToolsMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low cursor-pointer text-on-surface m-0">
+                          文字カウント
+                      </li>
+                  </ul>
+              </div>
+
+              <div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+
               <!-- Format Controls -->
               <nav class="flex items-center gap-sm">
                   <button @mousedown.prevent="execCommand('undo')" class="p-2 hover:bg-surface-container-low transition-colors rounded" title="元に戻す (Undo)">
@@ -106,6 +148,42 @@
 </template>
 
 <script setup lang="ts">
+
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useGoogleDrive } from '../composables/useGoogleDrive'
+
+const showToolsMenu = ref(false)
+const showFileMenu = ref(false)
+
+const {
+  initGoogleDrive,
+  saveToDrive,
+  loadFileListFromDrive
+} = useGoogleDrive()
+
+const fileMenuContainer = ref<HTMLElement | null>(null)
+const toolsMenuContainer = ref<HTMLElement | null>(null)
+
+const closeMenus = (e: MouseEvent) => {
+  if (showFileMenu.value && fileMenuContainer.value && !fileMenuContainer.value.contains(e.target as Node)) {
+    showFileMenu.value = false
+  }
+  if (showToolsMenu.value && toolsMenuContainer.value && !toolsMenuContainer.value.contains(e.target as Node)) {
+    showToolsMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('mousedown', closeMenus)
+  // スクリプトの読み込み完了を待ってから初期化するため少し遅延させます
+  setTimeout(initGoogleDrive, 1000)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', closeMenus)
+})
+
+
 const {
   isBold,
   isItalic,
