@@ -123,10 +123,6 @@
                   <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
                   <button @mousedown.prevent="openRubyModal" class="px-2 py-1 border rounded hover:bg-surface-container-low text-ui-label-md transition-colors whitespace-nowrap" title="ルビ付与">ルビ付与</button>
                   <button @mousedown.prevent="removeRuby" class="px-2 py-1 border rounded hover:bg-surface-container-low text-ui-label-md text-red-500 transition-colors whitespace-nowrap" title="ルビ解除">ルビ解除</button>
-                  <div class="h-6 w-[1px] bg-outline-variant mx-1"></div>
-                  <button @click="openHelpModal" class="p-2 hover:bg-surface-container-low transition-colors rounded flex items-center justify-center" title="ヘルプ">
-                      <span class="material-symbols-outlined" data-icon="help">help</span>
-                  </button>
               </nav>
           </div>
           <div class="flex items-center gap-md">

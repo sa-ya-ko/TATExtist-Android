@@ -38,7 +38,7 @@ const currentHeading = ref('P')
 const currentIndent = ref(0)
 
 const layoutMode = ref<'auto' | 'manual'>('auto')
-const scrollStyle = ref<'paged' | 'continuous'>('paged')
+const scrollStyle = ref<'paged' | 'continuous'>('continuous')
 
 const setLayoutMode = (mode: 'auto' | 'manual') => {
   if (layoutMode.value === mode) return

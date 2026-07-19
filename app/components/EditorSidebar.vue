@@ -17,8 +17,8 @@
                   <div v-if="layoutMode === 'auto'" class="flex flex-col gap-sm border-b border-outline-variant pb-4">
                       <label class="text-[10px] uppercase font-bold text-outline">見た目</label>
                       <select v-model="scrollStyle" class="w-full bg-white border-b border-outline-variant focus:border-primary focus:ring-0 text-ui-label-md py-2 pl-2 pr-8">
-                          <option value="paged">分割ページ</option>
                           <option value="continuous">巻物</option>
+                          <option value="paged">分割ページ</option>
                       </select>
                   </div>
 
@@ -89,14 +89,10 @@
           <button class="w-full bg-primary text-on-primary py-2.5 rounded font-ui-button text-ui-button flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all">
               変更を適用
           </button>
-          <div class="flex justify-around mt-4">
-              <button class="flex flex-col items-center gap-1 group">
+          <div class="flex justify-center mt-4">
+              <button @click="openHelpModal" class="flex flex-col items-center gap-1 group">
                   <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="help_outline">help_outline</span>
                   <span class="text-[10px] text-on-surface-variant">ヘルプ</span>
-              </button>
-              <button class="flex flex-col items-center gap-1 group">
-                  <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="chat_bubble_outline">chat_bubble_outline</span>
-                  <span class="text-[10px] text-on-surface-variant">フィードバック</span>
               </button>
           </div>
       </div>
@@ -116,6 +112,7 @@ const {
   layoutMode,
   scrollStyle,
   setLayoutMode,
-  indentSize
+  indentSize,
+  openHelpModal
 } = useEditorState()
 </script>
