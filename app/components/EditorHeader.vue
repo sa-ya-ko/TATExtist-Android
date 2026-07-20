@@ -144,22 +144,25 @@
               <span class="material-symbols-outlined" data-icon="format_underlined">format_underlined</span>
           </button>
           
+          <div class="relative flex items-center p-1 md:p-2 hover:bg-surface-container-low dark:hover:bg-gray-800 transition-colors rounded cursor-pointer" title="文字色">
+              <div class="flex flex-col items-center justify-center w-6 h-6 pointer-events-none">
+                  <span class="font-sans font-bold text-[16px] text-on-surface dark:text-gray-200 leading-none h-[16px]">A</span>
+                  <div class="w-[18px] h-[4px] mt-[2px] rounded-sm" :style="{ backgroundColor: selectedColor }"></div>
+              </div>
+              <input type="color" v-model="selectedColor" @input="applyColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+          </div>
+          
           <div class="w-px h-6 bg-outline-variant dark:bg-gray-700 mx-1"></div>
           
           <button @mousedown.prevent="execCommand('insertUnorderedList')" :class="['p-1 md:p-2 transition-colors rounded', isList ? 'bg-primary/10 text-primary' : 'hover:bg-surface-container-low dark:hover:bg-gray-800']" title="箇条書き">
               <span class="material-symbols-outlined" data-icon="format_list_bulleted">format_list_bulleted</span>
           </button>
-          <button @mousedown.prevent="customOutdent" class="p-2 transition-colors rounded hover:bg-surface-container-low dark:hover:bg-gray-800" title="インデントを減らす（字上げ）">
+          <button @mousedown.prevent="customOutdent" class="p-1 md:p-2 transition-colors rounded hover:bg-surface-container-low dark:hover:bg-gray-800" title="インデントを減らす（字上げ）">
               <span class="material-symbols-outlined" data-icon="format_indent_decrease">format_indent_decrease</span>
           </button>
-          <button @mousedown.prevent="customIndent" class="p-2 transition-colors rounded hover:bg-surface-container-low dark:hover:bg-gray-800" title="インデントを増やす（字下げ）">
+          <button @mousedown.prevent="customIndent" class="p-1 md:p-2 transition-colors rounded hover:bg-surface-container-low dark:hover:bg-gray-800" title="インデントを増やす（字下げ）">
               <span class="material-symbols-outlined" data-icon="format_indent_increase">format_indent_increase</span>
           </button>
-          
-          <div class="relative flex items-center p-1 md:p-2 hover:bg-surface-container-low dark:hover:bg-gray-800 transition-colors rounded cursor-pointer" title="文字色">
-              <span class="material-symbols-outlined" :style="{ color: selectedColor === '#000000' && isDarkMode ? '#e5e7eb' : selectedColor }" data-icon="format_color_text">format_color_text</span>
-              <input type="color" v-model="selectedColor" @input="applyColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-          </div>
           
           <div class="h-6 w-[1px] bg-outline-variant dark:bg-gray-700 mx-1"></div>
           

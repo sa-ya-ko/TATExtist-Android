@@ -933,10 +933,16 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Tab') {
     if (e.isComposing) return;
     e.preventDefault();
+    
+    const selection = window.getSelection();
+    const isCollapsed = selection ? selection.isCollapsed : true;
+    
     if (e.shiftKey) {
       customOutdent();
-    } else {
+    } else if (!isCollapsed) {
       customIndent();
+    } else {
+      document.execCommand('insertHTML', false, '　');
     }
     return;
   }

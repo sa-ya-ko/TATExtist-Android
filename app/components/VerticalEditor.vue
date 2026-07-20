@@ -16,18 +16,19 @@
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
              class="flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white pl-6 pr-6 transition-colors duration-300"
-             :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-center' : 'overflow-auto'"
+             :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-start' : 'overflow-auto'"
              :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
           
           <!-- MANUAL MODE -->
-          <div v-if="layoutMode === 'manual'" class="print:block py-page-margin-y print:py-0 print:pr-0 min-h-max min-w-max print:min-h-0 print:min-w-0">
+          <div v-if="layoutMode === 'manual'" class="print:block min-h-max min-w-max print:min-h-0 print:min-w-0">
             
             <!-- Horizontal Ruler (Perfectly aligned with pages in manual mode) -->
-            <EditorRulerHorizontal class="print:hidden mb-4 mx-auto w-max" />
+            <EditorRulerHorizontal class="print:hidden mx-auto w-max" />
             
-            <!-- Render each page -->
-            <div v-for="(page, index) in pages" :key="page.id" 
-                 class="flex flex-col items-center mb-12 print:m-0 print:block relative mx-auto w-max"
+            <div class="py-page-margin-y print:py-0 print:pr-0">
+              <!-- Render each page -->
+              <div v-for="(page, index) in pages" :key="page.id" 
+                   class="flex flex-col items-center mb-12 print:m-0 print:block relative mx-auto w-max"
                  :class="{'print:break-after-page': index < pages.length - 1}">
           
           <!-- Content -->
@@ -53,6 +54,7 @@
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown">
              </div>
+             <!-- HMR trigger 4 -->
           </div>
 
           <!-- Page Controls (Warning & Delete Button) -->
@@ -85,9 +87,10 @@
             新しいページを追加
           </button>
           </div>
+          </div>
           
           <div v-else-if="layoutMode === 'auto' && pages[0]" 
-               class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] m-auto w-max"
+               class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] mx-auto w-max"
                :style="autoStripStyle"
                dir="rtl">
             
@@ -224,6 +227,8 @@ const autoStripStyle = computed(() => {
     height: `${fullHeight}px`,
     width: 'max-content',
     minWidth: `${totalWidth}px`,
+    marginTop: 'calc(24px + var(--page-margin-y))',
+    marginBottom: 'var(--page-margin-y)',
     
     '--paper-full-width': `${fullWidth}px`,
   }
