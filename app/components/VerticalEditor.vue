@@ -1,21 +1,21 @@
 <template>
-  <div class="flex flex-col h-screen bg-surface">
+  <div class="flex flex-col h-screen bg-surface dark:bg-gray-900 transition-colors duration-300">
     <!-- Header Toolbar -->
     <EditorHeader />
 
     <!-- Main Content -->
-    <main class="flex flex-1 pt-toolbar-height overflow-hidden print:overflow-visible print:block print:pt-0">
+    <main class="flex flex-1 overflow-hidden print:overflow-visible print:block print:pt-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <!-- Sidebar Right (Page Setup) -->
       <EditorSidebar class="print:hidden" />
 
       <!-- Editor Canvas Area -->
-      <div class="flex-1 relative flex overflow-hidden" style="margin-right: 320px;">
+      <div class="flex-1 relative flex overflow-hidden transition-all duration-300" :class="{ 'lg:mr-[320px]': true }">
         <!-- Vertical Ruler (Fixed to the right of the canvas, left of the sidebar, manual mode only) -->
         <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 right-0 z-40 print:hidden shadow-sm" />
 
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
-             class="flex-1 bg-surface print:overflow-visible print:block print:p-0 print:bg-white pl-6 pr-6"
+             class="flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white pl-6 pr-6 transition-colors duration-300"
              :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-center' : 'overflow-auto'"
              :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
           
@@ -31,7 +31,7 @@
                  :class="{'print:break-after-page': index < pages.length - 1}">
           
           <!-- Content -->
-          <div class="manuscript-paper relative transition-all duration-300 bg-white border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] overflow-visible print:shadow-none print:border-none print:ring-0 print:m-0 print:mx-auto print:overflow-hidden print:break-inside-avoid" 
+          <div class="manuscript-paper relative transition-all duration-300 bg-white dark:bg-gray-800 dark:border-gray-600 border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-none overflow-visible print:shadow-none print:border-none print:ring-0 print:m-0 print:mx-auto print:overflow-hidden print:break-inside-avoid" 
                :class="{ 'ring-4 ring-red-500 !shadow-[0_0_15px_rgba(239,68,68,0.6)]': page.isOverflowing && !page.isWarningDismissed }"
                :style="paperStyle">
                
@@ -45,7 +45,7 @@
 
             <div
                  :ref="el => setEditorRef(page.id, el)"
-                 class="writing-vertical outline-none text-[16px] leading-[1.8] font-['Noto_Serif_JP',_serif]"
+                 class="writing-vertical outline-none text-[16px] leading-[1.8] font-['Noto_Serif_JP',_serif] dark:text-gray-100"
                  contenteditable="true"
                  dir="ltr"
                  :data-page-id="page.id"
@@ -73,14 +73,14 @@
             <button @click="deletePage(page.id)" 
                     :disabled="pages.length === 1"
                     class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors flex-shrink-0"
-                    :class="pages.length === 1 ? 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed' : 'text-red-500 border-red-200 bg-white hover:bg-red-50 hover:text-red-700 shadow-sm'">
+                    :class="pages.length === 1 ? 'text-gray-400 border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 cursor-not-allowed' : 'text-red-500 border-red-200 bg-white dark:bg-gray-800 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 shadow-sm'">
               <span class="i-heroicons-trash"></span>
               ページを削除
             </button>
           </div>
           </div>
           
-          <button @click="addPage" class="mt-8 mb-12 px-6 py-3 bg-white border border-gray-300 rounded-lg shadow hover:bg-gray-50 flex items-center gap-2 text-gray-700 transition-colors print:hidden">
+          <button @click="addPage" class="mt-8 mb-12 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-200 transition-colors print:hidden">
             <span class="i-heroicons-plus text-xl"></span>
             新しいページを追加
           </button>
@@ -92,8 +92,8 @@
                dir="rtl">
             
             <!-- BACKGROUND PAGES LAYER -->
-            <div class="absolute right-0 top-0 bottom-0 pointer-events-none"
-                 :class="scrollStyle === 'paged' ? 'bg-paged' : 'bg-continuous'"
+            <div class="absolute right-0 top-0 bottom-0 pointer-events-none transition-colors duration-300"
+                 :class="[scrollStyle === 'paged' ? 'bg-paged dark:!bg-gray-800' : 'bg-continuous dark:!bg-gray-800']"
                  :style="{ width: `${autoStripStyle.minWidth}` }"></div>
             
             <!-- Margin Guide Lines for Auto Mode -->
@@ -105,7 +105,7 @@
             <!-- TEXT EDITOR LAYER -->
             <div
                  :ref="el => setEditorRef(pages[0].id, el)"
-                 class="writing-vertical outline-none relative z-20"
+                 class="writing-vertical outline-none relative z-20 dark:text-gray-100"
                  contenteditable="true"
                  dir="ltr"
                  :data-page-id="pages[0].id"
@@ -170,6 +170,7 @@ const {
   scrollStyle,
   paperDimensions,
   paperSize,
+  isSidebarOpen,
   MM_TO_PX,
   onInput,
   handleKeyDown,
@@ -405,6 +406,17 @@ rt {
     #e2e8f0 var(--paper-full-width)
   );
   background-position: right top;
+}
+
+.dark .bg-paged {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to left,
+    transparent 0,
+    transparent calc(var(--paper-full-width) - 1px),
+    #4b5563 calc(var(--paper-full-width) - 1px), /* gray-600 */
+    #4b5563 var(--paper-full-width)
+  );
 }
 
 .bg-continuous {

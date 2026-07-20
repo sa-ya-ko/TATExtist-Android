@@ -18,6 +18,8 @@ const isUnderline = ref(false)
 const isList = ref(false)
 const rubyModalVisible = ref(false)
 const helpModalVisible = ref(false)
+const isDarkMode = ref(false)
+const isSidebarOpen = ref(false)
 const currentFontSize = ref(12)
 const showFontSizeDropdown = ref(false)
 const selectedColor = ref('#000000')
@@ -625,6 +627,21 @@ function closeHelpModal() {
   helpModalVisible.value = false
 }
 
+function toggleDarkMode() {
+  isDarkMode.value = !isDarkMode.value
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('vertical-editor-theme', 'dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('vertical-editor-theme', 'light')
+  }
+}
+
+function toggleSidebar() {
+  isSidebarOpen.value = !isSidebarOpen.value
+}
+
 async function downloadPDF() {
   try {
     const htmlContent = pages.value.map(p => p.content).join('<hr style="page-break-after: always; visibility: hidden;">')
@@ -776,6 +793,15 @@ function removeRuby() {
 }
 
 export function initPages() {
+  const savedTheme = localStorage.getItem('vertical-editor-theme')
+  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    isDarkMode.value = true
+    if (typeof document !== 'undefined') document.documentElement.classList.add('dark')
+  } else {
+    isDarkMode.value = false
+    if (typeof document !== 'undefined') document.documentElement.classList.remove('dark')
+  }
+
   const saved = localStorage.getItem('vertical-editor-pages')
   if (saved) {
     try {
@@ -1023,6 +1049,10 @@ export const useEditorState = () => {
     layoutMode,
     scrollStyle,
     setLayoutMode,
+    isDarkMode,
+    isSidebarOpen,
+    toggleDarkMode,
+    toggleSidebar,
     MM_TO_PX,
     paperDimensions
   }

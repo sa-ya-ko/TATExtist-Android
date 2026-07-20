@@ -18,6 +18,35 @@ export default defineNuxtConfig({
       ]
     }
   },
+  modules: [
+    '@vite-pwa/nuxt'
+  ],
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: '縦書きエディタ',
+      short_name: 'Tategaki',
+      description: '美しい縦書きで文章を執筆・PDF出力できるWebアプリ',
+      theme_color: '#f7f9ff',
+      background_color: '#ffffff',
+      icons: [
+        {
+          src: '/icon-192x192.png',
+          sizes: '192x192',
+          type: 'image/png'
+        },
+        {
+          src: '/icon-512x512.png',
+          sizes: '512x512',
+          type: 'image/png'
+        }
+      ]
+    },
+    workbox: {
+      navigateFallback: '/',
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}']
+    }
+  },
   css: ["~/assets/css/tailwind.css"],
   vite: {
     plugins: [
