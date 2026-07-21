@@ -98,6 +98,8 @@ let lastEditorRange: Range | null = null
 
 
 function updateSelection() {
+  if (document.activeElement?.tagName === 'INPUT') return;
+
   const sel = window.getSelection()
   if (sel && sel.rangeCount > 0) {
     let node = sel.anchorNode
@@ -122,6 +124,16 @@ function updateSelection() {
         }
 
         let parent = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement
+        
+        function getDeepestFirstChild(n: Node): Node {
+          if (n.firstChild) return getDeepestFirstChild(n.firstChild)
+          return n
+        }
+        let deepest = getDeepestFirstChild(parent)
+        if (deepest.nodeType === Node.TEXT_NODE && deepest.parentElement) {
+          parent = deepest.parentElement
+        }
+
         if (parent && parent.nodeName.toUpperCase() === 'RT') {
           parent = parent.parentElement as HTMLElement
         }
@@ -151,7 +163,6 @@ function updateSelection() {
 
           // Font Family
           if (comp.fontFamily) {
-            // "Noto Serif JP", serif などのフォーマットをある程度標準化してマッチさせる
             const normalizedFont = comp.fontFamily.replace(/"/g, '').toLowerCase()
             const match = fontOptions.find(opt => opt.value.replace(/"/g, '').toLowerCase().includes(normalizedFont.split(',')[0].trim()))
             if (match) {
@@ -822,9 +833,22 @@ export function initPages() {
 }
 
 function onInput(e?: Event) {
-  const sel = window.getSelection()
-  if (sel && sel.rangeCount > 0) {
-    lastEditorRange = sel.getRangeAt(0).cloneRange()
+  if (document.activeElement?.tagName !== 'INPUT') {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      let node = sel.anchorNode
+      let isInside = false
+      while (node) {
+        if (node === editor.value) {
+          isInside = true
+          break
+        }
+        node = node.parentNode || null
+      }
+      if (isInside) {
+        lastEditorRange = sel.getRangeAt(0).cloneRange()
+      }
+    }
   }
 
   if (e && e.target) {

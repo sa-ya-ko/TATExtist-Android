@@ -54,7 +54,7 @@
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown">
              </div>
-             <!-- HMR trigger 4 -->
+             <!-- HMR trigger 9 -->
           </div>
 
           <!-- Page Controls (Warning & Delete Button) -->

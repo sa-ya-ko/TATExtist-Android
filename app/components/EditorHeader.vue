@@ -246,3 +246,4 @@ const {
   toggleSidebar
 } = useEditorState()
 </script>
+<!-- HMR trigger -->
