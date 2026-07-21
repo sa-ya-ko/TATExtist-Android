@@ -54,7 +54,7 @@
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown">
              </div>
-             <!-- HMR trigger 33 -->
+             <!-- HMR trigger 37 -->
           </div>
 
           <!-- Page Controls -->

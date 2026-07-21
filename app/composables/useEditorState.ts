@@ -108,6 +108,17 @@ const setLayoutMode = (mode: 'auto' | 'manual') => {
     persistDocument()
   }
   layoutMode.value = mode
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('tategaki-layout-mode', mode)
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const savedMode = localStorage.getItem('tategaki-layout-mode') as 'auto' | 'manual' | null
+  if (savedMode && (savedMode === 'auto' || savedMode === 'manual')) {
+    layoutMode.value = savedMode
+  }
 }
 
 const showRulers = ref(true)
