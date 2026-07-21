@@ -8,6 +8,11 @@ export interface Page {
 }
 
 const pages = ref<Page[]>([])
+// The document is stored as one continuous HTML stream.  Explicit page breaks
+// are represented by markers in that stream; `pages` is only the editor view.
+const documentContent = ref('')
+const MANUAL_BREAK = /<!--manual-page-break-->/g
+const manualBreakMarker = '<!--manual-page-break-->'
 const documentTitle = ref<string>('無題のドキュメント')
 const editor = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -42,17 +47,65 @@ const currentIndent = ref(0)
 const layoutMode = ref<'auto' | 'manual'>('auto')
 const scrollStyle = ref<'paged' | 'continuous'>('continuous')
 
+function syncPagesFromDocument() {
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  pages.value = segments.map((content, index) => ({
+    id: Date.now() + index + Math.random(),
+    content
+  }))
+  if (pages.value.length === 0) pages.value = [{ id: Date.now(), content: '' }]
+}
+
+function setDocumentFromLegacyPages(legacyPages: Array<Pick<Page, 'content'>>) {
+  documentContent.value = legacyPages.map(page => page.content).join(manualBreakMarker)
+  syncPagesFromDocument()
+}
+
+function updatePageContent(pageId: number, content: string) {
+  const index = pages.value.findIndex(page => page.id === pageId)
+  if (index < 0) return
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  segments[index] = content
+  documentContent.value = segments.join(manualBreakMarker)
+  pages.value[index].content = content
+}
+
+function addManualPage(afterPageId?: number) {
+  const index = afterPageId === undefined
+    ? pages.value.length - 1
+    : pages.value.findIndex(page => page.id === afterPageId)
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  const insertAt = index < 0 ? segments.length : index + 1
+  segments.splice(insertAt, 0, '')
+  documentContent.value = segments.join(manualBreakMarker)
+  syncPagesFromDocument()
+  persistDocument()
+}
+
+function deleteManualPage(pageId: number) {
+  const index = pages.value.findIndex(page => page.id === pageId)
+  if (index < 0 || pages.value.length <= 1) return
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  segments.splice(index, 1)
+  documentContent.value = segments.join(manualBreakMarker)
+  syncPagesFromDocument()
+  persistDocument()
+}
+
+function persistDocument() {
+  localStorage.setItem('vertical-editor-document', JSON.stringify({
+    version: '2.0',
+    content: documentContent.value
+  }))
+}
+
 const setLayoutMode = (mode: 'auto' | 'manual') => {
   if (layoutMode.value === mode) return
 
   if (mode === 'auto' && pages.value.length > 1) {
-    const mergedContent = pages.value.map(p => p.content).join('<br><br>')
-    pages.value = [{
-      id: pages.value[0].id,
-      content: mergedContent,
-      isOverflowing: false,
-      isWarningDismissed: false
-    }]
+    documentContent.value = documentContent.value.replace(MANUAL_BREAK, '<br><br>')
+    syncPagesFromDocument()
+    persistDocument()
   }
   layoutMode.value = mode
 }
@@ -655,7 +708,7 @@ function toggleSidebar() {
 
 async function downloadPDF() {
   try {
-    const htmlContent = pages.value.map(p => p.content).join('<hr style="page-break-after: always; visibility: hidden;">')
+    const htmlContent = documentContent.value.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden;">')
     
     // サーバーサイドAPIにHTMLを送信してPDFを生成
     const response = await fetch('/api/export-pdf', {
@@ -813,21 +866,41 @@ export function initPages() {
     if (typeof document !== 'undefined') document.documentElement.classList.remove('dark')
   }
 
+  const savedDocument = localStorage.getItem('vertical-editor-document')
+  if (savedDocument) {
+    try {
+      const data = JSON.parse(savedDocument)
+      if (data.version === '2.0' && typeof data.content === 'string') {
+        documentContent.value = data.content
+        syncPagesFromDocument()
+        return
+      }
+    } catch {
+      // Fall back to the legacy page-array format below.
+    }
+  }
+
   const saved = localStorage.getItem('vertical-editor-pages')
   if (saved) {
     try {
-      pages.value = JSON.parse(saved)
-      if (pages.value.length === 0) throw new Error()
+      const legacyPages = JSON.parse(saved)
+      if (!Array.isArray(legacyPages) || legacyPages.length === 0) throw new Error()
+      setDocumentFromLegacyPages(legacyPages)
+      persistDocument()
     } catch {
-      pages.value = [{ id: Date.now(), content: '' }]
+      documentContent.value = ''
+      syncPagesFromDocument()
     }
   } else {
     const oldSaved = localStorage.getItem('vertical-editor')
     if (oldSaved) {
-      pages.value = [{ id: Date.now(), content: oldSaved }]
+      documentContent.value = oldSaved
+      syncPagesFromDocument()
+      persistDocument()
       localStorage.removeItem('vertical-editor')
     } else {
-      pages.value = [{ id: Date.now(), content: '' }]
+      documentContent.value = ''
+      syncPagesFromDocument()
     }
   }
 }
@@ -863,13 +936,10 @@ function onInput(e?: Event) {
     const pageIdStr = editor.value.getAttribute('data-page-id')
     if (pageIdStr) {
       const pageId = Number(pageIdStr)
-      const page = pages.value.find(p => p.id === pageId)
-      if (page) {
-        page.content = editor.value.innerHTML
-      }
+      updatePageContent(pageId, editor.value.innerHTML)
     }
   }
-  localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+  persistDocument()
 }
 
 function triggerFileInput() {
@@ -888,12 +958,23 @@ function handleFileRead(event: Event) {
 
       try {
         const data = JSON.parse(content)
-        if (data.pages && data.version) {
-          pages.value = data.pages.map((p: any) => ({ ...p, id: Date.now() + Math.random() }))
+        if (data.version === '2.0' && typeof data.content === 'string') {
+          documentContent.value = data.content
+          syncPagesFromDocument()
           if (data.documentTitle) documentTitle.value = data.documentTitle
           if (data.paperSize) paperSize.value = data.paperSize
           if (data.margins) margins.value = data.margins
-          localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+          persistDocument()
+          target.value = ''
+          return
+        }
+
+        if (data.pages && data.version) {
+          setDocumentFromLegacyPages(data.pages)
+          if (data.documentTitle) documentTitle.value = data.documentTitle
+          if (data.paperSize) paperSize.value = data.paperSize
+          if (data.margins) margins.value = data.margins
+          persistDocument()
           target.value = ''
           return
         }
@@ -905,8 +986,9 @@ function handleFileRead(event: Event) {
       if (file.name.endsWith('.txt')) {
         content = content.replace(/\n/g, '<br>')
       }
-      pages.value = [{ id: Date.now(), content }]
-      localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+      documentContent.value = content
+      syncPagesFromDocument()
+      persistDocument()
 
       target.value = ''
     }
@@ -918,10 +1000,10 @@ function handleFileRead(event: Event) {
 function saveDocumentLocal() {
   const data = {
     documentTitle: documentTitle.value,
-    pages: pages.value,
+    content: documentContent.value,
     paperSize: paperSize.value,
     margins: margins.value,
-    version: '1.0'
+    version: '2.0'
   }
 
   let fileName = documentTitle.value || '無題のドキュメント'
@@ -942,7 +1024,7 @@ function exportDocument(format: 'print' | 'html' = 'print') {
   if (format === 'print') {
     window.print()
   } else if (format === 'html') {
-    const content = pages.value.map(p => p.content).join('<hr>')
+    const content = documentContent.value.replace(MANUAL_BREAK, '<hr>')
     const blob = new Blob([content], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -1027,6 +1109,7 @@ export const useEditorState = () => {
   return {
     editor,
     pages,
+    documentContent,
     documentTitle,
     initPages,
     fileInput,
@@ -1079,6 +1162,10 @@ export const useEditorState = () => {
     layoutMode,
     scrollStyle,
     setLayoutMode,
+    updatePageContent,
+    addManualPage,
+    deleteManualPage,
+    persistDocument,
     isDarkMode,
     isSidebarOpen,
     toggleDarkMode,
