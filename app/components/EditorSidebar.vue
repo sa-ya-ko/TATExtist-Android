@@ -2,7 +2,7 @@
   <!-- Mobile Overlay -->
   <div v-if="isSidebarOpen" @click="toggleSidebar" class="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity"></div>
   
-  <aside class="print:hidden fixed right-0 top-toolbar-height h-[calc(100vh-56px)] w-[320px] flex flex-col bg-surface-container-low dark:bg-gray-900 border-l border-outline-variant dark:border-gray-700 z-40 transition-transform duration-300"
+  <aside class="print:hidden fixed right-0 top-0 h-[100dvh] w-[320px] flex flex-col bg-surface-container-low dark:bg-gray-900 border-l border-outline-variant dark:border-gray-700 z-40 transition-transform duration-300 lg:top-toolbar-height lg:h-[calc(100dvh-56px)]"
          :class="isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'">
       <div class="p-4 flex flex-col gap-lg">
           <div>

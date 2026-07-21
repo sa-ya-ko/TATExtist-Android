@@ -35,7 +35,7 @@
         :style="{ right: marginRightPx + 'px' }"
         @mousedown.prevent="startDrag('right', $event)"
       >
-        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary absolute -bottom-1 -left-[5px]"></div>
+        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary dark:border-t-gray-300 absolute -bottom-1 -left-[5px]"></div>
       </div>
 
       <!-- Left Handle -->
@@ -44,7 +44,7 @@
         :style="{ left: marginLeftPx + 'px' }"
         @mousedown.prevent="startDrag('left', $event)"
       >
-        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary absolute -bottom-1 -left-[5px]"></div>
+        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary dark:border-t-gray-300 absolute -bottom-1 -left-[5px]"></div>
       </div>
     </div>
   </div>

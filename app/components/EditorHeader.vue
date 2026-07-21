@@ -8,10 +8,10 @@
           </div>
 
           <!-- 2段目 (スマホ) / 中央 (PC): ツール類 -->
-          <div class="flex items-center justify-between md:justify-start w-full md:w-auto gap-1 md:gap-2">
+          <div class="flex flex-nowrap items-center justify-between md:justify-start w-full max-w-full overflow-x-auto md:overflow-visible md:w-auto gap-0.5 md:gap-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <!-- File Dropdown -->
               <div class="relative flex items-center" ref="fileMenuContainer">
-                  <button @click="showFileMenu = !showFileMenu" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low dark:hover:bg-gray-800 text-sm dark:text-gray-200 transition-colors whitespace-nowrap" title="ファイル">
+                  <button @click="showFileMenu = !showFileMenu" class="px-1 md:px-2 py-1 flex items-center gap-0.5 md:gap-1 rounded hover:bg-surface-container-low dark:hover:bg-gray-800 text-xs md:text-sm dark:text-gray-200 transition-colors whitespace-nowrap" title="ファイル">
                       ファイル
                   </button>
                   <ul v-if="showFileMenu" class="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 list-none p-0 m-0 py-1 transition-colors">
@@ -33,7 +33,7 @@
 
               <!-- Tools Dropdown -->
               <div class="relative flex items-center" ref="toolsMenuContainer">
-                  <button @click="showToolsMenu = !showToolsMenu" class="px-2 py-1 flex items-center gap-1 rounded hover:bg-surface-container-low dark:hover:bg-gray-800 text-sm dark:text-gray-200 transition-colors whitespace-nowrap" title="ツール">
+                  <button @click="showToolsMenu = !showToolsMenu" class="px-1 md:px-2 py-1 flex items-center gap-0.5 md:gap-1 rounded hover:bg-surface-container-low dark:hover:bg-gray-800 text-xs md:text-sm dark:text-gray-200 transition-colors whitespace-nowrap" title="ツール">
                       ツール
                   </button>
                   <ul v-if="showToolsMenu" class="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 list-none p-0 m-0 py-1 transition-colors">
@@ -67,14 +67,14 @@
       </div>
 
       <!-- Format Controls (Mobile Bottom Slider, Desktop Inline) -->
-      <nav class="fixed bottom-0 left-0 w-full md:static md:w-auto md:flex-1 flex items-center gap-1 text-on-surface dark:text-gray-200 bg-surface dark:bg-gray-900 md:bg-transparent border-t md:border-t-0 border-outline-variant dark:border-gray-700 px-2 py-2 md:p-0 overflow-x-auto md:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none transition-colors duration-300 md:pl-0 md:pr-4" style="-webkit-overflow-scrolling: touch;">
+      <nav class="fixed bottom-0 left-0 w-full min-h-14 md:static md:w-auto md:min-h-0 md:flex-1 flex items-center gap-1 text-on-surface dark:text-gray-200 bg-surface dark:bg-gray-900 md:bg-transparent border-t md:border-t-0 border-outline-variant dark:border-gray-700 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:p-0 overflow-x-auto md:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none transition-colors duration-300 md:pl-0 md:pr-4" style="-webkit-overflow-scrolling: touch;">
           <!-- Font Name -->
           <div class="relative flex items-center mx-1" ref="fontMenuContainer">
               <button @click="showFontFamilyDropdown = !showFontFamilyDropdown" class="flex items-center gap-1 bg-transparent border-none text-sm font-medium focus:ring-0 px-2 py-1 outline-none hover:bg-surface-container-low dark:hover:bg-gray-800 rounded transition-colors whitespace-nowrap">
                   <span>{{ fontOptions.find(f => f.value === currentFontFamily)?.label || 'フォント' }}</span>
                   <span class="material-symbols-outlined text-[16px] pointer-events-none">arrow_drop_down</span>
               </button>
-              <ul v-if="showFontFamilyDropdown" class="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 w-full md:absolute md:bottom-auto md:top-full md:mb-0 md:mt-1 md:left-1/2 md:-translate-x-1/2 md:w-40 bg-white dark:bg-gray-800 border-t md:border border-gray-200 dark:border-gray-700 md:rounded shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-lg z-[100] max-h-[50vh] overflow-y-auto list-none p-0 m-0">
+              <ul v-if="showFontFamilyDropdown" class="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 w-full md:absolute md:bottom-auto md:top-full md:mb-0 md:mt-1 md:left-1/2 md:-translate-x-1/2 md:w-max md:min-w-[160px] bg-white dark:bg-gray-800 border-t md:border border-gray-200 dark:border-gray-700 md:rounded shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-lg z-[100] max-h-[50vh] overflow-y-auto list-none p-0 m-0">
                   <li v-for="font in fontOptions" :key="font.value" @mousedown.prevent="() => { execCommand('fontName', font.value); currentFontFamily = font.value; showFontFamilyDropdown = false }" class="px-4 py-4 md:px-2 md:py-1.5 text-center text-lg md:text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 transition-colors whitespace-nowrap border-b border-gray-100 dark:border-gray-700 md:border-none" :style="{ fontFamily: font.value }">
                       {{ font.label }}
                   </li>
@@ -94,7 +94,7 @@
                   }}</span>
                   <span class="material-symbols-outlined text-[16px] pointer-events-none">arrow_drop_down</span>
               </button>
-              <ul v-if="showHeadingDropdown" class="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 w-full md:absolute md:bottom-auto md:top-full md:mb-0 md:mt-1 md:left-1/2 md:-translate-x-1/2 md:w-40 bg-white dark:bg-gray-800 border-t md:border border-gray-200 dark:border-gray-700 md:rounded shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-lg z-[100] max-h-[50vh] overflow-y-auto list-none p-0 m-0">
+              <ul v-if="showHeadingDropdown" class="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 w-full md:absolute md:bottom-auto md:top-full md:mb-0 md:mt-1 md:left-1/2 md:-translate-x-1/2 md:w-max md:min-w-[160px] bg-white dark:bg-gray-800 border-t md:border border-gray-200 dark:border-gray-700 md:rounded shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-lg z-[100] max-h-[50vh] overflow-y-auto list-none p-0 m-0">
                   <li @mousedown.prevent="() => { applyHeading('P'); currentHeading = 'P'; showHeadingDropdown = false }" class="px-4 py-4 md:px-2 md:py-1.5 text-center text-lg md:text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 transition-colors whitespace-nowrap border-b border-gray-100 dark:border-gray-700 md:border-none">標準テキスト</li>
                   <li @mousedown.prevent="() => { applyHeading('H1'); currentHeading = 'H1'; showHeadingDropdown = false }" class="px-4 py-4 md:px-2 md:py-1.5 text-center text-lg md:text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 transition-colors whitespace-nowrap border-b border-gray-100 dark:border-gray-700 md:border-none font-bold">タイトル</li>
                   <li @mousedown.prevent="() => { applyHeading('H2'); currentHeading = 'H2'; showHeadingDropdown = false }" class="px-4 py-4 md:px-2 md:py-1.5 text-center text-lg md:text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 transition-colors whitespace-nowrap border-b border-gray-100 dark:border-gray-700 md:border-none font-bold">見出し 1</li>
@@ -144,12 +144,37 @@
               <span class="material-symbols-outlined" data-icon="format_underlined">format_underlined</span>
           </button>
           
-          <div class="relative flex items-center p-1 md:p-2 hover:bg-surface-container-low dark:hover:bg-gray-800 transition-colors rounded cursor-pointer" title="文字色">
-              <div class="flex flex-col items-center justify-center w-6 h-6 pointer-events-none">
-                  <span class="font-sans font-bold text-[16px] text-on-surface dark:text-gray-200 leading-none h-[16px]">A</span>
-                  <div class="w-[18px] h-[4px] mt-[2px] rounded-sm" :style="{ backgroundColor: selectedColor }"></div>
+          <!-- 文字色パレット (プリセットカラー) -->
+          <div class="relative flex items-center" ref="colorMenuContainer">
+              <button @mousedown.prevent="showColorMenu = !showColorMenu" class="p-1 md:p-2 hover:bg-surface-container-low dark:hover:bg-gray-800 transition-colors rounded cursor-pointer flex items-center justify-center" title="文字色">
+                  <div class="flex flex-col items-center justify-center w-6 h-6 pointer-events-none">
+                      <span class="font-sans font-bold text-[16px] text-on-surface dark:text-gray-200 leading-none h-[16px]">A</span>
+                      <div class="w-[18px] h-[4px] mt-[2px] rounded-sm" :style="{ backgroundColor: selectedColor || '#000000' }"></div>
+                  </div>
+              </button>
+
+              <!-- カラーパレットポップオーバー -->
+              <div v-if="showColorMenu" class="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 md:absolute md:bottom-auto md:top-full md:mb-0 md:mt-1 md:left-1/2 md:-translate-x-1/2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] p-2 transition-colors">
+                  <div class="text-[11px] text-gray-500 dark:text-gray-400 mb-1.5 px-0.5 font-medium whitespace-nowrap">文字色を選択</div>
+                  <!-- プリセット10色 -->
+                  <div class="grid grid-cols-5 gap-1.5 w-36">
+                      <button v-for="color in presetColors" :key="color.value"
+                              @mousedown.prevent="selectPresetColor(color.value)"
+                              class="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 transition-transform hover:scale-110 flex items-center justify-center shadow-sm"
+                              :style="{ backgroundColor: color.value }"
+                              :title="color.label">
+                      </button>
+                  </div>
+                  <!-- 区切り線 -->
+                  <div class="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
+                  <!-- カスタムカラーピッカー -->
+                  <label class="flex items-center gap-1.5 px-1 py-1 rounded hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-xs text-on-surface dark:text-gray-200 transition-colors">
+                      <div class="relative w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden flex items-center justify-center bg-gradient-to-br from-red-500 via-green-500 to-blue-500 shadow-sm">
+                          <input type="color" :value="selectedColor || '#000000'" @input="applyCustomColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                      </div>
+                      <span class="font-medium text-[11px]">カスタム色...</span>
+                  </label>
               </div>
-              <input type="color" v-model="selectedColor" @input="applyColor" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
           </div>
           
           <div class="w-px h-6 bg-outline-variant dark:bg-gray-700 mx-1"></div>
@@ -192,12 +217,45 @@ const fontMenuContainer = ref<HTMLElement | null>(null)
 const headingMenuContainer = ref<HTMLElement | null>(null)
 const fontSizeMenuContainer = ref<HTMLElement | null>(null)
 
+const showColorMenu = ref(false)
+const colorMenuContainer = ref<HTMLElement | null>(null)
+
+const presetColors = [
+  // グレースケール（5段階）
+  { label: '漆黒', value: '#000000' },
+  { label: '墨色', value: '#1F2937' },
+  { label: '濃灰', value: '#4B5563' },
+  { label: '中灰', value: '#9CA3AF' },
+  { label: '薄灰', value: '#D1D5DB' },
+  // 有彩色（5色：赤と橙の間にピンク）
+  { label: '赤', value: '#EF4444' },
+  { label: 'ピンク', value: '#EC4899' },
+  { label: '橙', value: '#F59E0B' },
+  { label: '緑', value: '#10B981' },
+  { label: '青', value: '#3B82F6' }
+]
+
+const selectPresetColor = (colorValue: string) => {
+  selectedColor.value = colorValue
+  execCommand('foreColor', colorValue)
+  showColorMenu.value = false
+}
+
+const applyCustomColor = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  if (target && target.value) {
+    selectedColor.value = target.value
+    execCommand('foreColor', target.value)
+  }
+}
+
 const closeMenus = (e: MouseEvent) => {
   if (showFileMenu.value && fileMenuContainer.value && !fileMenuContainer.value.contains(e.target as Node)) showFileMenu.value = false
   if (showToolsMenu.value && toolsMenuContainer.value && !toolsMenuContainer.value.contains(e.target as Node)) showToolsMenu.value = false
   if (showFontFamilyDropdown.value && fontMenuContainer.value && !fontMenuContainer.value.contains(e.target as Node)) showFontFamilyDropdown.value = false
   if (showHeadingDropdown.value && headingMenuContainer.value && !headingMenuContainer.value.contains(e.target as Node)) showHeadingDropdown.value = false
   if (showFontSizeDropdown.value && fontSizeMenuContainer.value && !fontSizeMenuContainer.value.contains(e.target as Node)) showFontSizeDropdown.value = false
+  if (showColorMenu.value && colorMenuContainer.value && !colorMenuContainer.value.contains(e.target as Node)) showColorMenu.value = false
 }
 
 onMounted(() => {
