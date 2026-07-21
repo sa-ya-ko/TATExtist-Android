@@ -15,20 +15,20 @@
 
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
-             class="min-h-0 min-w-0 flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white px-2 transition-colors duration-300 w-full max-w-full md:px-6"
+             class="min-h-0 min-w-0 flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white px-2 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] transition-colors duration-300 w-full max-w-full md:px-6 md:pb-0"
              :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-start' : 'overflow-y-auto overflow-x-hidden md:overflow-auto flex flex-col items-center md:block'"
              :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
           
           <!-- MANUAL MODE -->
-          <div v-if="layoutMode === 'manual'" class="print:block min-h-0 min-w-0 print:min-h-0 print:min-w-0 w-full h-full md:min-h-max md:min-w-max">
+          <div v-if="layoutMode === 'manual'" class="print:block min-h-full min-w-0 print:min-h-0 print:min-w-0 w-full h-auto md:min-h-max md:min-w-max">
             
             <!-- Horizontal Ruler (Perfectly aligned with pages in manual mode) -->
-            <EditorRulerHorizontal class="print:hidden mx-auto w-max hidden md:block" />
+            <EditorRulerHorizontal class="print:hidden mx-auto w-full md:w-max" />
             
-            <div class="py-page-margin-y print:py-0 print:pr-0 w-full h-full md:w-auto md:h-auto flex flex-col md:block">
+            <div class="py-page-margin-y print:py-0 print:pr-0 w-full min-h-full md:w-auto md:h-auto flex flex-col md:block">
               <!-- Render each page -->
               <div v-for="(page, index) in pages" :key="page.id" 
-                   class="flex flex-col items-center mb-12 print:m-0 print:block relative mx-auto w-full min-h-full md:w-max md:h-auto"
+                   class="flex flex-col items-center mb-8 print:m-0 print:block relative mx-auto w-full min-h-full md:mb-12 md:w-max md:h-auto"
                  :class="{'print:break-after-page': index < pages.length - 1}">
           
           <!-- Content -->
@@ -54,49 +54,56 @@
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown">
              </div>
-             <!-- HMR trigger 17 -->
+             <!-- HMR trigger 26 -->
           </div>
 
-          <!-- Page Controls (Warning & Delete Button) -->
-          <div class="w-full flex justify-between items-start mt-6 print:hidden max-w-[var(--page-width)]">
-            <!-- Warning Message -->
-            <div :class="{ 'opacity-100 translate-y-0': page.isOverflowing && !page.isWarningDismissed, 'opacity-0 -translate-y-4 pointer-events-none': !(page.isOverflowing && !page.isWarningDismissed) }" 
-                 class="text-red-600 font-bold flex items-center gap-2 transition-all duration-300 text-sm bg-red-50 pl-4 pr-10 py-2 rounded-lg border border-red-200 shadow-sm relative">
+          <!-- Page Controls -->
+          <div class="w-full flex-none flex flex-col gap-3 mt-4 mb-8 print:hidden max-w-[var(--page-width)] md:mt-6 md:mb-12">
+            <!-- Primary actions -->
+            <div class="flex w-full justify-between items-center gap-3">
+              <button @click="deletePage(page.id)" 
+                      :disabled="pages.length === 1"
+                      class="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 md:px-4 md:py-2"
+                      :class="pages.length === 1 ? 'text-gray-400 border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 cursor-not-allowed' : 'text-red-500 border-red-200 bg-white dark:bg-gray-800 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 shadow-sm'">
+                <span class="i-heroicons-trash"></span>
+                ページを削除
+              </button>
+
+              <button @click="addPage" class="flex items-center gap-2 text-sm px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors print:hidden flex-shrink-0 md:px-6 md:py-2.5 md:text-base">
+                <span class="i-heroicons-plus text-xl"></span>
+                新しいページを追加
+              </button>
+            </div>
+
+            <!-- Overflow warning appears below both primary actions. -->
+            <div v-if="page.isOverflowing && !page.isWarningDismissed" 
+                 class="w-full text-red-600 font-bold flex items-center gap-2 text-sm bg-red-50 pl-4 pr-8 py-1.5 rounded-lg border border-red-200 shadow-sm relative">
               <span>⚠️</span>
               <span>このページに入力できる文字数を超えました。｢新しいページを追加｣して続きを書いてください。</span>
-              <button @click="dismissWarning(page.id)" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-red-700 bg-red-200 hover:bg-red-300 hover:text-red-900 rounded-md transition-colors shadow-sm" title="警告を閉じる">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <button @click="dismissWarning(page.id)" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-red-700 bg-red-200 hover:bg-red-300 rounded transition-colors" title="警告を閉じる">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            
-            <!-- Delete Button -->
-            <button @click="deletePage(page.id)" 
-                    :disabled="pages.length === 1"
-                    class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors flex-shrink-0"
-                    :class="pages.length === 1 ? 'text-gray-400 border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 cursor-not-allowed' : 'text-red-500 border-red-200 bg-white dark:bg-gray-800 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 shadow-sm'">
-              <span class="i-heroicons-trash"></span>
-              ページを削除
-            </button>
           </div>
           </div>
-          
-          <button @click="addPage" class="mt-8 mb-12 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-200 transition-colors print:hidden">
-            <span class="i-heroicons-plus text-xl"></span>
-            新しいページを追加
-          </button>
           </div>
           </div>
           
           <div v-else-if="layoutMode === 'auto' && pages[0]" 
-               class="auto-pagination-strip relative shadow-[0_4px_20px_rgba(0,0,0,0.15)] ml-auto mr-0 md:mx-auto w-max min-w-full md:min-w-[var(--strip-min-width)] h-full md:h-[var(--strip-height)] md:mt-[var(--strip-margin-top)] md:mb-[var(--strip-margin-bottom)]"
+               class="auto-pagination-strip relative ml-auto mr-0 md:mx-auto w-max min-w-full md:min-w-[var(--strip-min-width)] h-full md:h-[var(--strip-height)] md:mt-[var(--strip-margin-top)] md:mb-[var(--strip-margin-bottom)]"
+               :class="scrollStyle === 'paged' ? 'shadow-[0_4px_20px_rgba(0,0,0,0.15)]' : 'shadow-none'"
                :style="autoStripStyle"
                dir="rtl">
             
             <!-- BACKGROUND PAGES LAYER -->
             <div class="absolute right-0 top-0 bottom-0 pointer-events-none transition-colors duration-300"
                  :class="[scrollStyle === 'paged' ? 'bg-paged dark:!bg-gray-800' : 'bg-continuous dark:!bg-gray-800']"
+                 :style="{ width: `${autoStripStyle.minWidth}` }"></div>
+
+            <!-- Page separators stay above the editable text so page boundaries remain visible. -->
+            <div v-if="scrollStyle === 'paged'" class="absolute right-0 top-0 bottom-0 z-30 pointer-events-none page-separators"
                  :style="{ width: `${autoStripStyle.minWidth}` }"></div>
             
             <!-- Margin Guide Lines for Auto Mode -->
@@ -152,6 +159,7 @@ onMounted(() => {
         }
       }
     })
+
   }
 })
 
@@ -227,6 +235,7 @@ const autoStripStyle = computed(() => {
     '--strip-margin-top': 'calc(24px + var(--page-margin-y))',
     '--strip-margin-bottom': 'var(--page-margin-y)',
     '--strip-min-width': `${totalWidth}px`,
+    minWidth: `${totalWidth}px`,
     width: 'max-content',
     
     '--paper-full-width': `${fullWidth}px`,
@@ -418,6 +427,21 @@ rt {
   background-position: right top;
 }
 
+/* Reserve a slim visual gutter at each page boundary.  It is layered above
+   the editable text so a separator remains readable even near a page edge. */
+.page-separators {
+  background-image: repeating-linear-gradient(
+    to left,
+    transparent 0,
+    transparent calc(var(--paper-full-width) - 6px),
+    rgba(255, 255, 255, 0.96) calc(var(--paper-full-width) - 6px),
+    rgba(255, 255, 255, 0.96) calc(var(--paper-full-width) - 1px),
+    #cbd5e1 calc(var(--paper-full-width) - 1px),
+    #cbd5e1 var(--paper-full-width)
+  );
+  background-position: right top;
+}
+
 .dark .bg-paged {
   background-color: transparent;
   background-image: repeating-linear-gradient(
@@ -427,6 +451,19 @@ rt {
     #4b5563 calc(var(--paper-full-width) - 1px), /* gray-600 */
     #4b5563 var(--paper-full-width)
   );
+}
+
+.dark .page-separators {
+  background-image: repeating-linear-gradient(
+    to left,
+    transparent 0,
+    transparent calc(var(--paper-full-width) - 6px),
+    rgba(31, 41, 55, 0.96) calc(var(--paper-full-width) - 6px),
+    rgba(31, 41, 55, 0.96) calc(var(--paper-full-width) - 1px),
+    #4b5563 calc(var(--paper-full-width) - 1px),
+    #4b5563 var(--paper-full-width)
+  );
+  background-position: right top;
 }
 
 .bg-continuous {

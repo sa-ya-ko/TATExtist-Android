@@ -4,7 +4,7 @@
   
   <aside class="print:hidden fixed right-0 top-0 h-[100dvh] w-[320px] flex flex-col bg-surface-container-low dark:bg-gray-900 border-l border-outline-variant dark:border-gray-700 z-40 transition-transform duration-300 lg:top-toolbar-height lg:h-[calc(100dvh-56px)]"
          :class="isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'">
-      <div class="p-4 flex flex-col gap-lg">
+      <div class="p-4 flex-1 overflow-y-auto pb-16 flex flex-col gap-lg">
           <div>
               <h2 class="font-sidebar-header text-sidebar-header text-on-surface dark:text-gray-100 mb-4 flex justify-between items-center">
                 ページ設定
@@ -13,32 +13,74 @@
                 </button>
               </h2>
               <div class="space-y-6">
-                  <!-- Layout Mode -->
-                  <div class="flex flex-col gap-sm border-b border-outline-variant dark:border-gray-700 pb-4">
-                      <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">レイアウト</label>
-                      <select :value="layoutMode" @change="setLayoutMode($event.target.value)" class="w-full bg-white dark:bg-gray-800 dark:text-gray-100 border-b border-outline-variant dark:border-gray-700 focus:border-primary dark:focus:border-blue-400 focus:ring-0 text-ui-label-md py-2 pl-2 pr-8 transition-colors">
-                          <option value="auto">横にページを追加(自動改ページ)</option>
-                          <option value="manual">縦にページを追加(手動改ページ)</option>
-                      </select>
-                  </div>
+                   <!-- Layout Mode -->
+                   <div class="flex flex-col gap-sm border-b border-outline-variant dark:border-gray-700 pb-4">
+                       <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">レイアウト</label>
+                       <div class="relative w-full" ref="layoutMenuContainer">
+                           <button @click="showLayoutMenu = !showLayoutMenu" class="w-full bg-white dark:bg-gray-800 dark:text-gray-100 border-b border-outline-variant dark:border-gray-700 text-ui-label-md py-2 pl-2 pr-2 text-left flex justify-between items-center transition-colors rounded">
+                               <span>{{ layoutMode === 'auto' ? '横にページを追加(自動改ページ)' : '縦にページを追加(手動改ページ)' }}</span>
+                               <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                           </button>
+                           <ul v-if="showLayoutMenu" class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 list-none p-0 m-0 py-1 transition-colors mt-1">
+                               <li @mousedown.prevent="setLayoutMode('auto'); showLayoutMenu = false" 
+                                   class="px-3 py-2 text-sm cursor-pointer text-on-surface dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                   :class="layoutMode === 'auto' ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''">
+                                   横にページを追加(自動改ページ)
+                               </li>
+                               <li @mousedown.prevent="setLayoutMode('manual'); showLayoutMenu = false" 
+                                   class="px-3 py-2 text-sm cursor-pointer text-on-surface dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                   :class="layoutMode === 'manual' ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''">
+                                   縦にページを追加(手動改ページ)
+                               </li>
+                           </ul>
+                       </div>
+                   </div>
 
-                  <!-- Scroll Style (Only shown in auto mode) -->
-                  <div v-if="layoutMode === 'auto'" class="flex flex-col gap-sm border-b border-outline-variant dark:border-gray-700 pb-4">
-                      <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">見た目</label>
-                      <select v-model="scrollStyle" class="w-full bg-white dark:bg-gray-800 dark:text-gray-100 border-b border-outline-variant dark:border-gray-700 focus:border-primary dark:focus:border-blue-400 focus:ring-0 text-ui-label-md py-2 pl-2 pr-8 transition-colors">
-                          <option value="continuous">巻物</option>
-                          <option value="paged">分割ページ</option>
-                      </select>
-                  </div>
+                   <!-- Scroll Style (Only shown in auto mode) -->
+                   <div v-if="layoutMode === 'auto'" class="flex flex-col gap-sm border-b border-outline-variant dark:border-gray-700 pb-4">
+                       <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">見た目</label>
+                       <div class="relative w-full" ref="scrollStyleMenuContainer">
+                           <button @click="showScrollStyleMenu = !showScrollStyleMenu" class="w-full bg-white dark:bg-gray-800 dark:text-gray-100 border-b border-outline-variant dark:border-gray-700 text-ui-label-md py-2 pl-2 pr-2 text-left flex justify-between items-center transition-colors rounded">
+                               <span>{{ scrollStyle === 'continuous' ? '巻物' : '分割ページ' }}</span>
+                               <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                           </button>
+                           <ul v-if="showScrollStyleMenu" class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 list-none p-0 m-0 py-1 transition-colors mt-1">
+                               <li @mousedown.prevent="scrollStyle = 'continuous'; showScrollStyleMenu = false" 
+                                   class="px-3 py-2 text-sm cursor-pointer text-on-surface dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                   :class="scrollStyle === 'continuous' ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''">
+                                   巻物
+                               </li>
+                               <li @mousedown.prevent="scrollStyle = 'paged'; showScrollStyleMenu = false" 
+                                   class="px-3 py-2 text-sm cursor-pointer text-on-surface dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                   :class="scrollStyle === 'paged' ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''">
+                                   分割ページ
+                               </li>
+                           </ul>
+                       </div>
+                   </div>
 
-                  <!-- Paper Size -->
-                  <div class="flex flex-col gap-sm">
-                      <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">用紙サイズ</label>
-                      <select v-model="paperSize" class="w-full bg-white dark:bg-gray-800 dark:text-gray-100 border-b border-outline-variant dark:border-gray-700 focus:border-primary dark:focus:border-blue-400 focus:ring-0 text-ui-label-md py-2 pl-2 pr-8 transition-colors">
-                          <option value="A4">A4 (210 x 297 mm)</option>
-                          <option value="B5">B5 (182 x 257 mm)</option>
-                      </select>
-                  </div>
+                   <!-- Paper Size -->
+                   <div class="flex flex-col gap-sm">
+                       <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">用紙サイズ</label>
+                       <div class="relative w-full" ref="paperSizeMenuContainer">
+                           <button @click="showPaperSizeMenu = !showPaperSizeMenu" class="w-full bg-white dark:bg-gray-800 dark:text-gray-100 border-b border-outline-variant dark:border-gray-700 text-ui-label-md py-2 pl-2 pr-2 text-left flex justify-between items-center transition-colors rounded hover:border-primary dark:hover:border-blue-400">
+                               <span>{{ paperSize === 'A4' ? 'A4 (210 x 297 mm)' : 'B5 (182 x 257 mm)' }}</span>
+                               <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                           </button>
+                           <ul v-if="showPaperSizeMenu" class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 list-none p-0 m-0 py-1 transition-colors mt-1">
+                               <li @mousedown.prevent="paperSize = 'A4'; showPaperSizeMenu = false" 
+                                   class="px-3 py-2 text-sm cursor-pointer text-on-surface dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                   :class="paperSize === 'A4' ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''">
+                                   A4 (210 x 297 mm)
+                               </li>
+                               <li @mousedown.prevent="paperSize = 'B5'; showPaperSizeMenu = false" 
+                                   class="px-3 py-2 text-sm cursor-pointer text-on-surface dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                                   :class="paperSize === 'B5' ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''">
+                                   B5 (182 x 257 mm)
+                               </li>
+                           </ul>
+                       </div>
+                   </div>
                   <!-- Margins -->
                   <div class="flex flex-col gap-sm">
                       <label class="text-[10px] uppercase font-bold text-outline dark:text-gray-400">余白 (mm)</label>
@@ -112,7 +154,30 @@
 // Note: @change handlers for updateMargins and updatePaperSize were removed
 // because Vue v-model already handles updating the reactive state, and the
 // empty functions were causing warnings.
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useEditorState } from '../composables/useEditorState'
+
+const showLayoutMenu = ref(false)
+const showScrollStyleMenu = ref(false)
+const showPaperSizeMenu = ref(false)
+
+const layoutMenuContainer = ref<HTMLElement | null>(null)
+const scrollStyleMenuContainer = ref<HTMLElement | null>(null)
+const paperSizeMenuContainer = ref<HTMLElement | null>(null)
+
+const closeSidebarMenus = (e: MouseEvent) => {
+  if (showLayoutMenu.value && layoutMenuContainer.value && !layoutMenuContainer.value.contains(e.target as Node)) showLayoutMenu.value = false
+  if (showScrollStyleMenu.value && scrollStyleMenuContainer.value && !scrollStyleMenuContainer.value.contains(e.target as Node)) showScrollStyleMenu.value = false
+  if (showPaperSizeMenu.value && paperSizeMenuContainer.value && !paperSizeMenuContainer.value.contains(e.target as Node)) showPaperSizeMenu.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('mousedown', closeSidebarMenus)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', closeSidebarMenus)
+})
 
 const {
   paperSize,
