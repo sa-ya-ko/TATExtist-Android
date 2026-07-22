@@ -98,9 +98,9 @@
         <!-- フィードバック -->
         <div v-if="activeTab === 'feedback'">
           <h3 class="font-bold text-lg mb-3">フィードバック</h3>
-          <div class="bg-gray-50 p-4 rounded text-gray-600">
-            ご意見・ご要望はこちらのフォームからお寄せください。<br>
-            （※後ほど正式なGoogleフォーム等のリンクに差し替えてください）
+          <p class="mb-4 text-gray-700">｢たてもじ｣へのご質問やご要望は下記お問い合わせフォームよりお願いいたします</p>
+          <div class="bg-gray-50 rounded text-gray-600 flex justify-center w-full">
+            <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScLrtHzwt_F52GWVe0Eq1938utwTvToNwPJQkg5iNo8AHIL3w/viewform?embedded=true" width="100%" height="1033" frameborder="0" marginheight="0" marginwidth="0">読み込んでいます…</iframe>
           </div>
         </div>
 
@@ -181,7 +181,11 @@
                 最終改定日：2026年7月19日
               </p>
               <h4 class="font-bold text-gray-800 mb-1">お問い合わせ先</h4>
-              <p>本規約に関するお問い合わせは、フィードバック・お問い合わせ用の窓口よりご連絡ください。</p>
+              <p>
+                本規約に関するお問い合わせは、
+                <a href="https://forms.gle/w37AjmJYV64k5HmN6" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-bold">お問い合わせフォーム</a>
+                よりご連絡ください。
+              </p>
             </div>
           </div>
         </div>
@@ -235,11 +239,11 @@
             <p>当方は、法令の改正や本サービスの仕様変更に伴い、必要に応じて本ポリシーを変更することがあります。変更を行った場合は、本サービス上での掲示その他適当な方法によりユーザーに通知します。変更後に本サービスを利用した場合、ユーザーは変更後の本ポリシーに同意したものとみなされます。</p>
 
             <h4 class="font-bold text-gray-800">7. お問い合わせ</h4>
-            <p>ユーザーは、本ポリシーまたは個人情報の取り扱いに関するお問い合わせを、お問い合わせ窓口を通じて行うことができます。</p>
-            <div class="mt-2 text-sm text-gray-700">
-              <p>【お問い合わせ先】</p>
-              <p>フィードバック・お問い合わせ用の窓口よりご連絡ください。</p>
-            </div>
+            <p>
+              ユーザーは、本ポリシーまたは個人情報の取り扱いに関するお問い合わせを、
+              <a href="https://forms.gle/w37AjmJYV64k5HmN6" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-bold">お問い合わせフォーム</a>
+              を通じて行うことができます。
+            </p>
             
             <div class="mt-6 pt-4 border-t border-gray-200">
               <p class="text-xs text-gray-500">

@@ -1,10 +1,25 @@
 <template>
   <header class="print:hidden relative w-full flex flex-col md:flex-row md:items-center z-50 bg-surface dark:bg-gray-900 border-b border-outline-variant dark:border-gray-700 transition-colors duration-300 flex-shrink-0 md:h-[56px] md:overflow-visible">
       <div class="flex flex-col md:flex-row md:items-center justify-between px-4 py-2 gap-2 min-h-[56px] md:min-h-full md:py-0 md:pr-4 md:flex-shrink-0">
-          <!-- 1段目 (スマホ) / 左側 (PC): ドキュメントタイトル -->
-          <div class="flex items-center gap-2 w-full md:w-auto">
-              <span class="material-symbols-outlined text-primary dark:text-blue-400" data-icon="description">description</span>
-              <input v-model="documentTitle" class="bg-transparent border-none p-0 focus:ring-0 font-medium text-on-surface-variant dark:text-gray-200 flex-1 md:w-48 transition-colors outline-none" type="text" placeholder="無題のドキュメント">
+          <!-- 1段目 (スマホ) / 左側 (PC): ロゴ ＆ ドキュメントタイトル -->
+          <div class="flex items-center gap-3 w-full md:w-auto overflow-hidden">
+              <!-- ロゴとサイト名 -->
+              <div class="flex items-center gap-2 shrink-0">
+                  <img src="/favicon.webp" alt="たてもじ" class="w-10 h-10 object-contain" />
+                  <div class="flex flex-col justify-center">
+                      <span class="text-[9px] text-gray-500 dark:text-gray-400 leading-none mb-0.5">横書き専用エディタ</span>
+                      <span class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">たてもじ</span>
+                  </div>
+              </div>
+
+              <!-- 区切り線 -->
+              <div class="w-px h-6 bg-gray-300 dark:bg-gray-700 shrink-0"></div>
+
+              <!-- 既存部分：汎用アイコンとタイトル入力欄 -->
+              <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                  <span class="material-symbols-outlined text-primary dark:text-blue-400 text-[18px] shrink-0" data-icon="description">description</span>
+                  <input v-model="documentTitle" class="bg-transparent border-none p-0 focus:ring-0 font-medium text-on-surface-variant dark:text-gray-200 flex-1 md:w-40 transition-colors outline-none truncate text-sm" type="text" placeholder="無題のドキュメント">
+              </div>
           </div>
 
           <!-- 2段目 (スマホ) / 中央 (PC): ツール類 -->
@@ -228,11 +243,11 @@ const presetColors = [
   { label: '中灰', value: '#9CA3AF' },
   { label: '薄灰', value: '#D1D5DB' },
   // 有彩色（5色：赤と橙の間にピンク）
-  { label: '赤', value: '#EF4444' },
-  { label: 'ピンク', value: '#EC4899' },
-  { label: '橙', value: '#F59E0B' },
-  { label: '緑', value: '#10B981' },
-  { label: '青', value: '#3B82F6' }
+  { label: '赤', value: '#E62112' },
+  { label: 'ピンク', value: '#E95098' },
+  { label: '橙', value: '#ED6A00' },
+  { label: '緑', value: '#0097A1' },
+  { label: '青', value: '#100D63' }
 ]
 
 const selectPresetColor = (colorValue: string) => {

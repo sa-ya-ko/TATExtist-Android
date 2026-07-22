@@ -123,24 +123,13 @@
                                   <span class="text-[10px] text-outline dark:text-gray-400">文字</span>
                               </div>
                           </div>
-                          <div class="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded transition-colors cursor-pointer group">
-                              <span class="material-symbols-outlined text-outline dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400" data-icon="account_tree">account_tree</span>
-                              <span class="text-ui-label-md dark:text-gray-300">アウトラインを表示</span>
-                          </div>
-                          <div class="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded transition-colors cursor-pointer group">
-                              <span class="material-symbols-outlined text-outline dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400" data-icon="rate_review">rate_review</span>
-                              <span class="text-ui-label-md dark:text-gray-300">変更履歴を確認</span>
-                          </div>
                       </div>
                   </div>
               </div>
           </div>
       </div>
       <div class="mt-auto p-4 border-t border-outline-variant dark:border-gray-700">
-          <button class="w-full bg-primary dark:bg-blue-600 text-on-primary py-2.5 rounded font-ui-button text-ui-button flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all">
-              変更を適用
-          </button>
-          <div class="flex justify-center mt-4">
+          <div class="flex justify-center">
               <button @click="openHelpModal" class="flex flex-col items-center gap-1 group">
                   <span class="material-symbols-outlined text-on-surface-variant dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors" data-icon="help_outline">help_outline</span>
                   <span class="text-[10px] text-on-surface-variant dark:text-gray-400">ヘルプ</span>
