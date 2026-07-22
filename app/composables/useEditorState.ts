@@ -1068,7 +1068,89 @@ function handleKeyDown(e: KeyboardEvent) {
     if (e.isComposing) return;
     if (e.shiftKey) {
       e.preventDefault();
-      document.execCommand('insertLineBreak', false, undefined);
+      
+      let selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+      let range = selection.getRangeAt(0);
+      
+      let container = range.startContainer;
+      if (container.nodeType === 3) container = container.parentNode;
+      
+      if (container instanceof HTMLElement && container.hasAttribute('contenteditable')) {
+        document.execCommand('formatBlock', false, 'div');
+        selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          range = selection.getRangeAt(0);
+        }
+      }
+      
+      const br = document.createElement('br');
+      range.deleteContents();
+      range.insertNode(br);
+      
+      const rubyAncestor = br.parentElement?.closest('ruby');
+      if (rubyAncestor) {
+        let isAtStart = true;
+        let prev = br.previousSibling;
+        while (prev) {
+          if (prev.nodeType === Node.TEXT_NODE && prev.textContent && prev.textContent.length > 0) {
+            isAtStart = false; break;
+          }
+          if (prev.nodeType === Node.ELEMENT_NODE) {
+            isAtStart = false; break;
+          }
+          prev = prev.previousSibling;
+        }
+        
+        if (isAtStart) {
+          rubyAncestor.parentNode?.insertBefore(br, rubyAncestor);
+        } else {
+          rubyAncestor.parentNode?.insertBefore(br, rubyAncestor.nextSibling);
+        }
+      }
+      
+      range.setStartAfter(br);
+      range.setEndAfter(br);
+      
+      let current = br.nextSibling;
+      let isAtEnd = true;
+      while (current) {
+        if (current.nodeName === 'BR' || (current.nodeType === Node.TEXT_NODE && current.textContent.length > 0) || current.nodeType === Node.ELEMENT_NODE) {
+          isAtEnd = false;
+          break;
+        }
+        current = current.nextSibling;
+      }
+
+      if (isAtEnd) {
+        const dummyBr = document.createElement('br');
+        br.parentNode?.insertBefore(dummyBr, br.nextSibling);
+      }
+      
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      if (e.target) {
+        e.target.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    } else {
+      setTimeout(() => {
+        const editorElement = e.target as HTMLElement;
+        if (editorElement) {
+          const rubies = editorElement.querySelectorAll('ruby');
+          let changed = false;
+          rubies.forEach(ruby => {
+            if (ruby.textContent?.trim() === '') {
+              const br = document.createElement('br');
+              ruby.parentNode?.replaceChild(br, ruby);
+              changed = true;
+            }
+          });
+          if (changed) {
+            editorElement.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      }, 0);
     }
     return;
   }
