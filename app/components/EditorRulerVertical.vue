@@ -1,12 +1,12 @@
 <template>
-  <div class="w-6 h-full bg-surface-container-lowest border-l border-outline-variant relative select-none overflow-hidden" v-if="showRulers">
+  <div class="w-6 h-full bg-surface-container-lowest dark:bg-gray-800 border-l border-outline-variant dark:border-gray-700 relative select-none overflow-hidden" v-if="showRulers">
     
-    <div v-for="pos in pagePositions" :key="pos.id" class="absolute w-full bg-white" :style="{ top: pos.top + 'px', height: pageHeightPx + 'px' }">
+    <div v-for="pos in pagePositions" :key="pos.id" class="absolute w-full bg-white dark:bg-gray-800" :style="{ top: pos.top + 'px', height: pageHeightPx + 'px' }">
       <!-- Top Margin -->
-      <div class="absolute top-0 w-full bg-gray-100 border-b border-gray-300" :style="{ height: marginTopPx + 'px' }"></div>
+      <div class="absolute top-0 w-full bg-gray-100 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700" :style="{ height: marginTopPx + 'px' }"></div>
       
       <!-- Bottom Margin -->
-      <div class="absolute bottom-0 w-full bg-gray-100 border-t border-gray-300" :style="{ height: marginBottomPx + 'px' }"></div>
+      <div class="absolute bottom-0 w-full bg-gray-100 dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700" :style="{ height: marginBottomPx + 'px' }"></div>
       
       <!-- Ticks -->
       <svg class="absolute inset-0 w-full h-full pointer-events-none">
@@ -36,7 +36,7 @@
         :style="{ top: marginTopPx + 'px' }"
         @mousedown.prevent="startDrag('top', $event)"
       >
-        <div class="w-0 h-0 border-b-[6px] border-b-transparent border-t-[6px] border-t-transparent border-l-[6px] border-l-primary absolute -top-[5px] left-0"></div>
+        <div class="w-0 h-0 border-b-[6px] border-b-transparent border-t-[6px] border-t-transparent border-l-[6px] border-l-primary dark:border-l-gray-300 absolute -top-[5px] left-0"></div>
       </div>
 
       <!-- Bottom Handle -->
@@ -45,7 +45,7 @@
         :style="{ bottom: marginBottomPx + 'px' }"
         @mousedown.prevent="startDrag('bottom', $event)"
       >
-        <div class="w-0 h-0 border-b-[6px] border-b-transparent border-t-[6px] border-t-transparent border-l-[6px] border-l-primary absolute -bottom-1 left-0"></div>
+        <div class="w-0 h-0 border-b-[6px] border-b-transparent border-t-[6px] border-t-transparent border-l-[6px] border-l-primary dark:border-l-gray-300 absolute -bottom-1 left-0"></div>
       </div>
     </div>
   </div>

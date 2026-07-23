@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --spacing-toolbar-height: 56px;
   --spacing-sidebar-width: 320px;
@@ -26,8 +28,15 @@
   font-style: italic;
 }
 
-.writing-vertical u {
+.writing-vertical u,
+.writing-vertical [style*="underline"] {
   text-decoration: underline;
+  text-decoration-color: var(--color-on-surface);
+}
+
+html.dark .writing-vertical u,
+html.dark .writing-vertical [style*="underline"] {
+  text-decoration-color: #f3f4f6;
 }
 
 /* Base styles from sample */

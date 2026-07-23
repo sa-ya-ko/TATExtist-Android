@@ -8,6 +8,11 @@ export interface Page {
 }
 
 const pages = ref<Page[]>([])
+// The document is stored as one continuous HTML stream.  Explicit page breaks
+// are represented by markers in that stream; `pages` is only the editor view.
+const documentContent = ref('')
+const MANUAL_BREAK = /<!--manual-page-break-->/g
+const manualBreakMarker = '<!--manual-page-break-->'
 const documentTitle = ref<string>('無題のドキュメント')
 const editor = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -17,6 +22,9 @@ const isItalic = ref(false)
 const isUnderline = ref(false)
 const isList = ref(false)
 const rubyModalVisible = ref(false)
+const helpModalVisible = ref(false)
+const isDarkMode = ref(false)
+const isSidebarOpen = ref(false)
 const currentFontSize = ref(12)
 const showFontSizeDropdown = ref(false)
 const selectedColor = ref('#000000')
@@ -75,21 +83,80 @@ const currentHeading = ref('P')
 const currentIndent = ref(0)
 
 const layoutMode = ref<'auto' | 'manual'>('auto')
-const scrollStyle = ref<'paged' | 'continuous'>('paged')
+const scrollStyle = ref<'paged' | 'continuous'>('continuous')
+
+function syncPagesFromDocument() {
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  pages.value = segments.map((content, index) => ({
+    id: Date.now() + index + Math.random(),
+    content
+  }))
+  if (pages.value.length === 0) pages.value = [{ id: Date.now(), content: '' }]
+}
+
+function setDocumentFromLegacyPages(legacyPages: Array<Pick<Page, 'content'>>) {
+  documentContent.value = legacyPages.map(page => page.content).join(manualBreakMarker)
+  syncPagesFromDocument()
+}
+
+function updatePageContent(pageId: number, content: string) {
+  const index = pages.value.findIndex(page => page.id === pageId)
+  if (index < 0) return
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  segments[index] = content
+  documentContent.value = segments.join(manualBreakMarker)
+  pages.value[index].content = content
+}
+
+function addManualPage(afterPageId?: number) {
+  const index = afterPageId === undefined
+    ? pages.value.length - 1
+    : pages.value.findIndex(page => page.id === afterPageId)
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  const insertAt = index < 0 ? segments.length : index + 1
+  segments.splice(insertAt, 0, '')
+  documentContent.value = segments.join(manualBreakMarker)
+  syncPagesFromDocument()
+  persistDocument()
+}
+
+function deleteManualPage(pageId: number) {
+  const index = pages.value.findIndex(page => page.id === pageId)
+  if (index < 0 || pages.value.length <= 1) return
+  const segments = documentContent.value.split(MANUAL_BREAK)
+  segments.splice(index, 1)
+  documentContent.value = segments.join(manualBreakMarker)
+  syncPagesFromDocument()
+  persistDocument()
+}
+
+function persistDocument() {
+  localStorage.setItem('vertical-editor-document', JSON.stringify({
+    version: '2.0',
+    content: documentContent.value
+  }))
+}
 
 const setLayoutMode = (mode: 'auto' | 'manual') => {
   if (layoutMode.value === mode) return
 
   if (mode === 'auto' && pages.value.length > 1) {
-    const mergedContent = pages.value.map(p => p.content).join('<br><br>')
-    pages.value = [{
-      id: pages.value[0].id,
-      content: mergedContent,
-      isOverflowing: false,
-      isWarningDismissed: false
-    }]
+    documentContent.value = documentContent.value.replace(MANUAL_BREAK, '<br><br>')
+    syncPagesFromDocument()
+    persistDocument()
   }
   layoutMode.value = mode
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('tategaki-layout-mode', mode)
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const savedMode = localStorage.getItem('tategaki-layout-mode') as 'auto' | 'manual' | null
+  if (savedMode && (savedMode === 'auto' || savedMode === 'manual')) {
+    layoutMode.value = savedMode
+  }
 }
 
 const showRulers = ref(true)
@@ -133,6 +200,8 @@ let lastEditorRange: Range | null = null
 
 
 function updateSelection() {
+  if (document.activeElement?.tagName === 'INPUT') return;
+
   const sel = window.getSelection()
   if (sel && sel.rangeCount > 0) {
     let node = sel.anchorNode
@@ -157,6 +226,16 @@ function updateSelection() {
         }
 
         let parent = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement
+        
+        function getDeepestFirstChild(n: Node): Node {
+          if (n.firstChild) return getDeepestFirstChild(n.firstChild)
+          return n
+        }
+        let deepest = getDeepestFirstChild(parent)
+        if (deepest.nodeType === Node.TEXT_NODE && deepest.parentElement) {
+          parent = deepest.parentElement
+        }
+
         if (parent && parent.nodeName.toUpperCase() === 'RT') {
           parent = parent.parentElement as HTMLElement
         }
@@ -186,7 +265,6 @@ function updateSelection() {
 
           // Font Family
           if (comp.fontFamily) {
-            // "Noto Serif JP", serif などのフォーマットをある程度標準化してマッチさせる
             const normalizedFont = comp.fontFamily.replace(/"/g, '').toLowerCase()
             const match = fontOptions.find(opt => opt.value.replace(/"/g, '').toLowerCase().includes(normalizedFont.split(',')[0].trim()))
             if (match) {
@@ -654,6 +732,61 @@ function applyColor() {
   applyInlineStyleSafe('color', selectedColor.value)
 }
 
+function openHelpModal() {
+  helpModalVisible.value = true
+}
+
+function closeHelpModal() {
+  helpModalVisible.value = false
+}
+
+function toggleDarkMode() {
+  isDarkMode.value = !isDarkMode.value
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('vertical-editor-theme', 'dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('vertical-editor-theme', 'light')
+  }
+}
+
+function toggleSidebar() {
+  isSidebarOpen.value = !isSidebarOpen.value
+}
+
+async function downloadPDF() {
+  try {
+    const htmlContent = documentContent.value.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden;">')
+    
+    // サーバーサイドAPIにHTMLを送信してPDFを生成
+    const response = await fetch('/api/export-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ html: htmlContent })
+    })
+
+    if (!response.ok) {
+      throw new Error('PDFの生成に失敗しました')
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${documentTitle.value || 'document'}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('PDF Export Error:', error)
+    alert('PDFの書き出しに失敗しました。')
+  }
+}
+
 function openRubyModal() {
   let sel = window.getSelection()
   let node = sel?.anchorNode
@@ -773,29 +906,71 @@ function removeRuby() {
 }
 
 export function initPages() {
+  const savedTheme = localStorage.getItem('vertical-editor-theme')
+  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    isDarkMode.value = true
+    if (typeof document !== 'undefined') document.documentElement.classList.add('dark')
+  } else {
+    isDarkMode.value = false
+    if (typeof document !== 'undefined') document.documentElement.classList.remove('dark')
+  }
+
+  const savedDocument = localStorage.getItem('vertical-editor-document')
+  if (savedDocument) {
+    try {
+      const data = JSON.parse(savedDocument)
+      if (data.version === '2.0' && typeof data.content === 'string') {
+        documentContent.value = data.content
+        syncPagesFromDocument()
+        return
+      }
+    } catch {
+      // Fall back to the legacy page-array format below.
+    }
+  }
+
   const saved = localStorage.getItem('vertical-editor-pages')
   if (saved) {
     try {
-      pages.value = JSON.parse(saved)
-      if (pages.value.length === 0) throw new Error()
+      const legacyPages = JSON.parse(saved)
+      if (!Array.isArray(legacyPages) || legacyPages.length === 0) throw new Error()
+      setDocumentFromLegacyPages(legacyPages)
+      persistDocument()
     } catch {
-      pages.value = [{ id: Date.now(), content: '' }]
+      documentContent.value = ''
+      syncPagesFromDocument()
     }
   } else {
     const oldSaved = localStorage.getItem('vertical-editor')
     if (oldSaved) {
-      pages.value = [{ id: Date.now(), content: oldSaved }]
+      documentContent.value = oldSaved
+      syncPagesFromDocument()
+      persistDocument()
       localStorage.removeItem('vertical-editor')
     } else {
-      pages.value = [{ id: Date.now(), content: '' }]
+      documentContent.value = ''
+      syncPagesFromDocument()
     }
   }
 }
 
 function onInput(e?: Event) {
-  const sel = window.getSelection()
-  if (sel && sel.rangeCount > 0) {
-    lastEditorRange = sel.getRangeAt(0).cloneRange()
+  if (document.activeElement?.tagName !== 'INPUT') {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      let node = sel.anchorNode
+      let isInside = false
+      while (node) {
+        if (node === editor.value) {
+          isInside = true
+          break
+        }
+        node = node.parentNode || null
+      }
+      if (isInside) {
+        lastEditorRange = sel.getRangeAt(0).cloneRange()
+      }
+    }
   }
 
   if (e && e.target) {
@@ -810,13 +985,10 @@ function onInput(e?: Event) {
     const pageIdStr = editor.value.getAttribute('data-page-id')
     if (pageIdStr) {
       const pageId = Number(pageIdStr)
-      const page = pages.value.find(p => p.id === pageId)
-      if (page) {
-        page.content = editor.value.innerHTML
-      }
+      updatePageContent(pageId, editor.value.innerHTML)
     }
   }
-  localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+  persistDocument()
 }
 
 function triggerFileInput() {
@@ -835,12 +1007,23 @@ function handleFileRead(event: Event) {
 
       try {
         const data = JSON.parse(content)
-        if (data.pages && data.version) {
-          pages.value = data.pages.map((p: any) => ({ ...p, id: Date.now() + Math.random() }))
+        if (data.version === '2.0' && typeof data.content === 'string') {
+          documentContent.value = data.content
+          syncPagesFromDocument()
           if (data.documentTitle) documentTitle.value = data.documentTitle
           if (data.paperSize) paperSize.value = data.paperSize
           if (data.margins) margins.value = data.margins
-          localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+          persistDocument()
+          target.value = ''
+          return
+        }
+
+        if (data.pages && data.version) {
+          setDocumentFromLegacyPages(data.pages)
+          if (data.documentTitle) documentTitle.value = data.documentTitle
+          if (data.paperSize) paperSize.value = data.paperSize
+          if (data.margins) margins.value = data.margins
+          persistDocument()
           target.value = ''
           return
         }
@@ -852,8 +1035,9 @@ function handleFileRead(event: Event) {
       if (file.name.endsWith('.txt')) {
         content = content.replace(/\n/g, '<br>')
       }
-      pages.value = [{ id: Date.now(), content }]
-      localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+      documentContent.value = content
+      syncPagesFromDocument()
+      persistDocument()
 
       target.value = ''
     }
@@ -865,10 +1049,10 @@ function handleFileRead(event: Event) {
 function saveDocumentLocal() {
   const data = {
     documentTitle: documentTitle.value,
-    pages: pages.value,
+    content: documentContent.value,
     paperSize: paperSize.value,
     margins: margins.value,
-    version: '1.0'
+    version: '2.0'
   }
 
   let fileName = documentTitle.value || '無題のドキュメント'
@@ -884,12 +1068,12 @@ function saveDocumentLocal() {
   URL.revokeObjectURL(url)
 }
 
-function exportDocument(format: 'pdf' | 'html' = 'pdf') {
+function exportDocument(format: 'print' | 'html' = 'print') {
   if (!editor.value) return
-  if (format === 'pdf') {
+  if (format === 'print') {
     window.print()
   } else if (format === 'html') {
-    const content = pages.value.map(p => p.content).join('<hr>')
+    const content = documentContent.value.replace(MANUAL_BREAK, '<hr>')
     const blob = new Blob([content], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -904,10 +1088,16 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Tab') {
     if (e.isComposing) return;
     e.preventDefault();
+    
+    const selection = window.getSelection();
+    const isCollapsed = selection ? selection.isCollapsed : true;
+    
     if (e.shiftKey) {
       customOutdent();
-    } else {
+    } else if (!isCollapsed) {
       customIndent();
+    } else {
+      document.execCommand('insertHTML', false, '　');
     }
     return;
   }
@@ -916,7 +1106,89 @@ function handleKeyDown(e: KeyboardEvent) {
     if (e.isComposing) return;
     if (e.shiftKey) {
       e.preventDefault();
-      document.execCommand('insertLineBreak', false, undefined);
+      
+      let selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+      let range = selection.getRangeAt(0);
+      
+      let container = range.startContainer;
+      if (container.nodeType === 3) container = container.parentNode;
+      
+      if (container instanceof HTMLElement && container.hasAttribute('contenteditable')) {
+        document.execCommand('formatBlock', false, 'div');
+        selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          range = selection.getRangeAt(0);
+        }
+      }
+      
+      const br = document.createElement('br');
+      range.deleteContents();
+      range.insertNode(br);
+      
+      const rubyAncestor = br.parentElement?.closest('ruby');
+      if (rubyAncestor) {
+        let isAtStart = true;
+        let prev = br.previousSibling;
+        while (prev) {
+          if (prev.nodeType === Node.TEXT_NODE && prev.textContent && prev.textContent.length > 0) {
+            isAtStart = false; break;
+          }
+          if (prev.nodeType === Node.ELEMENT_NODE) {
+            isAtStart = false; break;
+          }
+          prev = prev.previousSibling;
+        }
+        
+        if (isAtStart) {
+          rubyAncestor.parentNode?.insertBefore(br, rubyAncestor);
+        } else {
+          rubyAncestor.parentNode?.insertBefore(br, rubyAncestor.nextSibling);
+        }
+      }
+      
+      range.setStartAfter(br);
+      range.setEndAfter(br);
+      
+      let current = br.nextSibling;
+      let isAtEnd = true;
+      while (current) {
+        if (current.nodeName === 'BR' || (current.nodeType === Node.TEXT_NODE && current.textContent.length > 0) || current.nodeType === Node.ELEMENT_NODE) {
+          isAtEnd = false;
+          break;
+        }
+        current = current.nextSibling;
+      }
+
+      if (isAtEnd) {
+        const dummyBr = document.createElement('br');
+        br.parentNode?.insertBefore(dummyBr, br.nextSibling);
+      }
+      
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      if (e.target) {
+        e.target.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    } else {
+      setTimeout(() => {
+        const editorElement = e.target as HTMLElement;
+        if (editorElement) {
+          const rubies = editorElement.querySelectorAll('ruby');
+          let changed = false;
+          rubies.forEach(ruby => {
+            if (ruby.textContent?.trim() === '') {
+              const br = document.createElement('br');
+              ruby.parentNode?.replaceChild(br, ruby);
+              changed = true;
+            }
+          });
+          if (changed) {
+            editorElement.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      }, 0);
     }
     return;
   }
@@ -968,6 +1240,7 @@ export const useEditorState = () => {
   return {
     editor,
     pages,
+    documentContent,
     documentTitle,
     initPages,
     fileInput,
@@ -1012,6 +1285,10 @@ export const useEditorState = () => {
     onInput,
     openRubyModal,
     closeRubyModal,
+    helpModalVisible,
+    openHelpModal,
+    closeHelpModal,
+    downloadPDF,
     applyRuby,
     removeRuby,
     triggerFileInput,
@@ -1022,6 +1299,14 @@ export const useEditorState = () => {
     layoutMode,
     scrollStyle,
     setLayoutMode,
+    updatePageContent,
+    addManualPage,
+    deleteManualPage,
+    persistDocument,
+    isDarkMode,
+    isSidebarOpen,
+    toggleDarkMode,
+    toggleSidebar,
     MM_TO_PX,
     paperDimensions
   }

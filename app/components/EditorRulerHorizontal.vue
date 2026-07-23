@@ -1,11 +1,11 @@
 <template>
-  <div class="h-6 w-full bg-white border-b border-gray-300 flex justify-center sticky top-0 z-20 select-none overflow-hidden" v-if="showRulers">
+  <div class="h-6 w-full bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 flex justify-center sticky top-0 z-20 select-none overflow-hidden" v-if="showRulers">
     <div class="relative h-full" :style="{ width: pageWidthPx + 'px' }">
       <!-- Right Margin (Start of vertical text) -->
-      <div class="absolute right-0 top-0 h-full bg-gray-100 border-l border-gray-300" :style="{ width: marginRightPx + 'px' }"></div>
+      <div class="absolute right-0 top-0 h-full bg-gray-100 dark:bg-gray-900 border-l border-gray-300 dark:border-gray-700" :style="{ width: marginRightPx + 'px' }"></div>
       
       <!-- Left Margin (End of vertical text) -->
-      <div class="absolute left-0 top-0 h-full bg-gray-100 border-r border-gray-300" :style="{ width: marginLeftPx + 'px' }"></div>
+      <div class="absolute left-0 top-0 h-full bg-gray-100 dark:bg-gray-900 border-r border-gray-300 dark:border-gray-700" :style="{ width: marginLeftPx + 'px' }"></div>
       
       <!-- Ticks -->
       <svg class="absolute inset-0 w-full h-full pointer-events-none">
@@ -35,7 +35,7 @@
         :style="{ right: marginRightPx + 'px' }"
         @mousedown.prevent="startDrag('right', $event)"
       >
-        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary absolute -bottom-1 -left-[5px]"></div>
+        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary dark:border-t-gray-300 absolute -bottom-1 -left-[5px]"></div>
       </div>
 
       <!-- Left Handle -->
@@ -44,7 +44,7 @@
         :style="{ left: marginLeftPx + 'px' }"
         @mousedown.prevent="startDrag('left', $event)"
       >
-        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary absolute -bottom-1 -left-[5px]"></div>
+        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary dark:border-t-gray-300 absolute -bottom-1 -left-[5px]"></div>
       </div>
     </div>
   </div>
