@@ -1,8 +1,8 @@
 <template>
   <!-- Mobile Overlay -->
-  <div v-if="isSidebarOpen" @click="toggleSidebar" class="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity"></div>
+  <div v-if="isSidebarOpen" @click="toggleSidebar" class="fixed inset-0 bg-black/50 z-[100] lg:hidden transition-opacity"></div>
   
-  <aside class="print:hidden fixed right-0 top-0 h-[100dvh] w-[320px] flex flex-col bg-surface-container-low dark:bg-gray-900 border-l border-outline-variant dark:border-gray-700 z-40 transition-transform duration-300 lg:top-toolbar-height lg:h-[calc(100dvh-56px)]"
+  <aside class="print:hidden fixed right-0 top-0 h-[100dvh] w-[320px] flex flex-col bg-surface-container-low dark:bg-gray-900 border-l border-outline-variant dark:border-gray-700 z-[110] lg:z-40 transition-transform duration-300 lg:top-toolbar-height lg:h-[calc(100dvh-56px)]"
          :class="isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'">
       <div class="p-4 flex-1 overflow-y-auto pb-16 flex flex-col gap-lg">
           <div>

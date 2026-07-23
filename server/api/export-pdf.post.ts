@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
         h3 { font-size: 1.17em; margin-bottom: 1em; }
         h4 { font-size: 1em; margin-bottom: 1.33em; }
         p:empty::before { content: '\\200B'; }
-        hr { display: none; }
+        hr { border: none; margin: 0; padding: 0; }
       </style>
     </head>
     <body>
@@ -50,6 +50,7 @@ export default defineEventHandler(async (event) => {
     // PDF化
     const pdfBuffer = await page.pdf({
       format: 'A4',
+      landscape: true,
       printBackground: true,
       margin: { top: '30mm', right: '30mm', bottom: '30mm', left: '30mm' }
     })

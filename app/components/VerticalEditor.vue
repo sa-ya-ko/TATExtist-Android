@@ -8,10 +8,7 @@
       <!-- Sidebar Right (Page Setup) -->
       <EditorSidebar class="print:hidden" />
 
-      <!-- Editor Canvas Area -->
       <div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden transition-all duration-300" :class="{ 'lg:mr-[320px]': true }">
-        <!-- Vertical Ruler (Fixed to the right of the canvas, left of the sidebar, manual mode only) -->
-        <EditorRulerVertical v-if="layoutMode === 'manual'" :scroll-container="scrollContainer" class="absolute top-0 bottom-0 right-0 z-40 print:hidden shadow-sm" />
 
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
@@ -161,7 +158,6 @@ import HelpModal from './HelpModal.vue'
 import { useEditorState } from '../composables/useEditorState'
 import { useGoogleDrive } from '../composables/useGoogleDrive'
 import EditorRulerHorizontal from './EditorRulerHorizontal.vue'
-import EditorRulerVertical from './EditorRulerVertical.vue'
 
 const scrollContainer = ref<HTMLElement | null>(null)
 const autoTextWidthPx = ref(0)
@@ -210,24 +206,38 @@ const {
   wordCountModalVisible,
   showWordCountWhileTyping,
   characterCount,
-  openWordCountModal
+  openWordCountModal,
+  documentRevision
 } = useEditorState()
 
 const { isDriveModalOpen } = useGoogleDrive()
 
 const editorRefs = ref<Record<number, HTMLElement>>({})
 
+watch(() => documentRevision?.value, () => {
+  pages.value.forEach(page => {
+    const el = editorRefs.value[page.id]
+    if (el) {
+      el.innerHTML = page.content
+    }
+  })
+}, { flush: 'post' })
+
 const setEditorRef = (id: number, el: any) => {
   if (el) {
     editorRefs.value[id] = el
     const page = pages.value.find(p => p.id === id)
-    if (page && el.innerHTML !== page.content) {
+    // Only update innerHTML on initial mount of the editor element
+    if (page && el.innerHTML === '' && page.content !== '') {
       el.innerHTML = page.content
       
       // Auto focus newly added page
       if (id === pages.value[pages.value.length - 1].id) {
         editor.value = el
       }
+    } else if (page && id === pages.value[pages.value.length - 1].id && el.innerHTML === '') {
+      // Auto focus for empty new page
+      editor.value = el
     }
     
     if (layoutMode.value === 'auto' && id === pages.value[0]?.id && resizeObserver) {

@@ -22,7 +22,7 @@
           </div>
 
           <!-- 2段目 (スマホ) / 中央 (PC): ツール類 -->
-          <div class="flex flex-nowrap items-center justify-between md:justify-start w-full max-w-full overflow-x-auto md:overflow-visible md:w-auto gap-0.5 md:gap-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div class="flex flex-wrap items-center justify-between md:justify-start w-full max-w-full md:w-auto gap-1 md:gap-2">
               <!-- File Dropdown -->
               <div class="relative flex items-center" ref="fileMenuContainer">
                   <button @click="showFileMenu = !showFileMenu" class="px-1 md:px-2 py-1 flex items-center gap-0.5 md:gap-1 rounded hover:bg-surface-container-low dark:hover:bg-gray-800 text-xs md:text-sm dark:text-gray-200 transition-colors whitespace-nowrap" title="ファイル">

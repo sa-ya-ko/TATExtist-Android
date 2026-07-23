@@ -11,6 +11,7 @@ const pages = ref<Page[]>([])
 // The document is stored as one continuous HTML stream.  Explicit page breaks
 // are represented by markers in that stream; `pages` is only the editor view.
 const documentContent = ref('')
+const documentRevision = ref(0)
 const MANUAL_BREAK = /<!--manual-page-break-->/g
 const manualBreakMarker = '<!--manual-page-break-->'
 const documentTitle = ref<string>('無題のドキュメント')
@@ -86,6 +87,7 @@ const layoutMode = ref<'auto' | 'manual'>('auto')
 const scrollStyle = ref<'paged' | 'continuous'>('continuous')
 
 function syncPagesFromDocument() {
+  documentRevision.value++
   const segments = documentContent.value.split(MANUAL_BREAK)
   pages.value = segments.map((content, index) => ({
     id: Date.now() + index + Math.random(),
@@ -198,6 +200,18 @@ const paperStyle = computed(() => {
 let savedRange: Range | null = null
 let lastEditorRange: Range | null = null
 
+function syncEditorToVue() {
+  if (editor.value) {
+    const idAttr = editor.value.getAttribute('data-page-id')
+    if (idAttr) {
+      const id = Number(idAttr)
+      const page = pages.value.find(p => p.id === id)
+      if (page) {
+        page.content = editor.value.innerHTML
+      }
+    }
+  }
+}
 
 function updateSelection() {
   if (document.activeElement?.tagName === 'INPUT') return;
@@ -351,10 +365,8 @@ function syncRubyStyles() {
     if (hasText) {
       if (allSameColor && commonColor) {
         ruby.style.color = commonColor
-        rts.forEach(rt => rt.style.color = commonColor as string)
       } else {
         ruby.style.color = ''
-        rts.forEach(rt => rt.style.color = '')
       }
 
       if (allSameFontSize && commonFontSize) {
@@ -439,9 +451,21 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
   while (element) {
     if (element.classList?.contains('bg-white') || element.getAttribute('contenteditable') === 'true') break;
     const tagName = element.tagName.toLowerCase();
-    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
+    
+    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote'].includes(tagName)) {
       return element;
     }
+    
+    if (tagName === 'div') {
+      const isDirty = Array.from(element.children).some(child => 
+        ['p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(child.tagName.toLowerCase())
+      );
+      if (!isDirty) {
+        return element;
+      }
+      break;
+    }
+    
     element = element.parentElement;
   }
   return null;
@@ -571,9 +595,46 @@ function applyHeading(blockTag: string) {
     sel?.addRange(lastEditorRange)
   }
 
-  document.execCommand('formatBlock', false, blockTag)
+  const cleanUpBlock = (targetBlock: HTMLElement) => {
+    const spansAndRubies = targetBlock.querySelectorAll('span, ruby')
+    spansAndRubies.forEach(el => {
+      (el as HTMLElement).style.removeProperty('font-size')
+      if (el.getAttribute('style') === '') el.removeAttribute('style')
+      if (el.tagName.toLowerCase() === 'span' && el.attributes.length === 0) {
+        while(el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
+        el.parentNode?.removeChild(el)
+      }
+    })
+  }
+
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0)
+    const blocks = getBlocksInRange(range)
+    if (blocks.length > 0) {
+      blocks.forEach(block => {
+        if (block.tagName.toUpperCase() !== blockTag.toUpperCase()) {
+          const newBlock = document.createElement(blockTag)
+          Array.from(block.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
+          while (block.firstChild) newBlock.appendChild(block.firstChild)
+          block.parentNode?.replaceChild(newBlock, block)
+          cleanUpBlock(newBlock)
+        }
+      })
+    } else {
+      document.execCommand('formatBlock', false, blockTag)
+      const newSel = window.getSelection()
+      if (newSel && newSel.rangeCount > 0) {
+        const newBlocks = getBlocksInRange(newSel.getRangeAt(0))
+        newBlocks.forEach(block => cleanUpBlock(block))
+      }
+    }
+  } else {
+    document.execCommand('formatBlock', false, blockTag)
+  }
 
   editor.value?.focus()
+  syncEditorToVue()
   onInput()
 }
 
@@ -653,7 +714,28 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
   } else if (sel && sel.rangeCount > 0) {
     range = sel.getRangeAt(0)
   }
-  if (!range || range.collapsed) return
+  if (!range) return
+
+  // Bug 4 & 2 Fix: Handle empty lines or collapsed selections by inserting a Zero-Width Space
+  if (range.collapsed) {
+    const zws = document.createTextNode('\u200B')
+    const span = document.createElement('span')
+    span.style.setProperty(styleName, styleValue)
+    span.appendChild(zws)
+    range.insertNode(span)
+    const newRange = document.createRange()
+    newRange.setStart(zws, 1)
+    newRange.collapse(true)
+    if (document.activeElement?.tagName !== 'INPUT') {
+      editor.value?.focus()
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(newRange)
+    }
+    lastEditorRange = newRange.cloneRange()
+    onInput()
+    return
+  }
 
   const extracted = range.extractContents()
   const elements = Array.from(extracted.querySelectorAll('*'))
@@ -682,7 +764,7 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
 
   function wrapTextNodes(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      if (node.textContent && node.textContent.trim().length > 0) {
+      if (node.textContent && node.textContent.trim().length > 0 || node.textContent === '\u200B') {
         const span = document.createElement('span')
         span.style.setProperty(styleName, styleValue)
         const clone = node.cloneNode(true)
@@ -690,12 +772,20 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
         node.parentNode?.replaceChild(span, node)
       }
     } else if (node instanceof HTMLElement) {
-      Array.from(node.childNodes).forEach(wrapTextNodes)
+      // Bug 1 & 3: Do not wrap text inside <rt> to avoid styling ruby text directly
+      if (node.tagName.toUpperCase() !== 'RT') {
+        Array.from(node.childNodes).forEach(wrapTextNodes)
+      }
     }
   }
 
   Array.from(extracted.childNodes).forEach(wrapTextNodes)
   fragment.appendChild(extracted)
+
+  // Check if fragment is empty after wrapping to prevent errors
+  if (!fragment.firstChild) {
+    return
+  }
 
   const firstChild = fragment.firstChild
   const lastChild = fragment.lastChild
@@ -704,8 +794,18 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
 
   if (firstChild && lastChild) {
     const newRange = document.createRange()
-    newRange.setStartBefore(firstChild)
-    newRange.setEndAfter(lastChild)
+    
+    // Bug 2 Fix: Safely select the inserted content without throwing IndexSizeError
+    try {
+      newRange.setStartBefore(firstChild)
+      newRange.setEndAfter(lastChild)
+    } catch (e) {
+      // Fallback if elements were modified/moved
+      console.warn("Could not set precise range, collapsing to end")
+      newRange.setStartAfter(lastChild)
+      newRange.collapse(true)
+    }
+    
     if (document.activeElement?.tagName !== 'INPUT') {
       editor.value?.focus()
       const sel = window.getSelection()
@@ -719,6 +819,7 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
     updateFakeSelection()
   }
 
+  syncEditorToVue()
   onInput()
   syncUnderlineColors()
   syncRubyStyles()
@@ -857,6 +958,7 @@ function applyRuby(reading: string) {
 
   savedRange = null
   editor.value?.focus()
+  syncEditorToVue()
   onInput()
   syncUnderlineColors()
   syncRubyStyles()
@@ -897,6 +999,7 @@ function removeRuby() {
   }
 
   if (found) {
+    syncEditorToVue()
     onInput()
     syncUnderlineColors()
     syncRubyStyles()
@@ -1239,6 +1342,7 @@ export const useEditorState = () => {
 
   return {
     editor,
+    documentRevision,
     pages,
     documentContent,
     documentTitle,

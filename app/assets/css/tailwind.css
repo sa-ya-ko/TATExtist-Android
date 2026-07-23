@@ -82,3 +82,18 @@ body {
   background: #c6c5d4;
   border-radius: 4px;
 }
+
+/* Ruby Styling fixes */
+.writing-vertical ruby > rt,
+.writing-vertical ruby > rt span,
+.writing-vertical ruby > rt font {
+  color: var(--color-on-surface);
+  font-size: 0.5em;
+  font-family: inherit;
+}
+
+html.dark .writing-vertical ruby > rt,
+html.dark .writing-vertical ruby > rt span,
+html.dark .writing-vertical ruby > rt font {
+  color: #f3f4f6;
+}
