@@ -15,16 +15,16 @@ export default defineNuxtConfig({
   site: {
     url: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
     name: 'たてもじ',
-    description: '美しい縦書きで文章を執筆・PDF出力できる無料のWebアプリ。'
+    description: '縦書きで文章を執筆･PDF出力できるWebサイト。'
   },
   app: {
     head: {
       titleTemplate: '%s | たてもじ',
       title: '縦書きエディタ',
       meta: [
-        { name: 'description', content: '美しい縦書きで文章を執筆・PDF出力できる無料のWebアプリ。原稿用紙のような美しいレイアウトで、ブラウザ上で快適に小説やエッセイを書くことができます。' },
+        { name: 'description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。フォントスタイルやフォントカラーを設定する基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、ブラウザ上で快適に文章を書くことができます。' },
         { property: 'og:title', content: 'たてもじ - 縦書きエディタ' },
-        { property: 'og:description', content: '美しい縦書きで文章を執筆・PDF出力できる無料のWebアプリ。' },
+        { property: 'og:description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。' },
         { property: 'og:type', content: 'website' },
         { name: 'twitter:card', content: 'summary_large_image' }
       ],

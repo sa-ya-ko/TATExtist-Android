@@ -1,12 +1,18 @@
 <template>
   <div class="h-screen overflow-y-auto bg-surface-container-low dark:bg-gray-900 text-on-surface dark:text-gray-200 py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-primary/20">
     <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 sm:p-10 border border-outline-variant dark:border-gray-700">
-      <div class="mb-8 flex justify-between items-center border-b border-outline-variant dark:border-gray-700 pb-4">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">利用規約</h1>
-        <NuxtLink to="/" class="text-primary dark:text-blue-400 hover:underline text-sm font-medium flex items-center gap-1 transition-colors">
-          <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-          エディタに戻る
+      <!-- パンくずリスト (UI) -->
+      <nav class="text-sm mb-6 flex items-center gap-2 text-on-surface-variant dark:text-gray-400">
+        <NuxtLink to="/" class="hover:text-primary dark:hover:text-blue-400 transition-colors flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          トップ
         </NuxtLink>
+        <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+        <span class="text-on-surface dark:text-gray-200 font-medium">利用規約</span>
+      </nav>
+
+      <div class="mb-8 border-b border-outline-variant dark:border-gray-700 pb-4">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">利用規約</h1>
       </div>
 
       <div class="space-y-6 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
@@ -123,4 +129,13 @@ useHead({
     { name: 'description', content: 'たてもじ（縦書きエディタ）の利用規約について記載しています。' }
   ]
 })
+
+useSchemaOrg([
+  defineBreadcrumb({
+    itemListElement: [
+      { name: 'トップ', item: '/' },
+      { name: '利用規約', item: '/terms' }
+    ]
+  })
+])
 </script>
