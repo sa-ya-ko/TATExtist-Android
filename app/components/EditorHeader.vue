@@ -42,6 +42,9 @@
                       <li @mousedown.prevent="saveToDrive(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-[#4285F4] m-0 flex items-center gap-2 transition-colors">
                           <span class="material-symbols-outlined text-[18px]">cloud_upload</span> Driveに保存
                       </li>
+                      <li v-if="isAuthenticated" @mousedown.prevent="handleSignoutClick(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-red-500 m-0 flex items-center gap-2 transition-colors">
+                          <span class="material-symbols-outlined text-[18px]">logout</span> Drive連携解除
+                      </li>
                       <div class="h-px bg-gray-200 dark:bg-gray-700 my-1"></div>
                       <li @mousedown.prevent="downloadPDF(); showFileMenu = false" class="px-4 py-2 text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 flex items-center gap-2 transition-colors">
                           <span class="material-symbols-outlined text-[18px]">download</span> PDFとしてダウンロード
@@ -243,9 +246,11 @@ const showColorMenu = ref(false)
 const colorMenuContainer = ref<HTMLElement | null>(null)
 
 const {
+  isAuthenticated,
   initGoogleDrive,
   saveToDrive,
-  loadFileListFromDrive
+  loadFileListFromDrive,
+  handleSignoutClick
 } = useGoogleDrive()
 
 const presetColors = [

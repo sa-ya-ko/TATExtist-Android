@@ -129,11 +129,19 @@
           </div>
       </div>
       <div class="mt-auto p-4 border-t border-outline-variant dark:border-gray-700">
-          <div class="flex justify-center">
+          <div class="flex justify-center gap-8">
               <button @click="openHelpModal" class="flex flex-col items-center gap-1 group">
                   <span class="material-symbols-outlined text-on-surface-variant dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors" data-icon="help_outline">help_outline</span>
                   <span class="text-[10px] text-on-surface-variant dark:text-gray-400">ヘルプ</span>
               </button>
+              <NuxtLink to="/terms" target="_blank" class="flex flex-col items-center gap-1 group">
+                  <span class="material-symbols-outlined text-on-surface-variant dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors" data-icon="description">description</span>
+                  <span class="text-[10px] text-on-surface-variant dark:text-gray-400">利用規約</span>
+              </NuxtLink>
+              <NuxtLink to="/privacy" target="_blank" class="flex flex-col items-center gap-1 group">
+                  <span class="material-symbols-outlined text-on-surface-variant dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors" data-icon="security">security</span>
+                  <span class="text-[10px] text-on-surface-variant dark:text-gray-400">ポリシー</span>
+              </NuxtLink>
           </div>
       </div>
   </aside>

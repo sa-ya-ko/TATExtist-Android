@@ -3,18 +3,14 @@ import { useEditorState } from './useEditorState'
 
 declare global {
   interface Window {
-    gapi: any;
     google: any;
   }
 }
 
-const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
-const SCOPES = 'https://www.googleapis.com/auth/drive.file'
-
 // 状態変数を関数の外に置き、アプリ全体で共有されるようにします
 const isGoogleApiReady = ref(false)
 const isAuthenticated = ref(false)
-const tokenClient = ref<any>(null)
+const codeClient = ref<any>(null)
 const isDriveModalOpen = ref(false)
 const driveFiles = ref<any[]>([])
 const isLoadingFiles = ref(false)
@@ -23,7 +19,6 @@ let pendingAction: (() => void) | null = null // ログイン後に実行する�
 export const useGoogleDrive = () => {
   const config = useRuntimeConfig()
   const CLIENT_ID = config.public.googleClientId as string
-  const API_KEY = config.public.googleApiKey as string
 
   const { documentTitle, pages, paperSize, margins } = useEditorState()
 
@@ -31,69 +26,65 @@ export const useGoogleDrive = () => {
   const initGoogleDrive = () => {
     if (typeof window === 'undefined') return
 
-    // gapi (Google API Client) の初期化
-    if (window.gapi) {
-      window.gapi.load('client', async () => {
-        try {
-          await window.gapi.client.init({
-            apiKey: API_KEY,
-            discoveryDocs: [DISCOVERY_DOC],
-          })
-          isGoogleApiReady.value = true
-        } catch (err) {
-          console.error('Google API Initialization Error:', err)
-        }
-      })
-    }
-
-    // Google Identity Services (GIS) の初期化
+    // Google Identity Services (GIS) の初期化（gapiは廃止）
     if (window.google?.accounts?.oauth2) {
-      tokenClient.value = window.google.accounts.oauth2.initTokenClient({
+      codeClient.value = window.google.accounts.oauth2.initCodeClient({
         client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse: any) => {
-          if (tokenResponse.error !== undefined) {
-            console.error('Auth Error:', tokenResponse.error)
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        ux_mode: 'popup',
+        callback: async (response: any) => {
+          if (response.error !== undefined) {
+            console.error('Auth Error:', response.error)
             pendingAction = null // エラー時はキャンセル
-            throw tokenResponse
+            return
           }
-          isAuthenticated.value = true
           
-          // ログイン成功時、待たせていた処理（保存や開く）があれば自動で実行する
-          if (pendingAction) {
-            pendingAction()
-            pendingAction = null
+          try {
+            // サーバーサイドAPIにコードを送信してトークンに交換し、Cookieに保存してもらう
+            await $fetch('/api/drive/auth', {
+              method: 'POST',
+              body: { code: response.code }
+            })
+            
+            isAuthenticated.value = true
+            
+            // ログイン成功時、待たせていた処理（保存や開く）があれば自動で実行する
+            if (pendingAction) {
+              pendingAction()
+              pendingAction = null
+            }
+          } catch (error) {
+            console.error('Failed to exchange code:', error)
+            alert('ログインに失敗しました。')
           }
         },
       })
+      isGoogleApiReady.value = true
     }
   }
 
   // ログイン要求
   const handleAuthClick = () => {
-    if (tokenClient.value) {
-      if (window.gapi.client.getToken() === null) {
-        tokenClient.value.requestAccessToken({ prompt: 'consent' })
-      } else {
-        tokenClient.value.requestAccessToken({ prompt: '' })
-      }
+    if (codeClient.value) {
+      codeClient.value.requestCode()
     } else {
       alert("Google APIの準備が完了していません。時間をおいて再度お試しください。")
     }
   }
 
-  // サインアウト
-  const handleSignoutClick = () => {
-    const token = window.gapi.client.getToken()
-    if (token !== null) {
-      window.google.accounts.oauth2.revoke(token.access_token, () => {
-        window.gapi.client.setToken('')
-        isAuthenticated.value = false
-      })
+  // サインアウト（自社API経由で解除）
+  const handleSignoutClick = async () => {
+    try {
+      await $fetch('/api/drive/revoke', { method: 'POST' })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      isAuthenticated.value = false
+      alert('Google Driveとの連携を解除しました。')
     }
   }
 
-  // 現在のエディタの内容を保存
+  // 現在のエディタの内容を保存（自社API経由）
   const saveToDrive = async () => {
     if (!isAuthenticated.value) {
       // 未ログインの場合は、保存処理を予約してからログイン画面を出す
@@ -111,52 +102,32 @@ export const useGoogleDrive = () => {
       version: '1.0'
     }
 
-    const fileContent = JSON.stringify(data, null, 2)
-    const fileName = (documentTitle.value || '無題のドキュメント') + '.tategaki'
-
-    // Google Drive APIでマルチパートアップロードするためのデータ作成
-    const boundary = '-------314159265358979323846'
-    const delimiter = "\r\n--" + boundary + "\r\n"
-    const close_delim = "\r\n--" + boundary + "--"
-
-    const metadata = {
-      name: fileName,
-      mimeType: 'application/json'
-    }
-
-    const multipartRequestBody =
-      delimiter +
-      'Content-Type: application/json\r\n\r\n' +
-      JSON.stringify(metadata) +
-      delimiter +
-      'Content-Type: application/json\r\n\r\n' +
-      fileContent +
-      close_delim
-
     try {
-      const request = window.gapi.client.request({
-        path: '/upload/drive/v3/files',
+      const response = await $fetch('/api/drive/save', {
         method: 'POST',
-        params: { uploadType: 'multipart' },
-        headers: {
-          'Content-Type': 'multipart/related; boundary="' + boundary + '"'
-        },
-        body: multipartRequestBody
+        body: data
       })
-
-      request.execute((file: any) => {
-        if (file && file.id) {
-          alert(`Google Driveに保存しました！（ファイルID: ${file.id}）`)
-        } else {
-          alert("保存に失敗しました。")
-        }
-      })
-    } catch (err) {
+      
+      const fileId = (response as any).id
+      if (fileId) {
+        alert(`Google Driveに保存しました！`)
+      } else {
+        alert("保存に失敗しました。")
+      }
+    } catch (err: any) {
       console.error("Upload Error:", err)
-      alert("保存中にエラーが発生しました。")
+      if (err.response?.status === 401) {
+        isAuthenticated.value = false
+        alert("認証の有効期限が切れました。再度保存をお試しください。")
+        pendingAction = saveToDrive
+        handleAuthClick()
+      } else {
+        alert("保存中にエラーが発生しました。")
+      }
     }
   }
 
+  // ファイル一覧の取得（自社API経由）
   const loadFileListFromDrive = async () => {
     if (!isAuthenticated.value) {
       // 未ログインの場合は、読み込み処理を予約してからログイン画面を出す
@@ -164,39 +135,34 @@ export const useGoogleDrive = () => {
       handleAuthClick()
       return
     }
+    
     isLoadingFiles.value = true
     isDriveModalOpen.value = true
+    
     try {
-      const response = await window.gapi.client.drive.files.list({
-        q: "mimeType='application/json' and name contains '.tategaki'",
-        spaces: 'drive',
-        fields: "files(id, name, modifiedTime)"
-      })
-      driveFiles.value = response.result.files || []
-    } catch (err) {
+      const files = await $fetch('/api/drive/list')
+      driveFiles.value = files as any[]
+    } catch (err: any) {
       console.error('File list error:', err)
-      alert("ファイル一覧の取得に失敗しました。")
-      isDriveModalOpen.value = false
+      if (err.response?.status === 401) {
+        isAuthenticated.value = false
+        isDriveModalOpen.value = false
+        alert("認証の有効期限が切れました。再度お試しください。")
+        pendingAction = loadFileListFromDrive
+        handleAuthClick()
+      } else {
+        alert("ファイル一覧の取得に失敗しました。")
+        isDriveModalOpen.value = false
+      }
     } finally {
       isLoadingFiles.value = false
     }
   }
 
+  // ファイルの読み込み（自社API経由）
   const loadFromDrive = async (fileId: string) => {
     try {
-      const response = await window.gapi.client.drive.files.get({
-        fileId: fileId,
-        alt: 'media'
-      })
-
-      let data;
-      if (typeof response.result === 'string') {
-        data = JSON.parse(response.result)
-      } else if (response.body) {
-        data = JSON.parse(response.body)
-      } else {
-        data = response.result
-      }
+      const data = await $fetch(`/api/drive/load?fileId=${fileId}`) as any
 
       if (data && data.pages) {
         if (data.documentTitle) documentTitle.value = data.documentTitle
@@ -213,8 +179,13 @@ export const useGoogleDrive = () => {
       }
     } catch (err: any) {
       console.error('File load error:', err)
-      const errorMessage = err?.result?.error?.message || err?.message || String(err)
-      alert("ファイルの読み込みに失敗しました。\nエラー詳細: " + errorMessage)
+      if (err.response?.status === 401) {
+        isAuthenticated.value = false
+        alert("認証の有効期限が切れました。再度読み込みをお試しください。")
+      } else {
+        const errorMessage = err?.message || String(err)
+        alert("ファイルの読み込みに失敗しました。\nエラー詳細: " + errorMessage)
+      }
     }
   }
 
