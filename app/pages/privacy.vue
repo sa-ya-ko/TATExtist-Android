@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 useHead({
-  title: 'プライバシーポリシー - たてもじ',
+  title: 'プライバシーポリシー',
   meta: [
     { name: 'description', content: 'たてもじ（縦書きエディタ）のプライバシーポリシーについて記載しています。' }
   ]

@@ -12,8 +12,22 @@ export default defineNuxtConfig({
       googleApiKey: ''    // .env の NUXT_PUBLIC_GOOGLE_API_KEY で上書きされます
     }
   },
+  site: {
+    url: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    name: 'たてもじ',
+    description: '美しい縦書きで文章を執筆・PDF出力できる無料のWebアプリ。'
+  },
   app: {
     head: {
+      titleTemplate: '%s | たてもじ',
+      title: '縦書きエディタ',
+      meta: [
+        { name: 'description', content: '美しい縦書きで文章を執筆・PDF出力できる無料のWebアプリ。原稿用紙のような美しいレイアウトで、ブラウザ上で快適に小説やエッセイを書くことができます。' },
+        { property: 'og:title', content: 'たてもじ - 縦書きエディタ' },
+        { property: 'og:description', content: '美しい縦書きで文章を執筆・PDF出力できる無料のWebアプリ。' },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:card', content: 'summary_large_image' }
+      ],
       link: [
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&display=swap' },
@@ -31,7 +45,9 @@ export default defineNuxtConfig({
     }
   },
   modules: [
-    '@vite-pwa/nuxt'
+    '@vite-pwa/nuxt',
+    '@nuxtjs/sitemap',
+    'nuxt-schema-org'
   ],
   pwa: {
     registerType: 'autoUpdate',

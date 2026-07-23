@@ -118,7 +118,7 @@
 
 <script setup lang="ts">
 useHead({
-  title: '利用規約 - たてもじ',
+  title: '利用規約',
   meta: [
     { name: 'description', content: 'たてもじ（縦書きエディタ）の利用規約について記載しています。' }
   ]
