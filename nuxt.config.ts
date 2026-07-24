@@ -49,8 +49,27 @@ export default defineNuxtConfig({
   modules: [
     '@vite-pwa/nuxt',
     '@nuxtjs/sitemap',
-    'nuxt-schema-org'
+    'nuxt-schema-org',
+    'nuxt-security'
   ],
+  security: {
+    corsHandler: {
+      origin: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+      methods: ['GET', 'POST', 'OPTIONS']
+    },
+    headers: {
+      crossOriginEmbedderPolicy: 'unsafe-none',
+      contentSecurityPolicy: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://apis.google.com', 'https://accounts.google.com'],
+        'connect-src': ["'self'", 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
+        'frame-src': ["'self'", 'https://accounts.google.com'],
+        'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+        'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        'font-src': ["'self'", 'https://fonts.gstatic.com']
+      }
+    }
+  },
   pwa: {
     registerType: 'autoUpdate',
     manifest: {

@@ -1,4 +1,15 @@
 import { ref, computed } from 'vue'
+import DOMPurify from 'dompurify'
+
+export function sanitizeHTML(html: string): string {
+  if (typeof window !== 'undefined') {
+    return DOMPurify.sanitize(html, {
+      ADD_ATTR: ['contenteditable', 'data-ruby-id', 'data-page-id'],
+      ADD_TAGS: ['ruby', 'rt', 'rp']
+    })
+  }
+  return html
+}
 
 export interface Page {
   id: number;
@@ -1145,7 +1156,7 @@ export function initPages() {
     try {
       const data = JSON.parse(savedDocument)
       if (data.version === '2.0' && typeof data.content === 'string') {
-        documentContent.value = data.content
+        documentContent.value = sanitizeHTML(data.content)
         syncPagesFromDocument()
         return
       }
@@ -1236,7 +1247,7 @@ function handleFileRead(event: Event) {
       try {
         const data = JSON.parse(content)
         if (data.version === '2.0' && typeof data.content === 'string') {
-          documentContent.value = data.content
+          documentContent.value = sanitizeHTML(data.content)
           syncPagesFromDocument()
           if (data.documentTitle) documentTitle.value = data.documentTitle
           if (data.paperSize) paperSize.value = data.paperSize

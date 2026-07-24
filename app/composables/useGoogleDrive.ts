@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useEditorState } from './useEditorState'
+import { useEditorState, sanitizeHTML } from './useEditorState'
 
 declare global {
   interface Window {
@@ -166,7 +166,7 @@ export const useGoogleDrive = () => {
 
       if (data && data.pages) {
         if (data.documentTitle) documentTitle.value = data.documentTitle
-        pages.value = data.pages.map((p: any) => ({ ...p, id: Date.now() + Math.random() }))
+        pages.value = data.pages.map((p: any) => ({ ...p, content: sanitizeHTML(p.content), id: Date.now() + Math.random() }))
         if (data.paperSize) paperSize.value = data.paperSize
         if (data.margins) margins.value = data.margins
 

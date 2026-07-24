@@ -10,8 +10,10 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "dompurify": "^3.4.12",
     "jsdom": "^29.1.1",
     "nuxt": "^4.4.8",
+    "nuxt-security": "^2.5.1",
     "puppeteer": "^25.3.0",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0"
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@nuxtjs/sitemap": "^8.3.0",
     "@tailwindcss/vite": "^4.3.2",
+    "@types/dompurify": "^3.0.5",
     "@vite-pwa/nuxt": "^1.1.1",
     "autoprefixer": "^10.5.2",
     "nuxt-schema-org": "^6.2.7",
