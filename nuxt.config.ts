@@ -15,18 +15,20 @@ export default defineNuxtConfig({
   site: {
     url: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
     name: 'たてもじ',
-    description: '縦書きで文章を執筆･PDF出力できるWebサイト。'
+    description: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのままPDF保存もできる縦書き専用エディタです。'
   },
   app: {
     head: {
       titleTemplate: '%s | たてもじ',
-      title: '縦書きエディタ',
+      title: '縦書き専用エディタ',
       meta: [
-        { name: 'description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。フォントスタイルやフォントカラーを設定する基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、ブラウザ上で快適に文章を書くことができます。' },
-        { property: 'og:title', content: 'たてもじ - 縦書きエディタ' },
-        { property: 'og:description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。' },
+        { name: 'description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのままPDF保存もできる縦書き専用エディタです。' },
+        { property: 'og:title', content: 'たてもじ - 縦書き専用エディタ' },
+        { property: 'og:description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのままPDF保存もできる縦書き専用エディタです。' },
         { property: 'og:type', content: 'website' },
-        { name: 'twitter:card', content: 'summary_large_image' }
+        { property: 'og:image', content: (process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000') + '/OGP.webp' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:image', content: (process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000') + '/OGP.webp' }
       ],
       link: [
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' },
@@ -36,7 +38,7 @@ export default defineNuxtConfig({
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;600&display=swap' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap' },
-        { rel: 'icon', type: 'image/webp', href: '/favicon.webp' }
+        { rel: 'icon', type: 'image/webp', href: '/favicon2.webp' }
       ],
       script: [
         { src: 'https://apis.google.com/js/api.js', async: true, defer: true },
@@ -52,21 +54,21 @@ export default defineNuxtConfig({
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
-      name: '縦書きエディタ',
-      short_name: 'Tategaki',
-      description: '美しい縦書きで文章を執筆・PDF出力できるWebアプリ',
+      name: 'たてもじ',
+      short_name: 'TateMoji',
+      description: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのままPDF保存もできる縦書き専用エディタです。',
       theme_color: '#f7f9ff',
       background_color: '#ffffff',
       icons: [
         {
-          src: '/icon-192x192.png',
+          src: '/favicon1.webp',
           sizes: '192x192',
-          type: 'image/png'
+          type: 'image/webp'
         },
         {
-          src: '/icon-512x512.png',
+          src: '/favicon2.webp',
           sizes: '512x512',
-          type: 'image/png'
+          type: 'image/webp'
         }
       ]
     },

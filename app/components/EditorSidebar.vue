@@ -103,6 +103,7 @@
                           </div>
                       </div>
                   </div>
+
                   <!-- Structure Section -->
                   <div class="pt-4 border-t border-outline-variant dark:border-gray-700">
                       <h3 class="font-sidebar-header text-sidebar-header text-on-surface dark:text-gray-100 mb-2">表示設定</h3>
@@ -125,6 +126,48 @@
                           </div>
                       </div>
                   </div>
+                  <!-- Ruby Management -->
+                  <div class="pt-4 border-t border-outline-variant dark:border-gray-700">
+                      <h3 class="font-sidebar-header text-sidebar-header text-on-surface dark:text-gray-100 mb-2">ルビ管理</h3>
+                      <div class="flex flex-col gap-sm">
+                          <div class="flex items-center justify-between p-2 rounded hover:bg-white dark:hover:bg-gray-800 cursor-pointer transition-colors group" @click="toggleRubyManagementMode">
+                              <span class="text-ui-label-md text-on-surface dark:text-gray-300">ルビ削除モード</span>
+                              <button type="button" 
+                                      class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none" 
+                                      :class="isRubyManagementMode ? 'bg-primary dark:bg-blue-500' : 'bg-gray-300 dark:bg-gray-700'">
+                                  <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" 
+                                        :class="isRubyManagementMode ? 'translate-x-4' : 'translate-x-0'"></span>
+                              </button>
+                          </div>
+                          
+                          <div v-if="isRubyManagementMode" class="mt-1 text-xs text-gray-500 dark:text-gray-400 px-2">
+                              エディタ上の黄色いルビをクリックするか、下のリストから削除できます。
+                          </div>
+                          
+                          <!-- Ruby Search Box -->
+                          <div v-if="isRubyManagementMode && rubyList.length > 0" class="mt-2 px-2">
+                              <div class="relative">
+                                  <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]">search</span>
+                                  <input type="text" v-model="searchQuery" placeholder="漢字やフリガナで検索..." 
+                                         class="w-full pl-8 pr-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded focus:border-primary dark:focus:border-blue-400 focus:ring-1 focus:ring-primary dark:focus:ring-blue-400 outline-none text-on-surface dark:text-gray-200 transition-colors placeholder-gray-400">
+                              </div>
+                          </div>
+
+                          <ul v-if="isRubyManagementMode" class="mt-2 max-h-80 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                              <li v-if="rubyList.length === 0" class="text-xs text-gray-500 text-center py-2">ルビはありません。</li>
+                              <li v-else-if="filteredRubyList.length === 0" class="text-xs text-gray-500 text-center py-2">見つかりませんでした。</li>
+                              <li v-for="ruby in filteredRubyList" :key="ruby.id" class="flex justify-between items-center text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+                                  <div class="flex flex-col cursor-pointer flex-1" @click="scrollToRuby(ruby.id)" title="クリックでこのルビへジャンプ">
+                                      <span class="font-bold text-on-surface dark:text-gray-200">{{ ruby.text }}</span>
+                                      <span class="text-[10px] text-gray-500">{{ ruby.rt }}</span>
+                                  </div>
+                                  <button @click="removeSpecificRuby(ruby.id)" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded transition-colors flex-shrink-0" title="ルビを削除">
+                                      <span class="material-symbols-outlined text-[16px] block">close</span>
+                                  </button>
+                              </li>
+                          </ul>
+                      </div>
+                  </div>
               </div>
           </div>
       </div>
@@ -140,7 +183,7 @@
               </NuxtLink>
               <NuxtLink to="/privacy" target="_blank" class="flex flex-col items-center gap-1 group">
                   <span class="material-symbols-outlined text-on-surface-variant dark:text-gray-400 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors" data-icon="security">security</span>
-                  <span class="text-[10px] text-on-surface-variant dark:text-gray-400">ポリシー</span>
+                  <span class="text-[10px] text-on-surface-variant dark:text-gray-400">プライバシーポリシー</span>
               </NuxtLink>
           </div>
       </div>
@@ -151,7 +194,7 @@
 // Note: @change handlers for updateMargins and updatePaperSize were removed
 // because Vue v-model already handles updating the reactive state, and the
 // empty functions were causing warnings.
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useEditorState } from '../composables/useEditorState'
 
 const showLayoutMenu = ref(false)
@@ -186,6 +229,22 @@ const {
   indentSize,
   openHelpModal,
   isSidebarOpen,
-  toggleSidebar
+  toggleSidebar,
+  isRubyManagementMode,
+  rubyList,
+  toggleRubyManagementMode,
+  removeSpecificRuby,
+  scrollToRuby
 } = useEditorState()
+
+const searchQuery = ref('')
+
+const filteredRubyList = computed(() => {
+  if (!searchQuery.value.trim()) return rubyList.value
+  const query = searchQuery.value.toLowerCase()
+  return rubyList.value.filter(ruby => 
+    ruby.text.toLowerCase().includes(query) || 
+    ruby.rt.toLowerCase().includes(query)
+  )
+})
 </script>

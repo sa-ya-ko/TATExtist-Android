@@ -35,6 +35,93 @@ const indentSize = ref(2)
 const wordCountModalVisible = ref(false)
 const showWordCountWhileTyping = ref(false)
 
+const isRubyManagementMode = ref(false)
+const rubyList = ref<Array<{id: string, text: string, rt: string, pageId: number, element: HTMLElement}>>([])
+
+function toggleRubyManagementMode() {
+  isRubyManagementMode.value = !isRubyManagementMode.value
+  if (isRubyManagementMode.value) {
+    refreshRubyList()
+  }
+}
+
+function refreshRubyList() {
+  rubyList.value = []
+  
+  // We need to query all rubies across all pages.
+  // In auto mode, pages[0] might contain everything, but we should just query the whole document body or specific container
+  // To keep it simple, we can query all `.writing-vertical` elements.
+  const editors = document.querySelectorAll('.writing-vertical')
+  editors.forEach(ed => {
+    const rubies = ed.querySelectorAll('ruby')
+    rubies.forEach((ruby, index) => {
+      let id = ruby.getAttribute('data-ruby-id')
+      if (!id) {
+        id = `ruby-${index}-${Date.now()}`
+        ruby.setAttribute('data-ruby-id', id)
+      }
+      
+      const rtNode = ruby.querySelector('rt')
+      const rtText = rtNode ? rtNode.textContent || '' : ''
+      
+      const clone = ruby.cloneNode(true) as HTMLElement
+      const cloneRt = clone.querySelector('rt')
+      if (cloneRt) cloneRt.remove()
+      const baseText = clone.textContent || ''
+      
+      const pageId = Number(ed.getAttribute('data-page-id') || 0)
+      
+      rubyList.value.push({ id, text: baseText, rt: rtText, pageId, element: ruby })
+    })
+  })
+}
+
+function removeSpecificRuby(id: string) {
+  const editors = document.querySelectorAll('.writing-vertical')
+  let found = false
+  editors.forEach(ed => {
+    const rubyElement = ed.querySelector(`ruby[data-ruby-id="${id}"]`)
+    if (rubyElement) {
+      found = true
+      const rt = rubyElement.querySelector('rt')
+      if (rt) rt.remove()
+      if (rubyElement.getAttribute('style')) {
+        const span = document.createElement('span')
+        span.setAttribute('style', rubyElement.getAttribute('style')!)
+        while (rubyElement.firstChild) {
+          span.appendChild(rubyElement.firstChild)
+        }
+        rubyElement.parentNode?.replaceChild(span, rubyElement)
+      } else {
+        const parent = rubyElement.parentNode
+        while (rubyElement.firstChild) {
+          parent?.insertBefore(rubyElement.firstChild, rubyElement)
+        }
+        parent?.removeChild(rubyElement)
+      }
+    }
+  })
+  if (found) {
+    syncEditorToVue()
+    onInput()
+  }
+}
+
+function scrollToRuby(id: string) {
+  const editors = document.querySelectorAll('.writing-vertical')
+  editors.forEach(ed => {
+    const rubyElement = ed.querySelector(`ruby[data-ruby-id="${id}"]`)
+    if (rubyElement) {
+      rubyElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+      const originalBg = (rubyElement as HTMLElement).style.backgroundColor
+      ;(rubyElement as HTMLElement).style.backgroundColor = 'rgba(239, 68, 68, 0.4)'
+      setTimeout(() => {
+        ;(rubyElement as HTMLElement).style.backgroundColor = originalBg
+      }, 1000)
+    }
+  })
+}
+
 const rawTextContent = computed(() => {
   if (typeof document === 'undefined') return ''
   const combinedHtml = pages.value.map(p => p.content).join(' ')
@@ -909,7 +996,34 @@ function openRubyModal() {
   }
 
   if (sel && sel.rangeCount > 0 && isInsideEditor && sel.toString().length > 0) {
-    savedRange = sel.getRangeAt(0).cloneRange()
+    const range = sel.getRangeAt(0)
+    
+    let currentAnchor = sel.anchorNode
+    let currentFocus = sel.focusNode
+    let hasRubyAncestor = false
+    
+    const checkRuby = (n: Node | null) => {
+      while (n && n !== editor.value) {
+        if (n.nodeName.toUpperCase() === 'RUBY') return true
+        n = n.parentNode
+      }
+      return false
+    }
+    
+    if (checkRuby(currentAnchor) || checkRuby(currentFocus)) {
+      hasRubyAncestor = true
+    }
+    
+    const container = document.createElement('div')
+    container.appendChild(range.cloneContents())
+    const hasRubyChild = container.querySelector('ruby') !== null
+
+    if (hasRubyAncestor || hasRubyChild) {
+      alert("すでにルビが振られているテキストが含まれています。新しいルビを振る前に、既存のルビを解除してください。")
+      return
+    }
+
+    savedRange = range.cloneRange()
     rubyModalVisible.value = true
     updateFakeSelection()
     return
@@ -1092,6 +1206,9 @@ function onInput(e?: Event) {
     }
   }
   persistDocument()
+  if (isRubyManagementMode.value) {
+    refreshRubyList()
+  }
 }
 
 function triggerFileInput() {
@@ -1207,6 +1324,25 @@ function handleKeyDown(e: KeyboardEvent) {
 
   if (e.key === 'Enter') {
     if (e.isComposing) return;
+    
+    // カーソルがルビ(ruby)の中にある場合、強制的にルビの直後にカーソルを移動する
+    let selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      let range = selection.getRangeAt(0);
+      let container = range.startContainer;
+      if (container.nodeType === 3 && container.parentNode) {
+        container = container.parentNode;
+      }
+      
+      const rubyAncestor = (container instanceof HTMLElement) ? container.closest('ruby') : null;
+      if (rubyAncestor) {
+        range.setStartAfter(rubyAncestor);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
     if (e.shiftKey) {
       e.preventDefault();
       
@@ -1412,6 +1548,12 @@ export const useEditorState = () => {
     toggleDarkMode,
     toggleSidebar,
     MM_TO_PX,
-    paperDimensions
+    paperDimensions,
+    isRubyManagementMode,
+    rubyList,
+    toggleRubyManagementMode,
+    refreshRubyList,
+    removeSpecificRuby,
+    scrollToRuby
   }
 }

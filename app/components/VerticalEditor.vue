@@ -13,7 +13,7 @@
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
              class="min-h-0 min-w-0 flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white px-2 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] transition-colors duration-300 w-full max-w-full md:px-6 md:pb-0"
-             :class="layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-start' : 'overflow-y-auto overflow-x-hidden md:overflow-auto flex flex-col items-center md:block'"
+             :class="[layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-start' : 'overflow-y-auto overflow-x-hidden block', { 'ruby-management-mode': isRubyManagementMode }]"
              :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
           
           <!-- MANUAL MODE -->
@@ -22,15 +22,14 @@
             <!-- Horizontal Ruler (Perfectly aligned with pages in manual mode) -->
             <EditorRulerHorizontal class="print:hidden mx-auto w-full md:w-max" />
             
-            <div class="py-page-margin-y print:py-0 print:pr-0 w-full min-h-full md:w-auto md:h-auto flex flex-col md:block">
+            <div class="py-page-margin-y print:py-0 print:pr-0 w-full md:w-auto md:h-auto flex flex-col md:block">
               <!-- Render each page -->
               <div v-for="(page, index) in pages" :key="page.id" 
-                   class="flex flex-col items-center mb-8 print:m-0 print:block relative mx-auto w-full min-h-full md:mb-12 md:w-max md:h-auto"
+                   class="flex flex-col items-center mb-8 print:m-0 print:block relative mx-auto w-full md:mb-12 md:w-max h-auto"
                  :class="{'print:break-after-page': index < pages.length - 1}">
           
           <!-- Content -->
-          <div class="manuscript-paper relative transition-all duration-300 bg-white dark:bg-gray-800 dark:border-gray-600 border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-none overflow-visible print:shadow-none print:border-none print:ring-0 print:m-0 print:mx-auto print:overflow-hidden print:break-inside-avoid flex-1 w-full h-full md:w-[var(--page-width)] md:h-[var(--page-height)]"
-               :class="{ 'ring-4 ring-red-500 !shadow-[0_0_15px_rgba(239,68,68,0.6)]': page.isOverflowing && !page.isWarningDismissed }"
+          <div class="manuscript-paper relative transition-all duration-300 bg-white dark:bg-gray-800 dark:border-gray-600 border border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-none overflow-visible print:shadow-none print:border-none print:ring-0 print:m-0 print:mx-auto print:overflow-hidden print:break-inside-avoid flex-none w-[var(--page-width)] h-[var(--page-height)] max-w-full"
                :style="paperStyle">
                
             <!-- Margin Guide Lines -->
@@ -41,12 +40,18 @@
               <div v-if="isDraggingRuler === 'bottom'" class="absolute left-0 right-0 border-b-2 border-red-400 border-dashed bottom-[var(--margin-bottom)]"></div>
             </div>
 
+            <!-- Overflow Boundary Line -->
+            <div v-if="page.isOverflowing && !page.isWarningDismissed" class="absolute inset-0 pointer-events-none z-10 print:hidden">
+              <div class="absolute top-0 bottom-0 border-l-2 border-red-500 border-dashed left-[var(--margin-left)]"></div>
+            </div>
+
             <div
                  :ref="el => setEditorRef(page.id, el)"
                  class="writing-vertical outline-none text-[16px] leading-[1.8] font-['Noto_Serif_JP',_serif] dark:text-gray-100"
                  contenteditable="true"
                  dir="ltr"
                  :data-page-id="page.id"
+                 @click="handleEditorClick"
                  @focus="handleFocus($event.target)"
                  @input="handleInput(page.id, $event)"
                  @keydown="handleKeyDown">
@@ -73,15 +78,11 @@
             </div>
 
             <!-- Overflow warning appears below both primary actions. -->
-            <div v-if="page.isOverflowing && !page.isWarningDismissed" 
-                 class="w-full text-red-600 font-bold flex items-center gap-2 text-sm bg-red-50 pl-4 pr-8 py-1.5 rounded-lg border border-red-200 shadow-sm relative">
-              <span>⚠️</span>
-              <span>このページに入力できる文字数を超えました。｢新しいページを追加｣して続きを書いてください。</span>
-              <button @click="dismissWarning(page.id)" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-red-700 bg-red-200 hover:bg-red-300 rounded transition-colors" title="警告を閉じる">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div v-if="page.isOverflowing" 
+                 dir="ltr"
+                 class="w-fit text-left text-red-600 dark:text-red-400 font-bold flex items-start gap-2 text-sm bg-red-50 dark:bg-red-900/30 p-3 rounded-lg border border-red-200 dark:border-red-800 shadow-sm relative">
+              <span class="flex-shrink-0 mt-0.5">⚠️</span>
+              <span class="flex-1 pr-2 leading-relaxed">このページに入力できる文字数を超えました。｢新しいページを追加｣して続きを書いてください。</span>
             </div>
           </div>
           </div>
@@ -117,6 +118,7 @@
                  contenteditable="true"
                  dir="ltr"
                  :data-page-id="pages[0].id"
+                 @click="handleEditorClick"
                  @focus="handleFocus($event.target)"
                  @input="handleInput(pages[0].id, $event)"
                  @keydown="handleKeyDown"
@@ -206,8 +208,9 @@ const {
   wordCountModalVisible,
   showWordCountWhileTyping,
   characterCount,
-  openWordCountModal,
-  documentRevision
+  documentRevision,
+  isRubyManagementMode,
+  removeSpecificRuby
 } = useEditorState()
 
 const { isDriveModalOpen } = useGoogleDrive()
@@ -299,28 +302,87 @@ const checkOverflow = (id: number, el: HTMLElement) => {
   const page = pages.value.find(p => p.id === id)
   if (!page) return
   
-  const range = document.createRange()
-  range.selectNodeContents(el)
-  const rect = range.getBoundingClientRect()
+  // 基準となる絶対に大きさが変わらない「原稿用紙本体」を取得
+  const paperEl = el.closest('.manuscript-paper') as HTMLElement
+  if (!paperEl) return
+
+  const paperRect = paperEl.getBoundingClientRect()
   
-  const availableWidth = pageWidthPx.value - (margins.value.left + margins.value.right) * MM_TO_PX
-  
-  const isNowOverflowing = rect.width > availableWidth + 2
-  
-  if (page.isOverflowing && !isNowOverflowing) {
-    page.isWarningDismissed = false
+  if (el.innerText.trim() === '') {
+    page.isOverflowing = false
+    return
+  }
+
+  // ルビ(<rt>)を除外した、本文の最も左端の座標を探す
+  let minLeft = Infinity;
+  const range = document.createRange();
+
+  // エディタ内のすべてのテキストノードを順番にチェックする
+  const treeWalker = document.createTreeWalker(
+    el,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        // 親をたどって <rt>（ルビ）の中にある文字なら除外(無視)する
+        let parent = node.parentElement;
+        while (parent && parent !== el) {
+          if (parent.tagName.toLowerCase() === 'rt') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          parent = parent.parentElement;
+        }
+        // 空白のみの文字も無視する
+        if (!node.textContent || node.textContent.trim() === '') {
+          return NodeFilter.FILTER_SKIP;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    }
+  );
+
+  let currentNode = treeWalker.nextNode();
+  while (currentNode) {
+    range.selectNodeContents(currentNode);
+    const rects = range.getClientRects();
+    for (let i = 0; i < rects.length; i++) {
+      if (rects[i].width > 0 && rects[i].height > 0) {
+        if (rects[i].left < minLeft) {
+          minLeft = rects[i].left;
+        }
+      }
+    }
+    currentNode = treeWalker.nextNode();
   }
   
-  page.isOverflowing = isNowOverflowing
+  // もしテキストが見つからなかった場合（改行のみなど）は、従来の方法（ルビ含む）で妥協する
+  if (minLeft === Infinity) {
+    range.selectNodeContents(el);
+    const contentRect = range.getBoundingClientRect();
+    if (contentRect.width === 0) {
+      page.isOverflowing = false
+      return
+    }
+    minLeft = contentRect.left;
+  }
+
+  // 左の限界線（赤い点線）の絶対座標 = 原稿用紙の左端 + 左の余白
+  const limitLeftX = paperRect.left + (margins.value.left * MM_TO_PX)
+
+  // 縦書き（右から左）なので、文字の一番左端が限界線より左(小さい)にいけばはみ出し
+  // 行間などの透明な余白による誤差を吸収するための猶予(10px)を持たせる
+  const tolerance = 10
+  page.isOverflowing = minLeft < (limitLeftX - tolerance)
 }
 
 watch(() => margins.value, () => {
-  pages.value.forEach(page => {
-    const el = editorRefs.value[page.id]
-    if (el) {
-      checkOverflow(page.id, el)
-    }
-  })
+  setTimeout(() => {
+    pages.value.forEach(page => {
+      const el = editorRefs.value[page.id]
+      if (el) {
+        checkOverflow(page.id, el)
+      }
+    })
+  }, 0)
 }, { deep: true })
 
 watch(() => layoutMode.value, async (newMode) => {
@@ -330,12 +392,6 @@ watch(() => layoutMode.value, async (newMode) => {
   }
 }, { immediate: true })
 
-const dismissWarning = (id: number) => {
-  const page = pages.value.find(p => p.id === id)
-  if (page) {
-    page.isWarningDismissed = true
-  }
-}
 
 const handleInput = (id: number, e: Event) => {
   const page = pages.value.find(p => p.id === id)
@@ -360,6 +416,26 @@ const deletePage = (id: number) => {
   if (confirm("このページを削除してもよろしいですか？")) {
     pages.value = pages.value.filter(p => p.id !== id)
     onInput(new Event('input') as any) // 保存処理を実行
+  }
+}
+
+const handleEditorClick = (e: MouseEvent) => {
+  if (isRubyManagementMode.value) {
+    const target = e.target as HTMLElement
+    const ruby = target.closest('ruby')
+    if (ruby) {
+      e.preventDefault()
+      const id = ruby.getAttribute('data-ruby-id')
+      if (id) {
+        // Ensure we extract the base text correctly for the prompt
+        const clone = ruby.cloneNode(true) as HTMLElement
+        const rt = clone.querySelector('rt')
+        if (rt) rt.remove()
+        if (confirm(`「${clone.textContent || ''}」のルビを削除しますか？`)) {
+          removeSpecificRuby(id)
+        }
+      }
+    }
   }
 }
 
@@ -501,5 +577,22 @@ rt {
 
 .bg-continuous {
   background-color: white;
+}
+
+/* Ruby Management Mode Styles */
+.ruby-management-mode ruby {
+  background-color: rgba(253, 224, 71, 0.7); /* 目に優しい落ち着いた黄色 (yellow-300) */
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+.ruby-management-mode ruby:hover {
+  background-color: rgba(250, 204, 21, 0.9); /* ホバー時は少し濃くはっきりと (yellow-400) */
+}
+.dark .ruby-management-mode ruby {
+  background-color: rgba(180, 83, 9, 0.6); /* ダークモード用: 暗めの琥珀色 (amber-700) */
+}
+.dark .ruby-management-mode ruby:hover {
+  background-color: rgba(180, 83, 9, 0.9);
 }
 </style>

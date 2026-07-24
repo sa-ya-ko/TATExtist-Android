@@ -98,7 +98,7 @@
 useHead({
   title: 'プライバシーポリシー',
   meta: [
-    { name: 'description', content: 'たてもじ（縦書きエディタ）のプライバシーポリシーについて記載しています。' }
+    { name: 'description', content: 'たてもじ(縦書き専用エディタ)のプライバシーポリシーについて記載しています。' }
   ]
 })
 
