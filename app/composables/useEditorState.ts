@@ -1312,6 +1312,22 @@ function exportDocument(format: 'print' | 'html' = 'print') {
   }
 }
 
+function isCursorAtStartOfRuby(range: Range, rubyAncestor: Element) {
+  if (range.startContainer.nodeType === 3 && range.startOffset === 0) {
+    let prev = range.startContainer.previousSibling;
+    while (prev) {
+      if (prev.nodeType === 3 && prev.textContent && prev.textContent.length > 0) return false;
+      if (prev.nodeType === 1 && prev.nodeName !== 'RT') return false;
+      prev = prev.previousSibling;
+    }
+    return true;
+  }
+  if (range.startContainer === rubyAncestor && range.startOffset === 0) {
+    return true;
+  }
+  return false;
+}
+
 function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Tab') {
     if (e.isComposing) return;
@@ -1325,6 +1341,38 @@ function handleKeyDown(e: KeyboardEvent) {
     } else if (!isCollapsed) {
       customIndent();
     } else {
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let container = range.startContainer;
+        let targetRuby: Element | null = null;
+        
+        if (container.nodeType === 3) {
+          const ruby = container.parentElement?.closest('ruby');
+          if (ruby && isCursorAtStartOfRuby(range, ruby)) {
+            targetRuby = ruby;
+          }
+        } else if (container.nodeType === 1) {
+          const child = container.childNodes[range.startOffset];
+          if (child && child.nodeName === 'RUBY') {
+            targetRuby = child as Element;
+          }
+        }
+        
+        if (targetRuby) {
+          const space = document.createTextNode('　');
+          targetRuby.parentNode?.insertBefore(space, targetRuby);
+          
+          range.setStartAfter(space);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          if (editor.value) {
+            editor.value.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          return;
+        }
+      }
       document.execCommand('insertHTML', false, '　');
     }
     return;
@@ -1347,24 +1395,7 @@ function handleKeyDown(e: KeyboardEvent) {
         // Shift+Enterの場合は後続の独自ロジックに任せる
         if (!e.shiftKey) {
           // 通常のEnterの場合、ルビが真っ二つに割れるのを防ぐため、カーソルを外に出す
-          let isAtStart = false;
-          if (range.startContainer.nodeType === 3 && range.startOffset === 0) {
-            let prev = range.startContainer.previousSibling;
-            isAtStart = true;
-            while(prev) {
-              if (prev.nodeType === 3 && prev.textContent && prev.textContent.length > 0) {
-                isAtStart = false; break;
-              }
-              if (prev.nodeType === 1 && prev.nodeName !== 'RT') {
-                isAtStart = false; break;
-              }
-              prev = prev.previousSibling;
-            }
-          } else if (range.startContainer === rubyAncestor && range.startOffset === 0) {
-            isAtStart = true;
-          }
-
-          if (isAtStart) {
+          if (isCursorAtStartOfRuby(range, rubyAncestor)) {
             range.setStartBefore(rubyAncestor);
           } else {
             range.setStartAfter(rubyAncestor);
