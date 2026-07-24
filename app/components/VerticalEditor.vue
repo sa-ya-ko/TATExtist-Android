@@ -60,9 +60,14 @@
           </div>
 
           <!-- Page Controls -->
-          <div class="w-full flex-none flex flex-col gap-3 mt-4 mb-8 print:hidden max-w-[var(--page-width)] md:mt-6 md:mb-12">
+          <div class="w-full flex-none flex flex-col gap-3 mt-4 mb-8 print:hidden max-w-[var(--page-width)] md:mt-6 md:mb-12" dir="ltr">
             <!-- Primary actions -->
             <div class="flex w-full justify-between items-center gap-3">
+              <button @click="addPage" class="flex items-center gap-2 text-sm px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors print:hidden flex-shrink-0 md:px-6 md:py-2.5 md:text-base">
+                <span class="i-heroicons-plus text-xl"></span>
+                新しいページを追加
+              </button>
+
               <button @click="deletePage(page.id)" 
                       :disabled="pages.length === 1"
                       class="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 md:px-4 md:py-2"
@@ -70,16 +75,10 @@
                 <span class="i-heroicons-trash"></span>
                 ページを削除
               </button>
-
-              <button @click="addPage" class="flex items-center gap-2 text-sm px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors print:hidden flex-shrink-0 md:px-6 md:py-2.5 md:text-base">
-                <span class="i-heroicons-plus text-xl"></span>
-                新しいページを追加
-              </button>
             </div>
 
             <!-- Overflow warning appears below both primary actions. -->
             <div v-if="page.isOverflowing" 
-                 dir="ltr"
                  class="w-fit text-left text-red-600 dark:text-red-400 font-bold flex items-start gap-2 text-sm bg-red-50 dark:bg-red-900/30 p-3 rounded-lg border border-red-200 dark:border-red-800 shadow-sm relative">
               <span class="flex-shrink-0 mt-0.5">⚠️</span>
               <span class="flex-1 pr-2 leading-relaxed">このページに入力できる文字数を超えました。｢新しいページを追加｣して続きを書いてください。</span>

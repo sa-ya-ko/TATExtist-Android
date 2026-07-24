@@ -175,6 +175,13 @@ const scrollStyle = ref<'paged' | 'continuous'>('continuous')
 
 function syncPagesFromDocument() {
   documentRevision.value++
+  
+  // ふりがな（rt）にカーソルが入り込む不具合を防ぐため、編集不可属性を追加
+  const fixedContent = documentContent.value.replace(/<rt(?![^>]*contenteditable)/gi, '<rt contenteditable="false"');
+  if (fixedContent !== documentContent.value) {
+    documentContent.value = fixedContent;
+  }
+  
   const segments = documentContent.value.split(MANUAL_BREAK)
   pages.value = segments.map((content, index) => ({
     id: Date.now() + index + Math.random(),
@@ -1057,6 +1064,7 @@ function applyRuby(reading: string) {
 
   const rt = document.createElement('rt')
   rt.textContent = reading
+  rt.setAttribute('contenteditable', 'false')
   ruby.appendChild(rt)
   savedRange.insertNode(ruby)
 
@@ -1325,7 +1333,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)の中にある場合、強制的にルビの直後にカーソルを移動する
+    // カーソルがルビ(ruby)の中にある場合の改行時の挙動調整
     let selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       let range = selection.getRangeAt(0);
@@ -1336,10 +1344,35 @@ function handleKeyDown(e: KeyboardEvent) {
       
       const rubyAncestor = (container instanceof HTMLElement) ? container.closest('ruby') : null;
       if (rubyAncestor) {
-        range.setStartAfter(rubyAncestor);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        // Shift+Enterの場合は後続の独自ロジックに任せる
+        if (!e.shiftKey) {
+          // 通常のEnterの場合、ルビが真っ二つに割れるのを防ぐため、カーソルを外に出す
+          let isAtStart = false;
+          if (range.startContainer.nodeType === 3 && range.startOffset === 0) {
+            let prev = range.startContainer.previousSibling;
+            isAtStart = true;
+            while(prev) {
+              if (prev.nodeType === 3 && prev.textContent && prev.textContent.length > 0) {
+                isAtStart = false; break;
+              }
+              if (prev.nodeType === 1 && prev.nodeName !== 'RT') {
+                isAtStart = false; break;
+              }
+              prev = prev.previousSibling;
+            }
+          } else if (range.startContainer === rubyAncestor && range.startOffset === 0) {
+            isAtStart = true;
+          }
+
+          if (isAtStart) {
+            range.setStartBefore(rubyAncestor);
+          } else {
+            range.setStartAfter(rubyAncestor);
+          }
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
       }
     }
 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <div contenteditable="true" id="editor">
+    <p id="p1">テスト<ruby id="ruby1">漢字<rt>かんじ</rt></ruby>です</p>
+  </div>
+  <script>
+    function getClosestBlockElement(node) {
+      if (!node) return null;
+      let element = node.nodeType === 3 ? node.parentElement : node;
+      while (element) {
+        if (element.getAttribute('contenteditable') === 'true') break;
+        const tagName = element.tagName.toLowerCase();
+        if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
+          return element;
+        }
+        element = element.parentElement;
+      }
+      return null;
+    }
+
+    function getBlocksInRange(range) {
+      const blocks = new Set();
+      if (range.collapsed) {
+        const block = getClosestBlockElement(range.startContainer);
+        if (block) blocks.add(block);
+        return Array.from(blocks);
+      }
+      const walker = document.createTreeWalker(
+        range.commonAncestorContainer,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+          }
+        }
+      );
+      let currentNode = walker.currentNode;
+      if (currentNode && currentNode.nodeType === Node.TEXT_NODE && range.intersectsNode(currentNode)) {
+        const block = getClosestBlockElement(currentNode);
+        if (block) blocks.add(block);
+      }
+      while (walker.nextNode()) {
+        const block = getClosestBlockElement(walker.currentNode);
+        if (block) blocks.add(block);
+      }
+      return Array.from(blocks);
+    }
+
+    const editor = document.getElementById('editor');
+    const ruby = document.getElementById('ruby1');
+    const textNode = ruby.firstChild; // "漢字"
+    
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 2); // Select "漢字"
+    
+    const blocks = getBlocksInRange(range);
+    console.log(blocks.map(b => b.tagName));
+  </script>
+</body>
+</html>
