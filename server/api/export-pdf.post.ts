@@ -4,6 +4,8 @@ import { defineEventHandler, readBody, createError } from 'h3'
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const htmlContent = body.html || ''
+  const paperSize = body.paperSize || 'A4'
+  const margins = body.margins || { top: 30, right: 30, bottom: 30, left: 30 }
 
   const fullHtml = `
     <!DOCTYPE html>
@@ -47,13 +49,25 @@ export default defineEventHandler(async (event) => {
     const page = await browser.newPage()
     await page.setContent(fullHtml, { waitUntil: 'networkidle0' })
     
-    // PDF化
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      landscape: true,
+    const pdfOptions: any = {
       printBackground: true,
-      margin: { top: '30mm', right: '30mm', bottom: '30mm', left: '30mm' }
-    })
+      margin: { 
+        top: `${margins.top}mm`, 
+        right: `${margins.right}mm`, 
+        bottom: `${margins.bottom}mm`, 
+        left: `${margins.left}mm` 
+      }
+    }
+    
+    if (paperSize === 'B5') {
+      pdfOptions.width = '257mm'
+      pdfOptions.height = '182mm'
+    } else {
+      pdfOptions.width = '297mm'
+      pdfOptions.height = '210mm'
+    }
+
+    const pdfBuffer = await page.pdf(pdfOptions)
 
     // レスポンスヘッダーの設定
     event.node.res.setHeader('Content-Type', 'application/pdf')

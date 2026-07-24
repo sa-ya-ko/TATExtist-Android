@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useEditorState, sanitizeHTML } from './useEditorState'
+import { useEditorState, sanitizeHTML, setDocumentFromLegacyPages, persistDocument } from './useEditorState'
 
 declare global {
   interface Window {
@@ -38,16 +38,16 @@ export const useGoogleDrive = () => {
             pendingAction = null // エラー時はキャンセル
             return
           }
-          
+
           try {
             // サーバーサイドAPIにコードを送信してトークンに交換し、Cookieに保存してもらう
             await $fetch('/api/drive/auth', {
               method: 'POST',
               body: { code: response.code }
             })
-            
+
             isAuthenticated.value = true
-            
+
             // ログイン成功時、待たせていた処理（保存や開く）があれば自動で実行する
             if (pendingAction) {
               pendingAction()
@@ -86,13 +86,6 @@ export const useGoogleDrive = () => {
 
   // 現在のエディタの内容を保存（自社API経由）
   const saveToDrive = async () => {
-    if (!isAuthenticated.value) {
-      // 未ログインの場合は、保存処理を予約してからログイン画面を出す
-      pendingAction = saveToDrive
-      handleAuthClick()
-      return
-    }
-
     // 保存するデータ（tategakiフォーマット）
     const data = {
       documentTitle: documentTitle.value,
@@ -107,9 +100,10 @@ export const useGoogleDrive = () => {
         method: 'POST',
         body: data
       })
-      
+
       const fileId = (response as any).id
       if (fileId) {
+        isAuthenticated.value = true
         alert(`Google Driveに保存しました！`)
       } else {
         alert("保存に失敗しました。")
@@ -118,7 +112,6 @@ export const useGoogleDrive = () => {
       console.error("Upload Error:", err)
       if (err.response?.status === 401) {
         isAuthenticated.value = false
-        alert("認証の有効期限が切れました。再度保存をお試しください。")
         pendingAction = saveToDrive
         handleAuthClick()
       } else {
@@ -129,25 +122,18 @@ export const useGoogleDrive = () => {
 
   // ファイル一覧の取得（自社API経由）
   const loadFileListFromDrive = async () => {
-    if (!isAuthenticated.value) {
-      // 未ログインの場合は、読み込み処理を予約してからログイン画面を出す
-      pendingAction = loadFileListFromDrive
-      handleAuthClick()
-      return
-    }
-    
     isLoadingFiles.value = true
     isDriveModalOpen.value = true
-    
+
     try {
       const files = await $fetch('/api/drive/list')
       driveFiles.value = files as any[]
+      isAuthenticated.value = true
     } catch (err: any) {
       console.error('File list error:', err)
       if (err.response?.status === 401) {
         isAuthenticated.value = false
         isDriveModalOpen.value = false
-        alert("認証の有効期限が切れました。再度お試しください。")
         pendingAction = loadFileListFromDrive
         handleAuthClick()
       } else {
@@ -165,12 +151,15 @@ export const useGoogleDrive = () => {
       const data = await $fetch(`/api/drive/load?fileId=${fileId}`) as any
 
       if (data && data.pages) {
+        isAuthenticated.value = true
         if (data.documentTitle) documentTitle.value = data.documentTitle
         pages.value = data.pages.map((p: any) => ({ ...p, content: sanitizeHTML(p.content), id: Date.now() + Math.random() }))
         if (data.paperSize) paperSize.value = data.paperSize
         if (data.margins) margins.value = data.margins
 
         localStorage.setItem('vertical-editor-pages', JSON.stringify(pages.value))
+        setDocumentFromLegacyPages(pages.value)
+        persistDocument()
 
         alert("ファイルを読み込みました。")
         isDriveModalOpen.value = false

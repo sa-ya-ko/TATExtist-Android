@@ -53,12 +53,15 @@ export default defineNuxtConfig({
     'nuxt-security'
   ],
   security: {
+    xssValidator: false,
     corsHandler: {
-      origin: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+      origin: '*',
       methods: ['GET', 'POST', 'OPTIONS']
     },
     headers: {
       crossOriginEmbedderPolicy: 'unsafe-none',
+      crossOriginOpenerPolicy: 'same-origin-allow-popups',
+      crossOriginResourcePolicy: 'cross-origin',
       contentSecurityPolicy: {
         'default-src': ["'self'"],
         'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://apis.google.com', 'https://accounts.google.com'],

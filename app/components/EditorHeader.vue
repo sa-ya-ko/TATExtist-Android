@@ -227,8 +227,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useEditorState } from '../composables/useEditorState'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useEditorState, persistDocument } from '../composables/useEditorState'
 import { useGoogleDrive } from '../composables/useGoogleDrive'
 
 const showToolsMenu = ref(false)
@@ -339,5 +339,9 @@ const {
   toggleDarkMode,
   toggleSidebar
 } = useEditorState()
+
+watch(documentTitle, () => {
+  persistDocument()
+})
 </script>
 <!-- HMR trigger -->

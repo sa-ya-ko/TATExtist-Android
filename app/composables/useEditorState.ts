@@ -3,10 +3,13 @@ import DOMPurify from 'dompurify'
 
 export function sanitizeHTML(html: string): string {
   if (typeof window !== 'undefined') {
-    return DOMPurify.sanitize(html, {
+    const TEMP_MARKER = '___MANUAL_PAGE_BREAK_TEMP___'
+    const safeHtml = html.replace(/<!--manual-page-break-->/g, TEMP_MARKER)
+    const sanitized = DOMPurify.sanitize(safeHtml, {
       ADD_ATTR: ['contenteditable', 'data-ruby-id', 'data-page-id'],
       ADD_TAGS: ['ruby', 'rt', 'rp']
     })
+    return sanitized.replace(new RegExp(TEMP_MARKER, 'g'), '<!--manual-page-break-->')
   }
   return html
 }
@@ -201,7 +204,7 @@ function syncPagesFromDocument() {
   if (pages.value.length === 0) pages.value = [{ id: Date.now(), content: '' }]
 }
 
-function setDocumentFromLegacyPages(legacyPages: Array<Pick<Page, 'content'>>) {
+export function setDocumentFromLegacyPages(legacyPages: Array<Pick<Page, 'content'>>) {
   documentContent.value = legacyPages.map(page => page.content).join(manualBreakMarker)
   syncPagesFromDocument()
 }
@@ -237,9 +240,10 @@ function deleteManualPage(pageId: number) {
   persistDocument()
 }
 
-function persistDocument() {
+export function persistDocument() {
   localStorage.setItem('vertical-editor-document', JSON.stringify({
     version: '2.0',
+    title: documentTitle.value,
     content: documentContent.value
   }))
 }
@@ -273,7 +277,8 @@ const margins = ref({ top: 30, bottom: 30, left: 30, right: 30 })
 
 const isDraggingRuler = ref<'left' | 'right' | 'top' | 'bottom' | null>(null)
 
-const MM_TO_PX = 3.78
+// Use exact browser physical conversion ratio to prevent micro-overflows in print (1in = 96px = 25.4mm)
+const MM_TO_PX = 96 / 25.4
 const paperDimensions = {
   'A4': { width: 297, height: 210 },
   'B5': { width: 257, height: 182 }
@@ -324,15 +329,17 @@ function updateSelection() {
   const sel = window.getSelection()
   if (sel && sel.rangeCount > 0) {
     let node = sel.anchorNode
-    let isInside = false
+    let editorEl: HTMLElement | null = null
     while (node) {
-      if (node === editor.value) {
-        isInside = true
+      if ((node as HTMLElement).hasAttribute && (node as HTMLElement).hasAttribute('data-page-id')) {
+        editorEl = node as HTMLElement
         break
       }
       node = node.parentNode || null
     }
-    if (isInside) {
+    
+    if (editorEl) {
+      editor.value = editorEl
       lastEditorRange = sel.getRangeAt(0).cloneRange()
 
       try {
@@ -535,13 +542,13 @@ function syncUnderlineColors() {
 
 function execCommand(command: string, value: string | undefined = undefined) {
   if (lastEditorRange && document.activeElement !== editor.value) {
-    editor.value?.focus()
+    editor.value?.focus({ preventScroll: true })
     const sel = window.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
   }
   document.execCommand(command, false, value)
-  editor.value?.focus()
+  editor.value?.focus({ preventScroll: true })
   updateSelection()
 }
 
@@ -611,7 +618,7 @@ function getBlocksInRange(range: Range): HTMLElement[] {
 
 function customIndent() {
   if (lastEditorRange) {
-    editor.value?.focus()
+    editor.value?.focus({ preventScroll: true })
     const sel = window.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
@@ -650,7 +657,7 @@ function customIndent() {
 
 function customOutdent() {
   if (lastEditorRange) {
-    editor.value?.focus()
+    editor.value?.focus({ preventScroll: true })
     const sel = window.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
@@ -694,7 +701,7 @@ function customOutdent() {
 
 function applyHeading(blockTag: string) {
   if (lastEditorRange) {
-    editor.value?.focus()
+    editor.value?.focus({ preventScroll: true })
     const sel = window.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
@@ -738,7 +745,7 @@ function applyHeading(blockTag: string) {
     document.execCommand('formatBlock', false, blockTag)
   }
 
-  editor.value?.focus()
+  editor.value?.focus({ preventScroll: true })
   syncEditorToVue()
   onInput()
 }
@@ -779,7 +786,7 @@ function handleFontSizeEnter(e: KeyboardEvent) {
   showFontSizeDropdown.value = false
   commitFontSize()
   setTimeout(() => {
-    editor.value?.focus()
+    editor.value?.focus({ preventScroll: true })
     const sel = window.getSelection()
     if (lastEditorRange) {
       sel?.removeAllRanges()
@@ -792,7 +799,7 @@ function selectDropdownFontSize(size: number) {
   currentFontSize.value = size
   showFontSizeDropdown.value = false
   commitFontSize()
-  editor.value?.focus()
+  editor.value?.focus({ preventScroll: true })
   const sel = window.getSelection()
   if (lastEditorRange) {
     sel?.removeAllRanges()
@@ -832,7 +839,7 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
     newRange.setStart(zws, 1)
     newRange.collapse(true)
     if (document.activeElement?.tagName !== 'INPUT') {
-      editor.value?.focus()
+      editor.value?.focus({ preventScroll: true })
       const sel = window.getSelection()
       sel?.removeAllRanges()
       sel?.addRange(newRange)
@@ -912,7 +919,7 @@ function applyInlineStyleSafe(styleName: string, styleValue: string) {
     }
     
     if (document.activeElement?.tagName !== 'INPUT') {
-      editor.value?.focus()
+      editor.value?.focus({ preventScroll: true })
       const sel = window.getSelection()
       sel?.removeAllRanges()
       sel?.addRange(newRange)
@@ -971,7 +978,11 @@ async function downloadPDF() {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ html: htmlContent })
+      body: JSON.stringify({ 
+        html: htmlContent,
+        paperSize: paperSize.value,
+        margins: margins.value
+      })
     })
 
     if (!response.ok) {
@@ -1006,7 +1017,7 @@ function openRubyModal() {
   }
 
   if (!isInsideEditor && lastEditorRange) {
-    editor.value?.focus()
+    editor.value?.focus({ preventScroll: true })
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
     sel = window.getSelection()
@@ -1090,7 +1101,7 @@ function applyRuby(reading: string) {
   lastEditorRange = newRange.cloneRange()
 
   savedRange = null
-  editor.value?.focus()
+  editor.value?.focus({ preventScroll: true })
   syncEditorToVue()
   onInput()
   syncUnderlineColors()
@@ -1156,6 +1167,9 @@ export function initPages() {
     try {
       const data = JSON.parse(savedDocument)
       if (data.version === '2.0' && typeof data.content === 'string') {
+        if (data.title) {
+          documentTitle.value = data.title
+        }
         documentContent.value = sanitizeHTML(data.content)
         syncPagesFromDocument()
         return
@@ -1310,7 +1324,74 @@ function saveDocumentLocal() {
 function exportDocument(format: 'print' | 'html' = 'print') {
   if (!editor.value) return
   if (format === 'print') {
-    window.print()
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = 'none'
+    document.body.appendChild(iframe)
+
+    const doc = iframe.contentWindow?.document
+    if (doc) {
+      const pageSizeCss = paperSize.value === 'A4' ? '297mm 210mm' : '257mm 182mm';
+      const marginCss = `${margins.value.top}mm ${margins.value.right}mm ${margins.value.bottom}mm ${margins.value.left}mm`;
+      const htmlBody = documentContent.value.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">')
+
+      doc.open()
+      doc.write(`
+        <!DOCTYPE html>
+        <html lang="ja">
+        <head>
+          <meta charset="UTF-8">
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+          <style>
+            @page {
+              size: ${pageSizeCss};
+              margin: ${marginCss};
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: 'Noto Serif JP', serif;
+              writing-mode: vertical-rl;
+              line-height: 1.8;
+              font-size: 16px;
+              color: black;
+            }
+            .writing-vertical {
+              writing-mode: vertical-rl;
+            }
+            h1, h2, h3, h4 { font-weight: bold; }
+            h1 { font-size: 2em; margin-bottom: 0.67em; }
+            h2 { font-size: 1.5em; margin-bottom: 0.83em; }
+            h3 { font-size: 1.17em; margin-bottom: 1em; }
+            h4 { font-size: 1em; margin-bottom: 1.33em; }
+            p:empty::before { content: '\\200B'; }
+            ruby > rt {
+              font-size: 0.5em;
+            }
+            b, strong { font-weight: bold; }
+            i, em { font-style: italic; }
+            u, [style*="underline"] { text-decoration: underline; text-decoration-color: black; }
+          </style>
+        </head>
+        <body>
+          ${htmlBody}
+        </body>
+        </html>
+      `)
+      doc.close()
+
+      // Give browser a moment to parse the new iframe content before printing
+      setTimeout(() => {
+        iframe.contentWindow?.print()
+        setTimeout(() => {
+          document.body.removeChild(iframe)
+        }, 1000)
+      }, 200)
+    }
   } else if (format === 'html') {
     const content = documentContent.value.replace(MANUAL_BREAK, '<hr>')
     const blob = new Blob([content], { type: 'text/html' })
