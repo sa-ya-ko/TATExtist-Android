@@ -5,10 +5,10 @@
           <div class="flex items-center gap-3 w-full md:w-auto overflow-hidden">
               <!-- ロゴとサイト名 -->
               <div class="flex items-center gap-2 shrink-0">
-                  <img src="/favicon2.webp" alt="たてもじ" class="w-10 h-10 object-contain" />
+                  <img src="/logo.webp" alt="TATExtist" class="w-10 h-10 object-contain" />
                   <div class="flex flex-col justify-center">
                       <span class="text-[9px] text-gray-500 dark:text-gray-400 leading-none mb-0.5">横書き専用エディタ</span>
-                      <span class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">たてもじ</span>
+                      <span class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">TATExtist</span>
                   </div>
               </div>
               <!-- 区切り線 -->

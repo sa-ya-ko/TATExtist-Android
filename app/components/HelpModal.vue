@@ -99,7 +99,7 @@
         <!-- フィードバック -->
         <div v-if="activeTab === 'feedback'">
           <h3 class="font-bold text-lg mb-3">フィードバック</h3>
-          <p class="mb-4 text-gray-700">｢たてもじ｣へのご質問やご要望は下記お問い合わせフォームよりお願いいたします</p>
+          <p class="mb-4 text-gray-700">｢TATExtist｣へのご質問やご要望は下記お問い合わせフォームよりお願いいたします</p>
           <div class="bg-gray-50 rounded text-gray-600 flex justify-center w-full">
             <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScLrtHzwt_F52GWVe0Eq1938utwTvToNwPJQkg5iNo8AHIL3w/viewform?embedded=true" width="100%" height="1033" frameborder="0" marginheight="0" marginwidth="0">読み込んでいます…</iframe>
           </div>

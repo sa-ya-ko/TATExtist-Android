@@ -51,11 +51,12 @@ export default defineEventHandler(async (event) => {
     
     const pdfOptions: any = {
       printBackground: true,
-      margin: { 
-        top: `${margins.top}mm`, 
-        right: `${margins.right}mm`, 
-        bottom: `${margins.bottom}mm`, 
-        left: `${margins.left}mm` 
+      displayHeaderFooter: false,
+      margin: {
+        top: `${margins.top}mm`,
+        right: `${margins.right}mm`,
+        bottom: `${margins.bottom}mm`,
+        left: `${margins.left}mm`
       }
     }
     

@@ -10,13 +10,13 @@ import VerticalEditor from '@/components/VerticalEditor.vue'
 
 useSchemaOrg([
   defineWebSite({
-    name: 'たてもじ'
+    name: 'TATExtist'
   }),
   defineWebPage({
     name: '縦書きエディタ'
   }),
   defineSoftwareApp({
-    name: 'たてもじ',
+    name: 'TATExtist',
     applicationCategory: 'BrowserApplication',
     operatingSystem: 'Any',
     offers: {
