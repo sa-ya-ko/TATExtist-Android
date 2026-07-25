@@ -209,7 +209,8 @@ const {
   characterCount,
   documentRevision,
   isRubyManagementMode,
-  removeSpecificRuby
+  removeSpecificRuby,
+  deleteManualPage
 } = useEditorState()
 
 const { isDriveModalOpen } = useGoogleDrive()
@@ -413,8 +414,7 @@ const deletePage = (id: number) => {
   if (pages.value.length <= 1) return
   
   if (confirm("このページを削除してもよろしいですか？")) {
-    pages.value = pages.value.filter(p => p.id !== id)
-    onInput(new Event('input') as any) // 保存処理を実行
+    deleteManualPage(id)
   }
 }
 

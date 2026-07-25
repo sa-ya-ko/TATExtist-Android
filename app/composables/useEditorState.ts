@@ -293,17 +293,18 @@ const paperStyle = computed(() => {
   const paddingBottom = margins.value.bottom * MM_TO_PX
   const paddingLeft = margins.value.left * MM_TO_PX
   const paddingRight = margins.value.right * MM_TO_PX
-
-  const contentHeight = pageHeight - paddingTop - paddingBottom
-  const contentWidth = pageWidth - paddingLeft - paddingRight
-
+  
   return {
-    '--page-height': `${pageHeight}px`,
     '--page-width': `${pageWidth}px`,
-    '--margin-top': `${paddingTop}px`,
-    '--margin-bottom': `${paddingBottom}px`,
-    '--margin-left': `${paddingLeft}px`,
-    '--margin-right': `${paddingRight}px`
+    '--page-height': `${pageHeight}px`,
+    // エディタ側の余白をあえて0.2mm広く（印字領域を狭く）することで、
+    // エディタ上で収まったテキストが印刷時に確実にはみ出ないようにする安全マージン
+    '--margin-top': `${(margins.value.top + 0.2) * MM_TO_PX}px`,
+    '--margin-bottom': `${(margins.value.bottom + 0.2) * MM_TO_PX}px`,
+    '--margin-right': `${(margins.value.right + 0.2) * MM_TO_PX}px`,
+    '--margin-left': `${(margins.value.left + 0.2) * MM_TO_PX}px`,
+    fontSize: '16px',
+    lineHeight: '1.8'
   }
 })
 
@@ -423,8 +424,53 @@ function updateSelection() {
       }
     }
   }
+  repairSplitRubies()
   syncUnderlineColors()
   syncRubyStyles()
+}
+
+function repairSplitRubies() {
+  if (!editor.value) return;
+  const rubies = Array.from(editor.value.querySelectorAll('ruby'));
+  
+  // Go backwards so we can merge right-to-left safely
+  for (let i = rubies.length - 1; i > 0; i--) {
+    const right = rubies[i];
+    const left = rubies[i-1];
+    
+    // Check if they are exactly adjacent (ignoring empty text nodes)
+    let isAdjacent = false;
+    let curr: Node | null = left.nextSibling;
+    while (curr) {
+      if (curr === right) {
+        isAdjacent = true;
+        break;
+      }
+      if (curr.nodeType === Node.TEXT_NODE && !curr.textContent?.trim()) {
+        curr = curr.nextSibling;
+        continue;
+      }
+      break;
+    }
+    
+    if (isAdjacent) {
+      const leftRt = left.querySelector('rt');
+      const rightRt = right.querySelector('rt');
+      
+      // If one of them has an <rt> and the other doesn't, it was likely split by execCommand
+      if ((leftRt && !rightRt) || (!leftRt && rightRt)) {
+        // Merge right into left
+        while (right.firstChild) {
+          left.appendChild(right.firstChild);
+        }
+        right.remove();
+        
+        // Ensure ALL <rt> elements are moved to the very end of the combined ruby
+        const rts = Array.from(left.querySelectorAll('rt'));
+        rts.forEach(rt => left.appendChild(rt));
+      }
+    }
+  }
 }
 
 function syncRubyStyles() {
@@ -726,11 +772,25 @@ function applyHeading(blockTag: string) {
     if (blocks.length > 0) {
       blocks.forEach(block => {
         if (block.tagName.toUpperCase() !== blockTag.toUpperCase()) {
-          const newBlock = document.createElement(blockTag)
-          Array.from(block.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
-          while (block.firstChild) newBlock.appendChild(block.firstChild)
-          block.parentNode?.replaceChild(newBlock, block)
-          cleanUpBlock(newBlock)
+          const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
+
+          if (block.tagName.toUpperCase() === 'LI') {
+            if (!isTargetDivOrP) {
+              const innerBlock = document.createElement(blockTag)
+              while (block.firstChild) innerBlock.appendChild(block.firstChild)
+              block.appendChild(innerBlock)
+              cleanUpBlock(innerBlock)
+            }
+          } else if (isTargetDivOrP && block.parentNode?.nodeName.toUpperCase() === 'LI') {
+            while (block.firstChild) block.parentNode.insertBefore(block.firstChild, block)
+            block.parentNode.removeChild(block)
+          } else {
+            const newBlock = document.createElement(blockTag)
+            Array.from(block.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
+            while (block.firstChild) newBlock.appendChild(block.firstChild)
+            block.parentNode?.replaceChild(newBlock, block)
+            cleanUpBlock(newBlock)
+          }
         }
       })
     } else {
@@ -818,131 +878,109 @@ function changeFontSize(delta: number) {
   applyCustomFontSize(size.toString())
 }
 
-function applyInlineStyleSafe(styleName: string, styleValue: string) {
-  let range: Range | null = null
-  const sel = window.getSelection()
-  if (lastEditorRange) {
-    range = lastEditorRange
-  } else if (sel && sel.rangeCount > 0) {
-    range = sel.getRangeAt(0)
-  }
-  if (!range) return
-
-  // Bug 4 & 2 Fix: Handle empty lines or collapsed selections by inserting a Zero-Width Space
-  if (range.collapsed) {
-    const zws = document.createTextNode('\u200B')
-    const span = document.createElement('span')
-    span.style.setProperty(styleName, styleValue)
-    span.appendChild(zws)
-    range.insertNode(span)
-    const newRange = document.createRange()
-    newRange.setStart(zws, 1)
-    newRange.collapse(true)
-    if (document.activeElement?.tagName !== 'INPUT') {
-      editor.value?.focus({ preventScroll: true })
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(newRange)
-    }
-    lastEditorRange = newRange.cloneRange()
-    onInput()
-    return
-  }
-
-  const extracted = range.extractContents()
-  const elements = Array.from(extracted.querySelectorAll('*'))
-  elements.forEach(node => {
-    if (node instanceof HTMLElement) {
-      if (styleName === 'font-size') {
-        node.style.removeProperty('font-size')
-        if (node.nodeName === 'FONT') node.removeAttribute('size')
-      } else if (styleName === 'color') {
-        node.style.removeProperty('color')
-        if (node.nodeName === 'FONT') node.removeAttribute('color')
-      }
-      if (node.getAttribute('style') === '') {
-        node.removeAttribute('style')
-      }
-      if (node.nodeName === 'SPAN' && node.attributes.length === 0) {
-        while (node.firstChild) {
-          node.parentNode?.insertBefore(node.firstChild, node)
-        }
-        node.parentNode?.removeChild(node)
-      }
-    }
-  })
-
-  const fragment = document.createDocumentFragment()
-
-  function wrapTextNodes(node: Node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (node.textContent && node.textContent.trim().length > 0 || node.textContent === '\u200B') {
-        const span = document.createElement('span')
-        span.style.setProperty(styleName, styleValue)
-        const clone = node.cloneNode(true)
-        span.appendChild(clone)
-        node.parentNode?.replaceChild(span, node)
-      }
-    } else if (node instanceof HTMLElement) {
-      // Bug 1 & 3: Do not wrap text inside <rt> to avoid styling ruby text directly
-      if (node.tagName.toUpperCase() !== 'RT') {
-        Array.from(node.childNodes).forEach(wrapTextNodes)
-      }
-    }
-  }
-
-  Array.from(extracted.childNodes).forEach(wrapTextNodes)
-  fragment.appendChild(extracted)
-
-  // Check if fragment is empty after wrapping to prevent errors
-  if (!fragment.firstChild) {
-    return
-  }
-
-  const firstChild = fragment.firstChild
-  const lastChild = fragment.lastChild
-
-  range.insertNode(fragment)
-
-  if (firstChild && lastChild) {
-    const newRange = document.createRange()
-    
-    // Bug 2 Fix: Safely select the inserted content without throwing IndexSizeError
-    try {
-      newRange.setStartBefore(firstChild)
-      newRange.setEndAfter(lastChild)
-    } catch (e) {
-      // Fallback if elements were modified/moved
-      console.warn("Could not set precise range, collapsing to end")
-      newRange.setStartAfter(lastChild)
-      newRange.collapse(true)
-    }
-    
-    if (document.activeElement?.tagName !== 'INPUT') {
-      editor.value?.focus({ preventScroll: true })
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(newRange)
-    }
-    lastEditorRange = newRange.cloneRange()
-  }
-
-  if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-    updateFakeSelection()
-  }
-
-  syncEditorToVue()
-  onInput()
-  syncUnderlineColors()
-  syncRubyStyles()
-}
-
 function applyCustomFontSize(ptSize: string) {
-  applyInlineStyleSafe('font-size', `${ptSize}pt`)
+  const sel = window.getSelection();
+  if (lastEditorRange && document.activeElement?.tagName !== 'INPUT') {
+    editor.value?.focus({ preventScroll: true });
+    sel?.removeAllRanges();
+    sel?.addRange(lastEditorRange);
+  }
+
+  // Use native execCommand for robust selection boundary handling (avoids extractContents corruption)
+  document.execCommand('fontSize', false, '7');
+  
+  if (editor.value) {
+    const fonts = Array.from(editor.value.querySelectorAll('font[size="7"], [style*="xxx-large"]'));
+    const modifiedElements: HTMLElement[] = [];
+    
+    fonts.forEach((font: Element) => {
+      const el = font as HTMLElement;
+      el.style.fontSize = `${ptSize}pt`;
+      let finalEl = el;
+      
+      if (el.tagName === 'FONT') {
+        el.removeAttribute('size');
+        // Convert to span if it only has styles now
+        if (el.attributes.length === 1 && el.hasAttribute('style')) {
+          const span = document.createElement('span');
+          span.setAttribute('style', el.getAttribute('style')!);
+          while (el.firstChild) span.appendChild(el.firstChild);
+          el.parentNode?.replaceChild(span, el);
+          finalEl = span;
+        }
+      }
+      modifiedElements.push(finalEl);
+    });
+
+    if (modifiedElements.length > 0) {
+      try {
+        const newRange = document.createRange();
+        newRange.setStartBefore(modifiedElements[0]);
+        newRange.setEndAfter(modifiedElements[modifiedElements.length - 1]);
+        sel?.removeAllRanges();
+        sel?.addRange(newRange);
+        lastEditorRange = newRange.cloneRange();
+      } catch (e) {
+        console.warn("Could not perfectly restore selection", e);
+      }
+    }
+  }
+  
+  onInput();
+  syncUnderlineColors();
+  syncRubyStyles();
 }
 
 function applyColor() {
-  applyInlineStyleSafe('color', selectedColor.value)
+  const sel = window.getSelection();
+  if (lastEditorRange && document.activeElement?.tagName !== 'INPUT') {
+    editor.value?.focus({ preventScroll: true });
+    sel?.removeAllRanges();
+    sel?.addRange(lastEditorRange);
+  }
+
+  const tempColor = '#fefefe';
+  document.execCommand('foreColor', false, tempColor);
+  
+  if (editor.value) {
+    const fonts = Array.from(editor.value.querySelectorAll(`font[color="${tempColor}"], [style*="rgb(254, 254, 254)"], [style*="#fefefe"]`));
+    const modifiedElements: HTMLElement[] = [];
+    
+    fonts.forEach((font: Element) => {
+      const el = font as HTMLElement;
+      el.style.color = selectedColor.value;
+      let finalEl = el;
+      
+      if (el.tagName === 'FONT') {
+        el.removeAttribute('color');
+        if (el.attributes.length === 1 && el.hasAttribute('style')) {
+          const span = document.createElement('span');
+          span.setAttribute('style', el.getAttribute('style')!);
+          while (el.firstChild) span.appendChild(el.firstChild);
+          el.parentNode?.replaceChild(span, el);
+          finalEl = span;
+        }
+      }
+      modifiedElements.push(finalEl);
+    });
+
+    if (modifiedElements.length > 0) {
+      try {
+        const newRange = document.createRange();
+        newRange.setStartBefore(modifiedElements[0]);
+        newRange.setEndAfter(modifiedElements[modifiedElements.length - 1]);
+        sel?.removeAllRanges();
+        sel?.addRange(newRange);
+        lastEditorRange = newRange.cloneRange();
+      } catch (e) {
+        console.warn("Could not perfectly restore selection", e);
+      }
+    }
+  }
+  
+  onInput();
+  syncUnderlineColors();
+  syncRubyStyles();
 }
 
 function openHelpModal() {
@@ -1290,7 +1328,10 @@ function handleFileRead(event: Event) {
       }
       documentContent.value = content
       syncPagesFromDocument()
+      documentRevision.value++
       persistDocument()
+      repairSplitRubies()
+      syncRubyStyles()
 
       target.value = ''
     }
@@ -1337,7 +1378,11 @@ function exportDocument(format: 'print' | 'html' = 'print') {
     if (doc) {
       const pageSizeCss = paperSize.value === 'A4' ? '297mm 210mm' : '257mm 182mm';
       const marginCss = `${margins.value.top}mm ${margins.value.right}mm ${margins.value.bottom}mm ${margins.value.left}mm`;
-      const htmlBody = documentContent.value.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">')
+      // Fix Bug 1: Do not use overflow:hidden as it risks clipping text.
+      // Instead, strip trailing empty line breaks (<br>, <div><br></div>, etc.) from the very end of the document.
+      // These invisible elements are what push the print engine to generate a blank extra page.
+      let cleanContent = documentContent.value.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, '');
+      const htmlBody = cleanContent.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">');
 
       doc.open()
       doc.write(`
@@ -1351,9 +1396,13 @@ function exportDocument(format: 'print' | 'html' = 'print') {
               size: ${pageSizeCss};
               margin: ${marginCss};
             }
-            body {
+            /* Tailwind reset to match editor DOM */
+            * {
               margin: 0;
               padding: 0;
+              box-sizing: border-box;
+            }
+            body {
               font-family: 'Noto Serif JP', serif;
               writing-mode: vertical-rl;
               line-height: 1.8;
@@ -1375,6 +1424,9 @@ function exportDocument(format: 'print' | 'html' = 'print') {
             b, strong { font-weight: bold; }
             i, em { font-style: italic; }
             u, [style*="underline"] { text-decoration: underline; text-decoration-color: black; }
+            img { max-width: 100%; height: auto; }
+            table { border-collapse: collapse; }
+            th, td { border: 1px solid black; padding: 0.5em; }
           </style>
         </head>
         <body>
@@ -1384,13 +1436,13 @@ function exportDocument(format: 'print' | 'html' = 'print') {
       `)
       doc.close()
 
-      // Give browser a moment to parse the new iframe content before printing
-      setTimeout(() => {
-        iframe.contentWindow?.print()
-        setTimeout(() => {
+      const win = iframe.contentWindow
+      if (win) {
+        win.document.fonts.ready.then(() => {
+          win.print()
           document.body.removeChild(iframe)
-        }, 1000)
-      }, 200)
+        })
+      }
     }
   } else if (format === 'html') {
     const content = documentContent.value.replace(MANUAL_BREAK, '<hr>')
