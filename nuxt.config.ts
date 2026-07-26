@@ -23,6 +23,7 @@ export default defineNuxtConfig({
       titleTemplate: '%s | TATExtist',
       title: '縦書き専用エディタ',
       meta: [
+        { name: 'google-site-verification', content: '6qcdnZyca1BF8XFlNQzY7C40JKrxqn1zWx37DekKLEA' },
         { name: 'description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのままPDF保存もできる縦書き専用エディタです。' },
         { property: 'og:title', content: 'TATExtist - 縦書き専用エディタ' },
         { property: 'og:description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのままPDF保存もできる縦書き専用エディタです。' },
