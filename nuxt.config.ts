@@ -9,7 +9,8 @@ export default defineNuxtConfig({
     googleClientSecret: '', // .env の NUXT_GOOGLE_CLIENT_SECRET で上書きされます
     public: {
       googleClientId: '', // .env の NUXT_PUBLIC_GOOGLE_CLIENT_ID で上書きされます
-      googleApiKey: ''    // .env の NUXT_PUBLIC_GOOGLE_API_KEY で上書きされます
+      googleApiKey: '',   // .env の NUXT_PUBLIC_GOOGLE_API_KEY で上書きされます
+      gtagId: ''          // .env の NUXT_PUBLIC_GTAG_ID で上書きされます
     }
   },
   site: {
@@ -50,8 +51,12 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxtjs/sitemap',
     'nuxt-schema-org',
-    'nuxt-security'
+    'nuxt-security',
+    'nuxt-gtag'
   ],
+  gtag: {
+    id: process.env.NUXT_PUBLIC_GTAG_ID // Vercelの環境変数で設定します
+  },
   security: {
     xssValidator: false,
     corsHandler: {

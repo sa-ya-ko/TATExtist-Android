@@ -24,6 +24,7 @@
     "@types/dompurify": "^3.0.5",
     "@vite-pwa/nuxt": "^1.1.1",
     "autoprefixer": "^10.5.2",
+    "nuxt-gtag": "^4.1.0",
     "nuxt-schema-org": "^6.2.7",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.1",
