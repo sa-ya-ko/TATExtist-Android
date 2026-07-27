@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
         /* 箇条書き: 物理方向ではなく論理プロパティで指定し、Puppeteerでも確実に描画させる */
         ul, ol, li { margin: 0; padding: 0; list-style-type: none; }
         ul { margin-block-start: 0.5em; margin-block-end: 0.5em; }
-        li { padding-inline-start: 1.2em; text-indent: -1.2em; margin-inline-end: 0.2em; }
+        li { padding-top: 1.2em; text-indent: -1.2em; margin-inline-end: 0.2em; }
         li::before { content: '・'; }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }

@@ -1008,9 +1008,10 @@ function toggleSidebar() {
 
 async function downloadPDF() {
   try {
-    // 末尾の不要な空行やbrタグを削除して余分な白紙ページが生成されるのを防ぐ
-    let cleanContent = documentContent.value.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, '');
-    const htmlContent = cleanContent.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">')
+    // 各ページの末尾にある不要な空行やbrタグを削除して余分な白紙ページが生成されるのを防ぐ
+    const segments = documentContent.value.split(MANUAL_BREAK);
+    const cleanSegments = segments.map(seg => seg.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, ''));
+    const htmlContent = cleanSegments.join('<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">');
     
     // サーバーサイドAPIにHTMLを送信してPDFを生成
     const response = await fetch('/api/export-pdf', {
@@ -1381,10 +1382,10 @@ function exportDocument(format: 'print' | 'html' = 'print') {
       const pageSizeCss = paperSize.value === 'A4' ? '297mm 210mm' : '257mm 182mm';
       const marginCss = `${margins.value.top}mm ${margins.value.right}mm ${margins.value.bottom}mm ${margins.value.left}mm`;
       // Fix Bug 1: Do not use overflow:hidden as it risks clipping text.
-      // Instead, strip trailing empty line breaks (<br>, <div><br></div>, etc.) from the very end of the document.
-      // These invisible elements are what push the print engine to generate a blank extra page.
-      let cleanContent = documentContent.value.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, '');
-      const htmlBody = cleanContent.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">');
+      // Instead, strip trailing empty line breaks (<br>, <div><br></div>, etc.) from the very end of EACH page.
+      const segments = documentContent.value.split(MANUAL_BREAK);
+      const cleanSegments = segments.map(seg => seg.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, ''));
+      const htmlBody = cleanSegments.join('<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">');
 
       doc.open()
       doc.write(`
