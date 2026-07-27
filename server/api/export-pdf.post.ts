@@ -23,6 +23,10 @@ export default defineEventHandler(async (event) => {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
           box-sizing: border-box;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: geometricPrecision;
+          font-synthesis: none; /* Prevent faux bold/italic which causes grey rasterization */
         }
         body {
           margin: 0;
@@ -53,22 +57,19 @@ export default defineEventHandler(async (event) => {
         p:empty::before { content: '\\200B'; }
         hr { border: none; margin: 0; padding: 0; }
         
-        /* 傍線を太く・黒くしてグレー化を完全に防ぐ */
+        /* 傍線を太くしてグレー化を防ぐ */
         u, [style*="underline"] { 
-          text-decoration-color: #000 !important; 
           text-decoration-thickness: 2px !important;
         }
         ruby { ruby-align: center; }
-        /* ルビは文字サイズが小さいため、かすれないよう太字（bold）と純黒（#000）を強制する */
         ruby > rt, ruby > rt span, ruby > rt font { 
-          color: #000 !important; 
-          font-weight: bold !important;
+          font-weight: 700 !important;
           font-size: 0.5em; 
         }
         /* 斜体のグレー化を防ぐため、色指定は活かしつつ太字（bold）にして線を補強する */
         i, em {
-          font-weight: bold;
-          -webkit-text-stroke: 0.2px currentColor;
+          font-weight: 700;
+          font-style: normal; /* Faux italic skews text and causes rasterization on Linux. We neutralize it. */
         }
       </style>
     </head>

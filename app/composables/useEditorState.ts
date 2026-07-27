@@ -22,6 +22,12 @@ export interface Page {
 }
 
 const pages = ref<Page[]>([])
+
+let nextId = Date.now()
+function generateId() {
+  return nextId++
+}
+
 // The document is stored as one continuous HTML stream.  Explicit page breaks
 // are represented by markers in that stream; `pages` is only the editor view.
 const documentContent = ref('')
@@ -197,11 +203,18 @@ function syncPagesFromDocument() {
   }
   
   const segments = documentContent.value.split(MANUAL_BREAK)
-  pages.value = segments.map((content, index) => ({
-    id: Date.now() + index + Math.random(),
-    content
-  }))
-  if (pages.value.length === 0) pages.value = [{ id: Date.now(), content: '' }]
+  if (layoutMode.value === 'manual') {
+    pages.value = segments.map((content, i) => ({
+      id: pages.value[i]?.id || generateId(),
+      content
+    }))
+  } else {
+    pages.value = segments.map((content, index) => ({
+      id: generateId() + index,
+      content
+    }))
+  }
+  if (pages.value.length === 0) pages.value = [{ id: generateId(), content: '' }]
 }
 
 export function setDocumentFromLegacyPages(legacyPages: Array<Pick<Page, 'content'>>) {
@@ -228,7 +241,7 @@ function addManualPage(afterPageId?: number) {
   // 原稿データを分割して新しいページを挿入
   segments.splice(insertAt, 0, '')
   // Vueの表示用配列（pages）も同時に更新し、新IDを割り振ることでズレを防ぐ
-  pages.value.splice(insertAt, 0, { id: Date.now(), content: '' })
+  pages.value.splice(insertAt, 0, { id: generateId(), content: '' })
   
   documentContent.value = segments.join(manualBreakMarker)
   syncPagesFromDocument()
