@@ -481,6 +481,24 @@ onUnmounted(() => {
     margin: 0;
     padding: 0;
   }
+
+  /* 印刷時に色が間引かれてかすれるのを防ぐ（ユーザーが指定したカスタム色は維持する） */
+  .writing-vertical,
+  .writing-vertical * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 傍線やルビの色を、その文字自体に指定された色（カスタムカラー）に合わせる */
+  .writing-vertical u,
+  .writing-vertical [style*="underline"] {
+    text-decoration-color: currentColor;
+  }
+  .writing-vertical ruby > rt,
+  .writing-vertical ruby > rt span,
+  .writing-vertical ruby > rt font {
+    color: currentColor;
+  }
 }
 
 /* Base heading styles inside editor */
@@ -503,15 +521,20 @@ onUnmounted(() => {
   content: '\200B'; /* Zero-width space */
 }
 
-/* List styling */
+/* List styling (印刷時・表示時の両方でインデントと中点が確実に出るようにする) */
 .writing-vertical ul {
-  list-style-type: disc;
-  padding-inline-start: 2em; /* Indent from top */
+  list-style-type: none;
+  padding: 0;
   margin-block-start: 0.5em;
   margin-block-end: 0.5em;
 }
 .writing-vertical li {
+  padding-top: 1.2em; /* 2行目以降のインデント */
+  text-indent: -1.2em; /* 1行目を上に引き上げ（中点配置スペース） */
   margin-inline-end: 0.2em;
+}
+.writing-vertical li::before {
+  content: '・';
 }
 
 /* Fix ruby alignment */
