@@ -15,9 +15,14 @@ export default defineEventHandler(async (event) => {
       <meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
       <style>
+        :root {
+          /* エディタと完全に同じデフォルトカラーを定義 */
+          --color-on-surface: #091d2e;
+        }
         * {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
+          box-sizing: border-box;
         }
         body {
           margin: 0;
@@ -26,17 +31,17 @@ export default defineEventHandler(async (event) => {
           writing-mode: vertical-rl;
           line-height: 1.8;
           font-size: 16px;
-          color: #000;
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
+          color: var(--color-on-surface); /* デフォルトを真っ黒ではなくエディタ色に */
         }
         .writing-vertical {
           writing-mode: vertical-rl;
         }
         p, blockquote { margin: 0; padding: 0; }
+        
+        /* 箇条書き: 物理方向ではなく論理プロパティで指定し、Puppeteerでも確実に描画させる */
         ul, ol, li { margin: 0; padding: 0; list-style-type: none; }
         ul { margin-block-start: 0.5em; margin-block-end: 0.5em; }
-        li { padding-top: 1.2em; text-indent: -1.2em; margin-inline-end: 0.2em; }
+        li { padding-inline-start: 1.2em; text-indent: -1.2em; margin-inline-end: 0.2em; }
         li::before { content: '・'; }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
@@ -48,10 +53,10 @@ export default defineEventHandler(async (event) => {
         p:empty::before { content: '\\200B'; }
         hr { border: none; margin: 0; padding: 0; }
         
-        u, [style*="underline"] { text-decoration-color: currentColor; }
+        /* ルビ・傍線のデフォルトをエディタ色に揃える。指定がある場合はHTMLのstyle属性が自然に優先される */
+        u, [style*="underline"] { text-decoration-color: var(--color-on-surface); }
         ruby { ruby-align: center; }
-        ruby > rt, ruby > rt span, ruby > rt font { color: currentColor; font-size: 0.5em; }
-        b, strong, i, em { color: currentColor; }
+        ruby > rt, ruby > rt span, ruby > rt font { color: var(--color-on-surface); font-size: 0.5em; }
       </style>
     </head>
     <body>

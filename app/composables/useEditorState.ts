@@ -1008,7 +1008,9 @@ function toggleSidebar() {
 
 async function downloadPDF() {
   try {
-    const htmlContent = documentContent.value.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden;">')
+    // 末尾の不要な空行やbrタグを削除して余分な白紙ページが生成されるのを防ぐ
+    let cleanContent = documentContent.value.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, '');
+    const htmlContent = cleanContent.replace(MANUAL_BREAK, '<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">')
     
     // サーバーサイドAPIにHTMLを送信してPDFを生成
     const response = await fetch('/api/export-pdf', {
