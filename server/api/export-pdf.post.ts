@@ -53,19 +53,21 @@ export default defineEventHandler(async (event) => {
         p:empty::before { content: '\\200B'; }
         hr { border: none; margin: 0; padding: 0; }
         
-        /* 傍線を少し太くしてグレー化を防ぐ */
+        /* 傍線を太く・黒くしてグレー化を完全に防ぐ */
         u, [style*="underline"] { 
-          text-decoration-color: var(--color-on-surface); 
-          text-decoration-thickness: 1.5px;
+          text-decoration-color: #000 !important; 
+          text-decoration-thickness: 2px !important;
         }
         ruby { ruby-align: center; }
+        /* ルビは文字サイズが小さいため、かすれないよう太字（bold）と純黒（#000）を強制する */
         ruby > rt, ruby > rt span, ruby > rt font { 
-          color: var(--color-on-surface); 
+          color: #000 !important; 
+          font-weight: bold !important;
           font-size: 0.5em; 
-          -webkit-text-stroke: 0.2px currentColor;
         }
-        /* 斜体のグレー化を防ぐため輪郭を少し強調する */
+        /* 斜体のグレー化を防ぐため、色指定は活かしつつ太字（bold）にして線を補強する */
         i, em {
+          font-weight: bold;
           -webkit-text-stroke: 0.2px currentColor;
         }
       </style>
