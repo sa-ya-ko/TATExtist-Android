@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 import { defineEventHandler, readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
@@ -42,9 +43,14 @@ export default defineEventHandler(async (event) => {
 
   let browser
   try {
+    const isDev = process.env.NODE_ENV === 'development'
+
     browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: isDev ? [] : chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: isDev ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : await chromium.executablePath(),
+      headless: isDev ? true : chromium.headless,
+      ignoreHTTPSErrors: true
     })
     const page = await browser.newPage()
     await page.setContent(fullHtml, { waitUntil: 'networkidle0' })
