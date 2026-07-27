@@ -53,10 +53,21 @@ export default defineEventHandler(async (event) => {
         p:empty::before { content: '\\200B'; }
         hr { border: none; margin: 0; padding: 0; }
         
-        /* ルビ・傍線のデフォルトをエディタ色に揃える。指定がある場合はHTMLのstyle属性が自然に優先される */
-        u, [style*="underline"] { text-decoration-color: var(--color-on-surface); }
+        /* 傍線を少し太くしてグレー化を防ぐ */
+        u, [style*="underline"] { 
+          text-decoration-color: var(--color-on-surface); 
+          text-decoration-thickness: 1.5px;
+        }
         ruby { ruby-align: center; }
-        ruby > rt, ruby > rt span, ruby > rt font { color: var(--color-on-surface); font-size: 0.5em; }
+        ruby > rt, ruby > rt span, ruby > rt font { 
+          color: var(--color-on-surface); 
+          font-size: 0.5em; 
+          -webkit-text-stroke: 0.2px currentColor;
+        }
+        /* 斜体のグレー化を防ぐため輪郭を少し強調する */
+        i, em {
+          -webkit-text-stroke: 0.2px currentColor;
+        }
       </style>
     </head>
     <body>
