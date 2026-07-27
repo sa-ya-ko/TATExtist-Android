@@ -224,7 +224,12 @@ function addManualPage(afterPageId?: number) {
     : pages.value.findIndex(page => page.id === afterPageId)
   const segments = documentContent.value.split(MANUAL_BREAK)
   const insertAt = index < 0 ? segments.length : index + 1
+  
+  // 原稿データを分割して新しいページを挿入
   segments.splice(insertAt, 0, '')
+  // Vueの表示用配列（pages）も同時に更新し、新IDを割り振ることでズレを防ぐ
+  pages.value.splice(insertAt, 0, { id: Date.now(), content: '' })
+  
   documentContent.value = segments.join(manualBreakMarker)
   syncPagesFromDocument()
   persistDocument()
@@ -234,7 +239,12 @@ function deleteManualPage(pageId: number) {
   const index = pages.value.findIndex(page => page.id === pageId)
   if (index < 0 || pages.value.length <= 1) return
   const segments = documentContent.value.split(MANUAL_BREAK)
+  
+  // 原稿データからページを削除
   segments.splice(index, 1)
+  // Vueの表示用配列からも同時に削除し、残ったページのIDを正しく維持する
+  pages.value.splice(index, 1)
+  
   documentContent.value = segments.join(manualBreakMarker)
   syncPagesFromDocument()
   persistDocument()
