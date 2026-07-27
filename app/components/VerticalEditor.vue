@@ -474,12 +474,27 @@ onUnmounted(() => {
 
   /* スクロールバーや画面固定を解除し、全ページ印刷できるようにする */
   html, body, body #__nuxt, body .h-screen, body .min-h-screen, body .flex-1, body .overflow-y-auto {
-    height: auto;
+    height: 100%;
     min-height: 0;
     overflow: visible;
     background-color: white;
     margin: 0;
     padding: 0;
+  }
+
+  /* ページサイズのはみ出しバグを防ぎ、用紙にピッタリ収める */
+  .manuscript-paper {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 印刷時はベースを黒にする（ただしカスタムカラー指定があればそちらが優先される） */
+  .writing-vertical {
+    color: #000;
   }
 
   /* 印刷時に色が間引かれてかすれるのを防ぐ（ユーザーが指定したカスタム色は維持する） */
@@ -504,11 +519,12 @@ onUnmounted(() => {
 /* Base heading styles inside editor */
 .writing-vertical h1, .writing-vertical h2, .writing-vertical h3, .writing-vertical h4 {
   font-weight: bold;
+  break-inside: avoid;
 }
-.writing-vertical h1 { font-size: 2em; margin-bottom: 0.67em; }
-.writing-vertical h2 { font-size: 1.5em; margin-bottom: 0.83em; }
-.writing-vertical h3 { font-size: 1.17em; margin-bottom: 1em; }
-.writing-vertical h4 { font-size: 1em; margin-bottom: 1.33em; }
+.writing-vertical h1 { font-size: 2em; margin-bottom: 0; margin-block-end: 0.67em; }
+.writing-vertical h2 { font-size: 1.5em; margin-bottom: 0; margin-block-end: 0.83em; }
+.writing-vertical h3 { font-size: 1.17em; margin-bottom: 0; margin-block-end: 1em; }
+.writing-vertical h4 { font-size: 1em; margin-bottom: 0; margin-block-end: 1.33em; }
 
 /* Remove blockquote styling that might interfere */
 .writing-vertical blockquote {
