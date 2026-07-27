@@ -63,7 +63,7 @@
           <div class="w-full flex-none flex flex-col gap-3 mt-4 mb-8 print:hidden max-w-[var(--page-width)] md:mt-6 md:mb-12" dir="ltr">
             <!-- Primary actions -->
             <div class="flex w-full justify-between items-center gap-3">
-              <button @click="addPage" class="flex items-center gap-2 text-sm px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors print:hidden flex-shrink-0 md:px-6 md:py-2.5 md:text-base">
+              <button @click="addPage(page.id)" class="flex items-center gap-2 text-sm px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-none hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors print:hidden flex-shrink-0 md:px-6 md:py-2.5 md:text-base">
                 <span class="i-heroicons-plus text-xl"></span>
                 新しいページを追加
               </button>
@@ -210,7 +210,8 @@ const {
   documentRevision,
   isRubyManagementMode,
   removeSpecificRuby,
-  deleteManualPage
+  deleteManualPage,
+  addManualPage
 } = useEditorState()
 
 const { isDriveModalOpen } = useGoogleDrive()
@@ -406,8 +407,8 @@ const handleFocus = (target: any) => {
   editor.value = target
 }
 
-const addPage = () => {
-  pages.value.push({ id: Date.now(), content: '' })
+const addPage = (id: number) => {
+  addManualPage(id)
 }
 
 const deletePage = (id: number) => {
