@@ -1459,6 +1459,21 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
+    // カーソルがルビ(ruby)の中にある場合、ルビ要素の前へ逃がしてルビの破壊・分裂を防止
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      let container = range.startContainer;
+      if (container.nodeType === 3 && container.parentNode) container = container.parentNode;
+      const rubyElement = (container instanceof HTMLElement) ? container.closest('ruby') : null;
+      if (rubyElement) {
+        range.setStartBefore(rubyElement);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
     if (e.shiftKey) {
       e.preventDefault();
       document.execCommand('insertLineBreak');
@@ -1483,7 +1498,15 @@ function handleKeyDown(e: KeyboardEvent) {
         const textBefore = preCaretRange.toString();
 
         if (textBefore.length === 0) {
-          if (block.tagName.toLowerCase() === 'li') {
+          const tag = block.tagName.toLowerCase();
+          // 見出し行の先頭でBackspaceが押された場合、前行を拡大させないよう標準段落（p）に戻す
+          if (['h1', 'h2', 'h3', 'h4'].includes(tag)) {
+            e.preventDefault();
+            document.execCommand('formatBlock', false, 'p');
+            updateSelectionState();
+            return;
+          }
+          if (tag === 'li') {
             e.preventDefault();
             document.execCommand('outdent', false, undefined);
             updateSelectionState();

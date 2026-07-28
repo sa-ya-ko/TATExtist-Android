@@ -41,6 +41,7 @@
 
 .writing-vertical ruby {
   display: inline-ruby;
+  white-space: nowrap;
 }
 
 .writing-vertical b,
