@@ -32,7 +32,7 @@ function generateId() {
 // are represented by markers in that stream; `pages` is only the editor view.
 const documentContent = ref('')
 const documentRevision = ref(0)
-const MANUAL_BREAK = /<!--manual-page-break-->/g
+const MANUAL_BREAK = '<!--manual-page-break-->'
 const manualBreakMarker = '<!--manual-page-break-->'
 const documentTitle = ref<string>('無題のドキュメント')
 const editor = ref<HTMLElement | null>(null)
@@ -244,7 +244,7 @@ function addManualPage(afterPageId?: number) {
   pages.value.splice(insertAt, 0, { id: generateId(), content: '' })
   
   documentContent.value = segments.join(manualBreakMarker)
-  syncPagesFromDocument()
+  documentRevision.value++
   persistDocument()
 }
 
@@ -259,7 +259,7 @@ function deleteManualPage(pageId: number) {
   pages.value.splice(index, 1)
   
   documentContent.value = segments.join(manualBreakMarker)
-  syncPagesFromDocument()
+  documentRevision.value++
   persistDocument()
 }
 
@@ -275,7 +275,7 @@ const setLayoutMode = (mode: 'auto' | 'manual') => {
   if (layoutMode.value === mode) return
 
   if (mode === 'auto' && pages.value.length > 1) {
-    documentContent.value = documentContent.value.replace(MANUAL_BREAK, '<br><br>')
+    documentContent.value = documentContent.value.replace(new RegExp('<!--manual-break-->', 'g'), '<br><br>')
     syncPagesFromDocument()
     persistDocument()
   }

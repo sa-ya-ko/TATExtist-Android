@@ -42,10 +42,16 @@ export default defineEventHandler(async (event) => {
         }
         p, blockquote { margin: 0; padding: 0; }
         
-        /* 箇条書き: 物理方向ではなく論理プロパティで指定し、Puppeteerでも確実に描画させる */
-        ul, ol, li { margin: 0; padding: 0; list-style-type: none; }
-        ul { margin-block-start: 0.5em; margin-block-end: 0.5em; }
-        li { padding-top: 1.2em; text-indent: -1.2em; margin-inline-end: 0.2em; }
+        /* 箇条書き: PDF印刷時でも中点とインデントを確実に表示 */
+        ul, ol { margin: 0; padding: 0; list-style-type: none; margin-block-start: 0.5em; margin-block-end: 0.5em; }
+        li { 
+          margin: 0; 
+          padding: 0; 
+          padding-top: 1.5em; 
+          text-indent: -1.5em; 
+          margin-inline-end: 0.2em; 
+          list-style: none;
+        }
         li::before { content: '・'; }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
@@ -57,19 +63,24 @@ export default defineEventHandler(async (event) => {
         p:empty::before { content: '\\200B'; }
         hr { border: none; margin: 0; padding: 0; }
         
-        /* 傍線を太くしてグレー化を防ぐ */
+        /* エディタ（tailwind.css）と完全同一の装飾スタイル（!importantは使用しない） */
         u, [style*="underline"] { 
-          text-decoration-thickness: 2px !important;
+          text-decoration: underline;
+          text-decoration-color: var(--color-on-surface);
         }
         ruby { ruby-align: center; }
         ruby > rt, ruby > rt span, ruby > rt font { 
-          font-weight: 700 !important;
+          color: var(--color-on-surface);
           font-size: 0.5em; 
+          font-family: inherit;
         }
-        /* 斜体のグレー化を防ぐため、色指定は活かしつつ太字（bold）にして線を補強する */
+        b, strong {
+          font-weight: bold;
+        }
+        /* 斜体の傾きによる行崩れ・予期せぬ自動改行を防止 */
         i, em {
-          font-weight: 700;
-          font-style: normal; /* Faux italic skews text and causes rasterization on Linux. We neutralize it. */
+          font-style: italic;
+          line-height: inherit;
         }
       </style>
     </head>
