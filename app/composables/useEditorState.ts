@@ -31,6 +31,11 @@ const documentContent = ref('')
 const documentRevision = ref(0)
 const MANUAL_BREAK = '<hr class="manual-page-break" style="display:none;">'
 const manualBreakMarker = '<hr class="manual-page-break" style="display:none;">'
+
+function splitPages(content: string): string[] {
+  if (!content) return ['']
+  return content.split(/<!--manual-page-break-->|<hr[^>]*class="manual-page-break"[^>]*>/gi)
+}
 const documentTitle = ref<string>('無題のドキュメント')
 const editor = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -199,7 +204,7 @@ function syncPagesFromDocument() {
     documentContent.value = fixedContent;
   }
   
-  const segments = documentContent.value.split(MANUAL_BREAK)
+  const segments = splitPages(documentContent.value)
   if (layoutMode.value === 'manual') {
     pages.value = segments.map((content, i) => ({
       id: pages.value[i]?.id || generateId(),
@@ -222,7 +227,7 @@ export function setDocumentFromLegacyPages(legacyPages: Array<Pick<Page, 'conten
 function updatePageContent(pageId: number, content: string) {
   const index = pages.value.findIndex(page => page.id === pageId)
   if (index < 0) return
-  const segments = documentContent.value.split(MANUAL_BREAK)
+  const segments = splitPages(documentContent.value)
   segments[index] = content
   documentContent.value = segments.join(manualBreakMarker)
   pages.value[index].content = content
@@ -232,7 +237,7 @@ function addManualPage(afterPageId?: number) {
   const index = afterPageId === undefined
     ? pages.value.length - 1
     : pages.value.findIndex(page => page.id === afterPageId)
-  const segments = documentContent.value.split(MANUAL_BREAK)
+  const segments = splitPages(documentContent.value)
   const insertAt = index < 0 ? segments.length : index + 1
   
   // 原稿データを分割して新しいページを挿入
@@ -248,7 +253,7 @@ function addManualPage(afterPageId?: number) {
 function deleteManualPage(pageId: number) {
   const index = pages.value.findIndex(page => page.id === pageId)
   if (index < 0 || pages.value.length <= 1) return
-  const segments = documentContent.value.split(MANUAL_BREAK)
+  const segments = splitPages(documentContent.value)
   
   // 原稿データからページを削除
   segments.splice(index, 1)
