@@ -520,16 +520,24 @@ onUnmounted(() => {
     color: currentColor;
   }
 
-  /* 印刷プレビュー時に箇条書きの中点・テキストが印刷範囲外に食い込んで消えるのを防止 */
+  /* 印刷プレビュー時に箇条書きの中点・テキストが印刷範囲外に食い込んで消えるのを完全防止 */
+  .writing-vertical ul {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
   .writing-vertical li {
     padding-top: 0 !important;
     text-indent: 0 !important;
-    display: block !important;
+    writing-mode: vertical-rl !important;
+    display: inline-block !important;
   }
   .writing-vertical li div,
   .writing-vertical li p,
   .writing-vertical li span {
     display: inline !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .writing-vertical li::before {
     content: '・' !important;
@@ -558,18 +566,20 @@ onUnmounted(() => {
   content: '\200B'; /* Zero-width space */
 }
 
-/* List styling (印刷時・表示時の両方でインデントと中点が確実に出るようにする) */
+/* List styling (表示時・印刷時の両方で中点とインデントが切れずに一致するように統一) */
 .writing-vertical ul {
-  list-style-type: none;
+  list-style: none;
   padding: 0;
   margin-block-start: 0.5em;
   margin-block-end: 0.5em;
 }
 .writing-vertical li {
-  padding-top: 1.2em; /* 2行目以降のインデント */
-  text-indent: -1.2em; /* 1行目を上に引き上げ（中点配置スペース） */
+  margin: 0;
+  padding: 0;
   margin-inline-end: 0.2em;
   min-height: 1em;
+  display: inline-block;
+  writing-mode: vertical-rl;
 }
 .writing-vertical li div,
 .writing-vertical li p,

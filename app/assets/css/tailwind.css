@@ -27,10 +27,10 @@
 .writing-vertical strong,
 .writing-vertical i,
 .writing-vertical em,
-.writing-vertical u,
-.writing-vertical [style*="underline"],
-.writing-vertical span,
-.writing-vertical font {
+.writing-vertical u:not(ruby):not(rt),
+.writing-vertical [style*="underline"]:not(ruby):not(rt),
+.writing-vertical span:not(ruby):not(rt),
+.writing-vertical font:not(ruby):not(rt) {
   display: inline;
   line-height: inherit;
   vertical-align: baseline;
@@ -40,7 +40,13 @@
 }
 
 .writing-vertical ruby {
-  display: inline-ruby;
+  display: inline-ruby !important;
+}
+
+.writing-vertical rt {
+  display: ruby-text !important;
+  font-size: 0.5em !important;
+  line-height: 1 !important;
 }
 
 .writing-vertical b,

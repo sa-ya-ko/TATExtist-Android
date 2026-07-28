@@ -529,12 +529,21 @@ function execCommand(command: string, value: string | undefined = undefined) {
 }
 
 function toggleUnorderedList() {
+  let targetEditor: HTMLElement | null = null
+
   if (lastEditorRange) {
     const container = lastEditorRange.commonAncestorContainer
     const targetElem = container.nodeType === Node.ELEMENT_NODE ? (container as HTMLElement) : container.parentElement
-    const currentEditable = targetElem?.closest('[contenteditable="true"]') as HTMLElement | null
-    if (currentEditable && document.activeElement !== currentEditable) {
-      currentEditable.focus({ preventScroll: true })
+    targetEditor = targetElem?.closest('[contenteditable="true"]') as HTMLElement | null
+  }
+
+  if (!targetEditor && editor.value) {
+    targetEditor = editor.value
+  }
+
+  if (targetEditor && document.activeElement !== targetEditor) {
+    targetEditor.focus({ preventScroll: true })
+    if (lastEditorRange) {
       const sel = window.getSelection()
       sel?.removeAllRanges()
       sel?.addRange(lastEditorRange)
@@ -542,16 +551,22 @@ function toggleUnorderedList() {
   }
 
   const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
+  let blocks: HTMLElement[] = []
 
-  const range = sel.getRangeAt(0)
-  let blocks = getBlocksInRange(range)
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0)
+    blocks = getBlocksInRange(range)
+  }
 
-  if (blocks.length === 0) {
-    document.execCommand('formatBlock', false, 'DIV')
-    const newSel = window.getSelection()
-    if (newSel && newSel.rangeCount > 0) {
-      blocks = getBlocksInRange(newSel.getRangeAt(0))
+  if (blocks.length === 0 && targetEditor) {
+    const firstBlock = targetEditor.querySelector('div, p, li, h1, h2, h3, h4') as HTMLElement | null
+    if (firstBlock) {
+      blocks = [firstBlock]
+    } else {
+      const newDiv = document.createElement('div')
+      newDiv.innerHTML = '<br>'
+      targetEditor.appendChild(newDiv)
+      blocks = [newDiv]
     }
   }
 
