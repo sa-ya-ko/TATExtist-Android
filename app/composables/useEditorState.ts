@@ -512,40 +512,6 @@ function syncUnderlineColors() {
   })
 }
 
-function repairOrphanInlineElements(editorEl: HTMLElement) {
-  const children = Array.from(editorEl.childNodes)
-  let currentBlock: HTMLElement | null = null
-  
-  children.forEach(node => {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as HTMLElement
-      const tag = el.tagName.toLowerCase()
-      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'blockquote'].includes(tag)) {
-        currentBlock = el
-      } else {
-        // 段落の外に飛び出した装飾タグ（u, i, b, span, font等）を直前の段落内に回収
-        if (currentBlock) {
-          currentBlock.appendChild(el)
-        } else {
-          const p = document.createElement('p')
-          editorEl.insertBefore(p, el)
-          p.appendChild(el)
-          currentBlock = p
-        }
-      }
-    } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-      if (currentBlock) {
-        currentBlock.appendChild(node)
-      } else {
-        const p = document.createElement('p')
-        editorEl.insertBefore(p, node)
-        p.appendChild(node)
-        currentBlock = p
-      }
-    }
-  })
-}
-
 function execCommand(command: string, value: string | undefined = undefined) {
   if (lastEditorRange && document.activeElement !== editor.value) {
     editor.value?.focus({ preventScroll: true })
@@ -554,9 +520,6 @@ function execCommand(command: string, value: string | undefined = undefined) {
     sel?.addRange(lastEditorRange)
   }
   document.execCommand(command, false, value)
-  if (editor.value) {
-    repairOrphanInlineElements(editor.value)
-  }
   editor.value?.focus({ preventScroll: true })
   updateSelection()
 }

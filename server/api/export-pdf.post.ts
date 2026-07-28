@@ -62,8 +62,9 @@ export default defineEventHandler(async (event) => {
           padding: 0;
         }
         li::before { 
-          content: '\\30FB'; 
-          display: inline;
+          content: '・'; 
+          display: inline-block;
+          margin-block-end: 0.3em;
         }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
