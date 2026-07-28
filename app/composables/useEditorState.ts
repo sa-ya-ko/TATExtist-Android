@@ -1459,7 +1459,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)の中にある場合、ルビ要素の直後へ逃がしてルビを破壊せず改行を実行する
+    // カーソルがルビ(ruby)の中にある場合、先頭か末尾かを判定して適切に位置調整
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -1467,7 +1467,13 @@ function handleKeyDown(e: KeyboardEvent) {
       if (container.nodeType === 3 && container.parentNode) container = container.parentNode;
       const rubyElement = (container instanceof HTMLElement) ? container.closest('ruby') : null;
       if (rubyElement) {
-        range.setStartAfter(rubyElement);
+        if (isCursorAtStartOfRuby(range, rubyElement)) {
+          // ルビの先頭（行頭）の場合はルビの前へ逃がし、ルビ全体を2行目へ押し下げる
+          range.setStartBefore(rubyElement);
+        } else {
+          // ルビの途中・末尾の場合はルビの後ろへ逃がし、1行目にルビを残して改行する
+          range.setStartAfter(rubyElement);
+        }
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
