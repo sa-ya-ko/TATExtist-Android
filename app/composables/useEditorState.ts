@@ -1479,8 +1479,12 @@ function handleKeyDown(e: KeyboardEvent) {
         selection.removeAllRanges();
         selection.addRange(range);
 
-        // 1回のキー押しで即座に改行を完了
-        document.execCommand('insertLineBreak');
+        // 1回のキー押しで即座に改行を完了（通常EnterはinsertParagraph、Shift+EnterはinsertLineBreak）
+        if (e.shiftKey) {
+          document.execCommand('insertLineBreak');
+        } else {
+          document.execCommand('insertParagraph');
+        }
         onInput(e);
         return;
       }
