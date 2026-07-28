@@ -1567,10 +1567,15 @@ function handleKeyDown(e: KeyboardEvent) {
 
       if (block) {
         if (e.key === 'Backspace') {
-          const preCaretRange = range.cloneRange();
-          preCaretRange.selectNodeContents(block);
-          preCaretRange.setEnd(range.startContainer, range.startOffset);
-          const textBefore = preCaretRange.toString();
+          let textBefore = '';
+          try {
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(block);
+            preCaretRange.setEnd(range.startContainer, range.startOffset);
+            textBefore = preCaretRange.toString();
+          } catch {
+            textBefore = 'non-empty';
+          }
 
           if (textBefore.length === 0) {
             const tag = block.tagName.toLowerCase();
@@ -1622,11 +1627,15 @@ function handleKeyDown(e: KeyboardEvent) {
             }
           }
         } else if (e.key === 'Delete') {
-          // Forward Delete (Fn+Delete / Delete) 押下時の見出し拡大防止処理
-          const postCaretRange = range.cloneRange();
-          postCaretRange.selectNodeContents(block);
-          postCaretRange.setStart(range.endContainer, range.endOffset);
-          const textAfter = postCaretRange.toString();
+          let textAfter = '';
+          try {
+            const postCaretRange = range.cloneRange();
+            postCaretRange.selectNodeContents(block);
+            postCaretRange.setStart(range.endContainer, range.endOffset);
+            textAfter = postCaretRange.toString();
+          } catch {
+            textAfter = 'non-empty';
+          }
 
           if (textAfter.length === 0) {
             const nextBlock = block.nextElementSibling as HTMLElement | null;
