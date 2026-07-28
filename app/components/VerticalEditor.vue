@@ -221,8 +221,10 @@ const editorRefs = ref<Record<number, HTMLElement>>({})
 watch(() => documentRevision?.value, () => {
   pages.value.forEach(page => {
     const el = editorRefs.value[page.id]
-    if (el) {
-      el.innerHTML = page.content
+    if (el && typeof document !== 'undefined' && document.body.contains(el)) {
+      if (el.innerHTML !== page.content) {
+        el.innerHTML = page.content
+      }
     }
   })
 }, { flush: 'post' })
@@ -250,6 +252,8 @@ const setEditorRef = (id: number, el: any) => {
         autoTextWidthPx.value = el.scrollWidth
       }
     }
+  } else {
+    delete editorRefs.value[id]
   }
 }
 
