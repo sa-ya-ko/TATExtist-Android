@@ -1459,7 +1459,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)内部（テキストノード等）にある場合のみ位置補正を行う
+    // カーソルがルビ(ruby)内部にある場合、位置補正と改行実行を1回で同時に完了
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -1469,6 +1469,7 @@ function handleKeyDown(e: KeyboardEvent) {
         : (rawContainer instanceof HTMLElement ? rawContainer.closest('ruby') : null);
 
       if (rubyElement) {
+        e.preventDefault();
         if (isCursorAtStartOfRuby(range, rubyElement)) {
           range.setStartBefore(rubyElement);
         } else {
@@ -1477,6 +1478,11 @@ function handleKeyDown(e: KeyboardEvent) {
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
+
+        // 1回のキー押しで即座に改行を完了
+        document.execCommand('insertLineBreak');
+        onInput(e);
+        return;
       }
     }
 
