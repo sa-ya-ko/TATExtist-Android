@@ -17,7 +17,20 @@
   --color-outline: #767683;
 }
 
-/* Fix Tailwind typography reset for contenteditable */
+/* Fix Tailwind typography reset for contenteditable in vertical writing mode */
+.writing-vertical b,
+.writing-vertical strong,
+.writing-vertical i,
+.writing-vertical em,
+.writing-vertical u,
+.writing-vertical [style*="underline"],
+.writing-vertical span,
+.writing-vertical font {
+  display: inline;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
 .writing-vertical b,
 .writing-vertical strong {
   font-weight: bold;
@@ -37,13 +50,6 @@
 html.dark .writing-vertical u,
 html.dark .writing-vertical [style*="underline"] {
   text-decoration-color: #f3f4f6;
-}
-
-/* 縦書きでフォントカラー変更時に発生する意図せぬ自動改行の防止 */
-.writing-vertical span[style*="color"],
-.writing-vertical font[color] {
-  display: inline;
-  line-height: inherit;
 }
 
 /* Base styles from sample */

@@ -42,20 +42,28 @@ export default defineEventHandler(async (event) => {
         }
         p, blockquote { margin: 0; padding: 0; }
         
-        /* 箇条書き: PDF印刷時でも中点とインデントを確実に表示 */
-        ul, ol { margin: 0; padding: 0; list-style-type: none; margin-block-start: 0.5em; margin-block-end: 0.5em; }
+        /* 箇条書き: PDF印刷時でも中点と文字を自然に並べて表示 */
+        ul, ol { 
+          margin: 0; 
+          padding: 0; 
+          list-style-type: none; 
+          margin-block-start: 0.5em; 
+          margin-block-end: 0.5em; 
+        }
         li { 
           margin: 0; 
           padding: 0; 
-          padding-top: 1.5em; 
-          text-indent: -1.5em; 
           margin-inline-end: 0.5em; 
           list-style: none;
-          display: block;
+        }
+        li div, li p {
+          display: inline;
+          margin: 0;
+          padding: 0;
         }
         li::before { 
           content: '・'; 
-          display: inline-block;
+          display: inline;
         }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
