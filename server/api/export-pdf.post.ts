@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
           padding: 0;
         }
         li::before { 
-          content: '・'; 
+          content: '\\30FB'; 
           display: inline;
         }
 
