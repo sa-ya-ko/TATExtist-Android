@@ -1459,100 +1459,13 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)の中にある場合の改行時の挙動調整
-    let selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      let range = selection.getRangeAt(0);
-      let container = range.startContainer;
-      if (container.nodeType === 3 && container.parentNode) {
-        container = container.parentNode;
-      }
-      
-      const rubyAncestor = (container instanceof HTMLElement) ? container.closest('ruby') : null;
-      if (rubyAncestor) {
-        // Shift+Enterの場合は後続の独自ロジックに任せる
-        if (!e.shiftKey) {
-          // 通常のEnterの場合、ルビが真っ二つに割れるのを防ぐため、カーソルを外に出す
-          if (isCursorAtStartOfRuby(range, rubyAncestor)) {
-            range.setStartBefore(rubyAncestor);
-          } else {
-            range.setStartAfter(rubyAncestor);
-          }
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
-    }
-
     if (e.shiftKey) {
       e.preventDefault();
-      
-      let selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return;
-      let range = selection.getRangeAt(0);
-      
-      let container = range.startContainer;
-      if (container.nodeType === 3) container = container.parentNode;
-      
-      if (container instanceof HTMLElement && container.hasAttribute('contenteditable')) {
-        document.execCommand('formatBlock', false, 'div');
-        selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          range = selection.getRangeAt(0);
-        }
-      }
-      
-      const br = document.createElement('br');
-      range.deleteContents();
-      range.insertNode(br);
-      
-      const rubyAncestor = br.parentElement?.closest('ruby');
-      if (rubyAncestor) {
-        let isAtStart = true;
-        let prev = br.previousSibling;
-        while (prev) {
-          if (prev.nodeType === Node.TEXT_NODE && prev.textContent && prev.textContent.length > 0) {
-            isAtStart = false; break;
-          }
-          if (prev.nodeType === Node.ELEMENT_NODE) {
-            isAtStart = false; break;
-          }
-          prev = prev.previousSibling;
-        }
-        
-        if (isAtStart) {
-          rubyAncestor.parentNode?.insertBefore(br, rubyAncestor);
-        } else {
-          rubyAncestor.parentNode?.insertBefore(br, rubyAncestor.nextSibling);
-        }
-      }
-      
-      range.setStartAfter(br);
-      range.setEndAfter(br);
-      
-      let current = br.nextSibling;
-      let isAtEnd = true;
-      while (current) {
-        if (current.nodeName === 'BR' || (current.nodeType === Node.TEXT_NODE && current.textContent.length > 0) || current.nodeType === Node.ELEMENT_NODE) {
-          isAtEnd = false;
-          break;
-        }
-        current = current.nextSibling;
-      }
-
-      if (isAtEnd) {
-        const dummyBr = document.createElement('br');
-        br.parentNode?.insertBefore(dummyBr, br.nextSibling);
-      }
-      
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      if (e.target) {
-        e.target.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    } else {
+      document.execCommand('insertLineBreak');
+      onInput(e);
+      return;
+    }
+  } else {
       setTimeout(() => {
         const editorElement = e.target as HTMLElement;
         if (editorElement) {
