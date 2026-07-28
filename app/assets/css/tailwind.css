@@ -36,6 +36,12 @@
   display: inline-ruby;
 }
 
+/* 段落の末尾にある自動キャレット用brタグによる不要な改行の防止 */
+.writing-vertical p > br:last-child,
+.writing-vertical div > br:last-child {
+  display: none;
+}
+
 .writing-vertical b,
 .writing-vertical strong {
   font-weight: bold;
