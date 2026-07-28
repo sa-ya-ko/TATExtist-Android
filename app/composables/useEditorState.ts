@@ -528,6 +528,76 @@ function execCommand(command: string, value: string | undefined = undefined) {
   updateSelection()
 }
 
+function toggleUnorderedList() {
+  if (lastEditorRange) {
+    const container = lastEditorRange.commonAncestorContainer
+    const targetElem = container.nodeType === Node.ELEMENT_NODE ? (container as HTMLElement) : container.parentElement
+    const currentEditable = targetElem?.closest('[contenteditable="true"]') as HTMLElement | null
+    if (currentEditable && document.activeElement !== currentEditable) {
+      currentEditable.focus({ preventScroll: true })
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(lastEditorRange)
+    }
+  }
+
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return
+
+  const range = sel.getRangeAt(0)
+  let blocks = getBlocksInRange(range)
+
+  if (blocks.length === 0) {
+    document.execCommand('formatBlock', false, 'DIV')
+    const newSel = window.getSelection()
+    if (newSel && newSel.rangeCount > 0) {
+      blocks = getBlocksInRange(newSel.getRangeAt(0))
+    }
+  }
+
+  if (blocks.length > 0) {
+    const isAllLi = blocks.every(b => b.tagName.toUpperCase() === 'LI' || b.closest('li') !== null)
+
+    if (isAllLi) {
+      // 既に箇条書きの場合は解除してDIVに戻す
+      blocks.forEach(block => {
+        const li = block.tagName.toUpperCase() === 'LI' ? block : block.closest('li')
+        if (li) {
+          const ul = li.parentElement
+          const newDiv = document.createElement('div')
+          while (li.firstChild) newDiv.appendChild(li.firstChild)
+          if (!newDiv.textContent) newDiv.innerHTML = '<br>'
+          if (ul?.parentNode) {
+            ul.parentNode.insertBefore(newDiv, ul)
+          }
+          li.remove()
+          if (ul && ul.children.length === 0) ul.remove()
+        }
+      })
+    } else {
+      // 箇条書きでない場合はUL > LIでラップする
+      blocks.forEach(block => {
+        const targetBlock = block.closest('li') ? block.closest('li')! : block
+        if (targetBlock.tagName.toUpperCase() !== 'LI') {
+          const ul = document.createElement('ul')
+          const li = document.createElement('li')
+          const innerDiv = document.createElement('div')
+          innerDiv.style.display = 'inline'
+
+          while (targetBlock.firstChild) innerDiv.appendChild(targetBlock.firstChild)
+          if (!innerDiv.textContent) innerDiv.textContent = '\u200B'
+
+          li.appendChild(innerDiv)
+          ul.appendChild(li)
+          targetBlock.parentNode?.replaceChild(ul, targetBlock)
+        }
+      })
+    }
+    syncEditorToVue()
+    updateSelectionState()
+  }
+}
+
 function updateSelectionState() {
   updateSelection()
   onInput()
@@ -1124,6 +1194,7 @@ function removeRuby() {
 }
 
 export function initPages() {
+  if (typeof window === 'undefined') return
   const savedTheme = localStorage.getItem('vertical-editor-theme')
   if (savedTheme === 'dark' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     isDarkMode.value = true
@@ -1611,6 +1682,7 @@ export const useEditorState = () => {
     pageWidthPx,
     updateSelection,
     execCommand,
+    toggleUnorderedList,
     customIndent,
     customOutdent,
     applyHeading,

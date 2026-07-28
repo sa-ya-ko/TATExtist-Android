@@ -222,7 +222,7 @@ watch(() => documentRevision?.value, () => {
   pages.value.forEach(page => {
     const el = editorRefs.value[page.id]
     if (el && typeof document !== 'undefined' && document.body.contains(el)) {
-      if (el.innerHTML !== page.content) {
+      if (document.activeElement !== el && el.innerHTML !== page.content) {
         el.innerHTML = page.content
       }
     }
@@ -519,6 +519,22 @@ onUnmounted(() => {
   .writing-vertical ruby > rt font {
     color: currentColor;
   }
+
+  /* 印刷プレビュー時に箇条書きの中点・テキストが印刷範囲外に食い込んで消えるのを防止 */
+  .writing-vertical li {
+    padding-top: 0 !important;
+    text-indent: 0 !important;
+    display: block !important;
+  }
+  .writing-vertical li div,
+  .writing-vertical li p,
+  .writing-vertical li span {
+    display: inline !important;
+  }
+  .writing-vertical li::before {
+    content: '・' !important;
+    display: inline !important;
+  }
 }
 
 /* Base heading styles inside editor */
@@ -553,9 +569,23 @@ onUnmounted(() => {
   padding-top: 1.2em; /* 2行目以降のインデント */
   text-indent: -1.2em; /* 1行目を上に引き上げ（中点配置スペース） */
   margin-inline-end: 0.2em;
+  min-height: 1em;
+}
+.writing-vertical li div,
+.writing-vertical li p,
+.writing-vertical li span {
+  display: inline;
+  margin: 0;
+  padding: 0;
 }
 .writing-vertical li::before {
   content: '・';
+  display: inline;
+}
+.writing-vertical li:empty::after,
+.writing-vertical li div:empty::before,
+.writing-vertical li p:empty::before {
+  content: '\200B';
 }
 
 /* Fix ruby alignment */
