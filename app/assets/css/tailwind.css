@@ -39,6 +39,13 @@ html.dark .writing-vertical [style*="underline"] {
   text-decoration-color: #f3f4f6;
 }
 
+/* 縦書きでフォントカラー変更時に発生する意図せぬ自動改行の防止 */
+.writing-vertical span[style*="color"],
+.writing-vertical font[color] {
+  display: inline;
+  line-height: inherit;
+}
+
 /* Base styles from sample */
 body {
   background-color: #F5F7F9;

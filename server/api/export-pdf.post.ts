@@ -49,10 +49,14 @@ export default defineEventHandler(async (event) => {
           padding: 0; 
           padding-top: 1.5em; 
           text-indent: -1.5em; 
-          margin-inline-end: 0.2em; 
+          margin-inline-end: 0.5em; 
           list-style: none;
+          display: block;
         }
-        li::before { content: '・'; }
+        li::before { 
+          content: '・'; 
+          display: inline-block;
+        }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
         h1 { font-size: 2em; margin-block-end: 0.67em; }
@@ -62,6 +66,7 @@ export default defineEventHandler(async (event) => {
         
         p:empty::before { content: '\\200B'; }
         hr { border: none; margin: 0; padding: 0; }
+        hr.manual-page-break { page-break-after: always; break-after: page; visibility: hidden; margin: 0; padding: 0; border: none; }
         
         /* エディタ（tailwind.css）と完全同一の装飾スタイル（!importantは使用しない） */
         u, [style*="underline"] { 

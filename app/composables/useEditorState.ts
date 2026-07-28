@@ -3,13 +3,10 @@ import DOMPurify from 'dompurify'
 
 export function sanitizeHTML(html: string): string {
   if (typeof window !== 'undefined') {
-    const TEMP_MARKER = '___MANUAL_PAGE_BREAK_TEMP___'
-    const safeHtml = html.replace(/<!--manual-page-break-->/g, TEMP_MARKER)
-    const sanitized = DOMPurify.sanitize(safeHtml, {
-      ADD_ATTR: ['contenteditable', 'data-ruby-id', 'data-page-id'],
-      ADD_TAGS: ['ruby', 'rt', 'rp']
+    return DOMPurify.sanitize(html, {
+      ADD_ATTR: ['contenteditable', 'data-ruby-id', 'data-page-id', 'style', 'class'],
+      ADD_TAGS: ['ruby', 'rt', 'rp', 'hr']
     })
-    return sanitized.replace(new RegExp(TEMP_MARKER, 'g'), '<!--manual-page-break-->')
   }
   return html
 }
@@ -32,8 +29,8 @@ function generateId() {
 // are represented by markers in that stream; `pages` is only the editor view.
 const documentContent = ref('')
 const documentRevision = ref(0)
-const MANUAL_BREAK = '<!--manual-page-break-->'
-const manualBreakMarker = '<!--manual-page-break-->'
+const MANUAL_BREAK = '<hr class="manual-page-break" style="display:none;">'
+const manualBreakMarker = '<hr class="manual-page-break" style="display:none;">'
 const documentTitle = ref<string>('無題のドキュメント')
 const editor = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -499,114 +496,20 @@ function repairSplitRubies() {
 function syncRubyStyles() {
   if (!editor.value) return
   const rubies = editor.value.querySelectorAll('ruby')
-
   rubies.forEach(ruby => {
-    const walker = document.createTreeWalker(ruby, NodeFilter.SHOW_TEXT, null)
-    let node
-    let commonColor: string | null = null
-    let commonFontSize: string | null = null
-    let allSameColor = true
-    let allSameFontSize = true
-    let hasText = false
-
-    const rts = Array.from(ruby.querySelectorAll('rt'))
-
-    while ((node = walker.nextNode())) {
-      if (!node.textContent?.trim()) continue
-
-      let isRt = false
-      let curr = node.parentElement
-      while (curr && curr !== ruby) {
-        if (curr.nodeName.toUpperCase() === 'RT') {
-          isRt = true
-          break
-        }
-        curr = curr.parentElement
-      }
-      if (isRt) continue
-
-      hasText = true
-      const comp = window.getComputedStyle(node.parentElement!)
-      const nodeColor = comp.color
-      const nodeFontSize = comp.fontSize
-
-      if (commonColor === null) {
-        commonColor = nodeColor
-      } else if (commonColor !== nodeColor) {
-        allSameColor = false
-      }
-
-      if (commonFontSize === null) {
-        commonFontSize = nodeFontSize
-      } else if (commonFontSize !== nodeFontSize) {
-        allSameFontSize = false
-      }
-    }
-
-    if (hasText) {
-      if (allSameColor && commonColor) {
-        ruby.style.color = commonColor
-      } else {
-        ruby.style.color = ''
-      }
-
-      if (allSameFontSize && commonFontSize) {
-        ruby.style.fontSize = commonFontSize
-      } else {
-        ruby.style.fontSize = ''
-      }
-    }
+    // インラインカラーの上書きを解除し、テーマ色を保持する
+    ruby.style.color = ''
   })
 }
 
 function syncUnderlineColors() {
-  if (!editor.value) return;
-  const allColoredSpans = Array.from(editor.value.querySelectorAll('[style*="color"], font[color]')) as HTMLElement[];
-  allColoredSpans.forEach(span => {
-    if (span.style.textDecoration === 'underline' || span.style.textDecorationLine === 'underline') {
-      span.style.textDecoration = '';
-      if (span.getAttribute('style') === '') span.removeAttribute('style');
-    }
-  });
-
-  const uTags = editor.value.querySelectorAll('u');
+  if (!editor.value) return
+  const uTags = editor.value.querySelectorAll('u')
   uTags.forEach(u => {
-    const walker = document.createTreeWalker(u, NodeFilter.SHOW_TEXT, null);
-    let node;
-    let commonColor: string | null = null;
-    let allSame = true;
-    let hasText = false;
-
-    while (node = walker.nextNode()) {
-      if (!node.textContent || node.textContent.trim() === '') continue;
-      hasText = true;
-      let nodeColor = null;
-      if (node.parentElement) {
-        nodeColor = window.getComputedStyle(node.parentElement).color;
-      }
-      if (!nodeColor) {
-        allSame = false;
-      } else if (commonColor === null) {
-        commonColor = nodeColor;
-      } else if (commonColor !== nodeColor) {
-        allSame = false;
-      }
-    }
-
-    if (hasText && allSame && commonColor) {
-      u.style.color = commonColor;
-      u.style.textDecorationColor = commonColor;
-    } else if (hasText && !allSame) {
-      u.style.color = '';
-      u.style.textDecorationColor = '';
-      const coloredChildren = Array.from(u.querySelectorAll('[style*="color"], font[color]')) as HTMLElement[];
-      coloredChildren.forEach(child => {
-        if (child.style.color || child.getAttribute('color')) {
-          child.style.textDecoration = 'underline';
-        }
-      });
-    }
-  });
+    // インラインカラーの上書きを解除し、テーマ色を保持する
+    u.style.color = ''
+    u.style.textDecorationColor = ''
+  })
 }
 
 function execCommand(command: string, value: string | undefined = undefined) {
