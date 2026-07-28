@@ -25,12 +25,15 @@
 .writing-vertical u,
 .writing-vertical [style*="underline"],
 .writing-vertical span,
-.writing-vertical font,
-.writing-vertical ruby {
+.writing-vertical font {
   display: inline;
   line-height: inherit;
   vertical-align: baseline;
   white-space: normal;
+}
+
+.writing-vertical ruby {
+  display: inline-ruby;
 }
 
 .writing-vertical b,
