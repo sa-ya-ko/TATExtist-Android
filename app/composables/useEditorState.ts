@@ -1459,19 +1459,19 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)の中にある場合、先頭か末尾かを判定して適切に位置調整
+    // カーソルがルビ(ruby)内部（テキストノード等）にある場合のみ位置補正を行う
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      let container = range.startContainer;
-      if (container.nodeType === 3 && container.parentNode) container = container.parentNode;
-      const rubyElement = (container instanceof HTMLElement) ? container.closest('ruby') : null;
+      const rawContainer = range.startContainer;
+      const rubyElement = (rawContainer.nodeType === 3)
+        ? rawContainer.parentElement?.closest('ruby')
+        : (rawContainer instanceof HTMLElement ? rawContainer.closest('ruby') : null);
+
       if (rubyElement) {
         if (isCursorAtStartOfRuby(range, rubyElement)) {
-          // ルビの先頭（行頭）の場合はルビの前へ逃がし、ルビ全体を2行目へ押し下げる
           range.setStartBefore(rubyElement);
         } else {
-          // ルビの途中・末尾の場合はルビの後ろへ逃がし、1行目にルビを残して改行する
           range.setStartAfter(rubyElement);
         }
         range.collapse(true);
@@ -1488,7 +1488,7 @@ function handleKeyDown(e: KeyboardEvent) {
     }
   }
 
-  if (e.key === 'Backspace' && !e.isComposing) {
+  if ((e.key === 'Backspace' || e.key === 'Delete') && !e.isComposing) {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
@@ -1498,57 +1498,82 @@ function handleKeyDown(e: KeyboardEvent) {
       const block = getClosestBlockElement(ancestor);
 
       if (block) {
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(block);
-        preCaretRange.setEnd(range.startContainer, range.startOffset);
-        const textBefore = preCaretRange.toString();
+        if (e.key === 'Backspace') {
+          const preCaretRange = range.cloneRange();
+          preCaretRange.selectNodeContents(block);
+          preCaretRange.setEnd(range.startContainer, range.startOffset);
+          const textBefore = preCaretRange.toString();
 
-        if (textBefore.length === 0) {
-          const tag = block.tagName.toLowerCase();
-          if (['h1', 'h2', 'h3', 'h4'].includes(tag)) {
-            const prevBlock = block.previousElementSibling as HTMLElement | null;
-            if (!prevBlock || prevBlock.textContent?.trim() === '') {
-              // 【パターンA】前に文字がない（空行）場合: 見出しスタイルはそのまま維持し、上の空行だけ削除して引き上げる
-              if (prevBlock) prevBlock.remove();
+          if (textBefore.length === 0) {
+            const tag = block.tagName.toLowerCase();
+            if (['h1', 'h2', 'h3', 'h4'].includes(tag)) {
+              const prevBlock = block.previousElementSibling as HTMLElement | null;
+              if (!prevBlock || prevBlock.textContent?.trim() === '') {
+                // 【パターンA】前に文字がない（空行）場合: 見出しスタイルはそのまま維持し、上の空行だけ削除して引き上げる
+                if (prevBlock) prevBlock.remove();
+                e.preventDefault();
+                updateSelectionState();
+                return;
+              } else {
+                // 【パターンB】前に文字があり結合する場合: 前のテキストのスタイル（前行）に合わせて末尾に結合し、前行の拡大を完全防止
+                e.preventDefault();
+                const prevRange = document.createRange();
+                prevRange.selectNodeContents(prevBlock);
+                prevRange.collapse(false);
+                while (block.firstChild) {
+                  prevBlock.appendChild(block.firstChild);
+                }
+                block.remove();
+                const sel = window.getSelection();
+                if (sel) {
+                  sel.removeAllRanges();
+                  sel.addRange(prevRange);
+                }
+                updateSelectionState();
+                return;
+              }
+            }
+            if (tag === 'li') {
               e.preventDefault();
+              document.execCommand('outdent', false, undefined);
               updateSelectionState();
               return;
             } else {
-              // 【パターンB】前に文字があり結合する場合: 前のテキストのスタイル（前行）に合わせて末尾に結合し、前行の拡大を完全防止
-              e.preventDefault();
-              const prevRange = document.createRange();
-              prevRange.selectNodeContents(prevBlock);
-              prevRange.collapse(false);
-              while (block.firstChild) {
-                prevBlock.appendChild(block.firstChild);
+              const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
+              if (currentPadding > 0) {
+                e.preventDefault();
+                const newPadding = Math.max(0, currentPadding - indentSize.value);
+                if (newPadding > 0) {
+                  block.style.paddingInlineStart = `${newPadding}em`;
+                } else {
+                  block.style.paddingInlineStart = '';
+                }
+                updateSelectionState();
+                return;
               }
-              block.remove();
-              const sel = window.getSelection();
-              if (sel) {
-                sel.removeAllRanges();
-                sel.addRange(prevRange);
-              }
-              updateSelectionState();
-              return;
             }
           }
-          if (tag === 'li') {
-            e.preventDefault();
-            document.execCommand('outdent', false, undefined);
-            updateSelectionState();
-            return;
-          } else {
-            const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
-            if (currentPadding > 0) {
-              e.preventDefault();
-              const newPadding = Math.max(0, currentPadding - indentSize.value);
-              if (newPadding > 0) {
-                block.style.paddingInlineStart = `${newPadding}em`;
-              } else {
-                block.style.paddingInlineStart = '';
+        } else if (e.key === 'Delete') {
+          // Forward Delete (Fn+Delete / Delete) 押下時の見出し拡大防止処理
+          const postCaretRange = range.cloneRange();
+          postCaretRange.selectNodeContents(block);
+          postCaretRange.setStart(range.endContainer, range.endOffset);
+          const textAfter = postCaretRange.toString();
+
+          if (textAfter.length === 0) {
+            const nextBlock = block.nextElementSibling as HTMLElement | null;
+            if (nextBlock) {
+              const nextTag = nextBlock.tagName.toLowerCase();
+              if (['h1', 'h2', 'h3', 'h4'].includes(nextTag)) {
+                // 下の見出し行を現在行へ結合させ、文字の膨張を防ぐ
+                e.preventDefault();
+                while (nextBlock.firstChild) {
+                  block.appendChild(nextBlock.firstChild);
+                }
+                nextBlock.remove();
+                updateSelectionState();
+                return;
               }
-              updateSelectionState();
-              return;
             }
           }
         }
