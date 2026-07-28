@@ -518,14 +518,19 @@ function syncUnderlineColors() {
 }
 
 function execCommand(command: string, value: string | undefined = undefined) {
-  if (lastEditorRange && document.activeElement !== editor.value) {
-    editor.value?.focus({ preventScroll: true })
-    const sel = window.getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(lastEditorRange)
+  if (lastEditorRange) {
+    const container = lastEditorRange.commonAncestorContainer
+    const targetElem = container.nodeType === Node.ELEMENT_NODE ? (container as HTMLElement) : container.parentElement
+    const currentEditable = targetElem?.closest('[contenteditable="true"]') as HTMLElement | null
+    
+    if (currentEditable && document.activeElement !== currentEditable) {
+      currentEditable.focus({ preventScroll: true })
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(lastEditorRange)
+    }
   }
   document.execCommand(command, false, value)
-  editor.value?.focus({ preventScroll: true })
   updateSelection()
 }
 
@@ -1201,6 +1206,17 @@ function onInput(e?: Event) {
       el.innerHTML = '';
       currentFontSize.value = 12;
     }
+    
+    // 漢字テキストが削除され<rt>ふりがなだけ残った孤立ルビを自動消去
+    const rubies = el.querySelectorAll('ruby');
+    rubies.forEach(ruby => {
+      const rt = ruby.querySelector('rt');
+      const rtText = rt?.textContent || '';
+      const baseText = ruby.textContent?.replace(rtText, '').trim() || '';
+      if (baseText === '') {
+        ruby.remove();
+      }
+    });
   }
 
   if (editor.value) {
@@ -1459,17 +1475,13 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)内部にある場合、位置補正と改行実行を1回で同時に完了
+    // カーソルがルビ(ruby)のテキストノード内部にある場合のみ位置補正を行う
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       const rawContainer = range.startContainer;
-      const rubyElement = (rawContainer.nodeType === 3)
-        ? rawContainer.parentElement?.closest('ruby')
-        : (rawContainer instanceof HTMLElement ? rawContainer.closest('ruby') : null);
-
-      if (rubyElement) {
-        e.preventDefault();
+      if (rawContainer.nodeType === 3 && rawContainer.parentElement?.closest('ruby')) {
+        const rubyElement = rawContainer.parentElement.closest('ruby')!;
         if (isCursorAtStartOfRuby(range, rubyElement)) {
           range.setStartBefore(rubyElement);
         } else {
@@ -1478,15 +1490,6 @@ function handleKeyDown(e: KeyboardEvent) {
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
-
-        // 1回のキー押しで即座に改行を完了（通常EnterはinsertParagraph、Shift+EnterはinsertLineBreak）
-        if (e.shiftKey) {
-          document.execCommand('insertLineBreak');
-        } else {
-          document.execCommand('insertParagraph');
-        }
-        onInput(e);
-        return;
       }
     }
 
