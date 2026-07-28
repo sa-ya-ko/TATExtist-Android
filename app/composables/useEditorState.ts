@@ -1465,26 +1465,6 @@ function handleKeyDown(e: KeyboardEvent) {
       onInput(e);
       return;
     }
-  } else {
-      setTimeout(() => {
-        const editorElement = e.target as HTMLElement;
-        if (editorElement) {
-          const rubies = editorElement.querySelectorAll('ruby');
-          let changed = false;
-          rubies.forEach(ruby => {
-            if (ruby.textContent?.trim() === '') {
-              const br = document.createElement('br');
-              ruby.parentNode?.replaceChild(br, ruby);
-              changed = true;
-            }
-          });
-          if (changed) {
-            editorElement.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        }
-      }, 0);
-    }
-    return;
   }
 
   if (e.key === 'Backspace' && !e.isComposing) {
