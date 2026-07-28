@@ -17,6 +17,12 @@
   --color-outline: #767683;
 }
 
+.writing-vertical p,
+.writing-vertical div {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .writing-vertical b,
 .writing-vertical strong,
 .writing-vertical i,
@@ -30,6 +36,7 @@
   vertical-align: baseline;
   box-sizing: border-box;
   overflow-wrap: normal;
+  white-space: inherit;
 }
 
 .writing-vertical ruby {
