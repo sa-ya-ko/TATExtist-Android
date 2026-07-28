@@ -42,31 +42,30 @@ export default defineEventHandler(async (event) => {
         }
         p, blockquote { margin: 0; padding: 0; }
         
-        /* 箇条書き: ブラウザ標準のリスト仕様でPDF上に確実に描画 */
-        ul { 
+        /* 箇条書き: PDF出力時に確実にかつ自然に中点とテキストを配置 */
+        ul, ol { 
           margin: 0; 
           padding: 0; 
+          list-style: none;
           margin-block-start: 0.5em; 
           margin-block-end: 0.5em; 
-          list-style: disc inside;
-        }
-        ol {
-          margin: 0;
-          padding: 0;
-          margin-block-start: 0.5em;
-          margin-block-end: 0.5em;
-          list-style: decimal inside;
         }
         li { 
           margin: 0; 
           padding: 0; 
           margin-inline-end: 0.5em; 
-          list-style: inherit;
+          list-style: none;
+          display: block;
         }
         li div, li p {
           display: inline;
           margin: 0;
           padding: 0;
+        }
+        li::before { 
+          content: '・'; 
+          display: inline;
+          line-height: inherit;
         }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }

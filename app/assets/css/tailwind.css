@@ -17,7 +17,6 @@
   --color-outline: #767683;
 }
 
-/* Fix Tailwind typography reset for contenteditable in vertical writing mode */
 .writing-vertical b,
 .writing-vertical strong,
 .writing-vertical i,
@@ -29,17 +28,12 @@
   display: inline;
   line-height: inherit;
   vertical-align: baseline;
-  white-space: normal;
+  box-sizing: border-box;
+  overflow-wrap: normal;
 }
 
 .writing-vertical ruby {
   display: inline-ruby;
-}
-
-/* 段落の末尾にある自動キャレット用brタグによる不要な改行の防止 */
-.writing-vertical p > br:last-child,
-.writing-vertical div > br:last-child {
-  display: none;
 }
 
 .writing-vertical b,
