@@ -198,12 +198,6 @@ const scrollStyle = ref<'paged' | 'continuous'>('continuous')
 function syncPagesFromDocument() {
   documentRevision.value++
   
-  // ふりがな（rt）にカーソルが入り込む不具合を防ぐため、編集不可属性を追加
-  const fixedContent = documentContent.value.replace(/<rt(?![^>]*contenteditable)/gi, '<rt contenteditable="false"');
-  if (fixedContent !== documentContent.value) {
-    documentContent.value = fixedContent;
-  }
-  
   const segments = splitPages(documentContent.value)
   if (layoutMode.value === 'manual') {
     pages.value = segments.map((content, i) => ({
@@ -1217,6 +1211,14 @@ function onInput(e?: Event) {
         ruby.remove();
       }
     });
+
+    // <rt>タグの編集保護属性を解除し、通常削除ができるようにクリーンアップ
+    const rts = el.querySelectorAll('rt');
+    rts.forEach(rt => {
+      if (rt.hasAttribute('contenteditable')) {
+        rt.removeAttribute('contenteditable');
+      }
+    });
   }
 
   if (editor.value) {
@@ -1474,24 +1476,6 @@ function handleKeyDown(e: KeyboardEvent) {
 
   if (e.key === 'Enter') {
     if (e.isComposing) return;
-    
-    // カーソルがルビ(ruby)のテキストノード内部にある場合のみ位置補正を行う
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const rawContainer = range.startContainer;
-      if (rawContainer.nodeType === 3 && rawContainer.parentElement?.closest('ruby')) {
-        const rubyElement = rawContainer.parentElement.closest('ruby')!;
-        if (isCursorAtStartOfRuby(range, rubyElement)) {
-          range.setStartBefore(rubyElement);
-        } else {
-          range.setStartAfter(rubyElement);
-        }
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-    }
 
     if (e.shiftKey) {
       e.preventDefault();
