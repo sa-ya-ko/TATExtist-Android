@@ -1459,7 +1459,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter') {
     if (e.isComposing) return;
     
-    // カーソルがルビ(ruby)の中にある場合、ルビ要素の前へ逃がしてルビの破壊・分裂を防止
+    // カーソルがルビ(ruby)の中にある場合、ルビ要素の直後へ逃がしてルビを破壊せず改行を実行する
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -1467,7 +1467,7 @@ function handleKeyDown(e: KeyboardEvent) {
       if (container.nodeType === 3 && container.parentNode) container = container.parentNode;
       const rubyElement = (container instanceof HTMLElement) ? container.closest('ruby') : null;
       if (rubyElement) {
-        range.setStartBefore(rubyElement);
+        range.setStartAfter(rubyElement);
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
@@ -1499,12 +1499,32 @@ function handleKeyDown(e: KeyboardEvent) {
 
         if (textBefore.length === 0) {
           const tag = block.tagName.toLowerCase();
-          // 見出し行の先頭でBackspaceが押された場合、前行を拡大させないよう標準段落（p）に戻す
           if (['h1', 'h2', 'h3', 'h4'].includes(tag)) {
-            e.preventDefault();
-            document.execCommand('formatBlock', false, 'p');
-            updateSelectionState();
-            return;
+            const prevBlock = block.previousElementSibling as HTMLElement | null;
+            if (!prevBlock || prevBlock.textContent?.trim() === '') {
+              // 【パターンA】前に文字がない（空行）場合: 見出しスタイルはそのまま維持し、上の空行だけ削除して引き上げる
+              if (prevBlock) prevBlock.remove();
+              e.preventDefault();
+              updateSelectionState();
+              return;
+            } else {
+              // 【パターンB】前に文字があり結合する場合: 前のテキストのスタイル（前行）に合わせて末尾に結合し、前行の拡大を完全防止
+              e.preventDefault();
+              const prevRange = document.createRange();
+              prevRange.selectNodeContents(prevBlock);
+              prevRange.collapse(false);
+              while (block.firstChild) {
+                prevBlock.appendChild(block.firstChild);
+              }
+              block.remove();
+              const sel = window.getSelection();
+              if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(prevRange);
+              }
+              updateSelectionState();
+              return;
+            }
           }
           if (tag === 'li') {
             e.preventDefault();
