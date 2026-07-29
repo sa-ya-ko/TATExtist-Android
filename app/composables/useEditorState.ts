@@ -626,7 +626,12 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
 
   while (element) {
     if (element.getAttribute('contenteditable') === 'true' || element.classList?.contains('writing-vertical')) {
-      if (lastDirectChild) return lastDirectChild;
+      if (lastDirectChild) {
+        if (['ruby', 'rt'].includes(lastDirectChild.tagName.toLowerCase())) {
+          return lastDirectChild.parentElement;
+        }
+        return lastDirectChild;
+      }
       break;
     }
     const tagName = element.tagName.toLowerCase();
@@ -644,7 +649,9 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
       }
     }
 
-    lastDirectChild = element;
+    if (!['ruby', 'rt'].includes(tagName)) {
+      lastDirectChild = element;
+    }
     element = element.parentElement;
   }
   return lastDirectChild;
@@ -791,7 +798,11 @@ function applyHeading(blockTag: string) {
     const range = sel.getRangeAt(0)
     const blocks = getBlocksInRange(range)
     if (blocks.length > 0) {
-      blocks.forEach(block => {
+      blocks.forEach(rawBlock => {
+        let block = rawBlock;
+        if (['RUBY', 'RT'].includes(block.tagName.toUpperCase())) {
+          block = block.closest('p, div, h1, h2, h3, h4, li') || block.parentElement || block;
+        }
         const isSameTag = block.tagName.toUpperCase() === blockTag.toUpperCase();
         if (!isSameTag) {
           const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
