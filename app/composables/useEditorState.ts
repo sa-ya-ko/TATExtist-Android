@@ -934,6 +934,8 @@ function applyCustomFontSize(ptSize: string) {
           finalEl = span;
         }
       }
+      // Ensure <rt> inside ruby retains CSS 0.5em font size
+      finalEl.querySelectorAll('rt').forEach(rtElem => (rtElem as HTMLElement).style.removeProperty('font-size'));
       modifiedElements.push(finalEl);
     });
 
@@ -1168,14 +1170,12 @@ function applyRuby(reading: string) {
     savedRange.insertNode(ruby)
   }
 
-  const zwsp = document.createTextNode('\u200B')
-  ruby.parentNode?.insertBefore(zwsp, ruby.nextSibling)
-
   sel?.removeAllRanges()
   const newRange = document.createRange()
-  newRange.setStartAfter(zwsp)
+  newRange.setStartAfter(ruby)
   newRange.collapse(true)
   sel?.addRange(newRange)
+  lastEditorRange = newRange.cloneRange()
   lastEditorRange = newRange.cloneRange()
 
   savedRange = null
