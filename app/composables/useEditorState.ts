@@ -786,16 +786,17 @@ function applyHeading(blockTag: string) {
     const blocks = getBlocksInRange(range)
     if (blocks.length > 0) {
       blocks.forEach(block => {
-        if (block.tagName.toUpperCase() !== blockTag.toUpperCase()) {
-          const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
-
-          if (block.parentNode?.nodeName.toUpperCase() === 'RUBY') {
-            const rubyParent = block.parentNode as HTMLElement;
-            rubyParent.parentNode?.insertBefore(block, rubyParent);
-            if (!rubyParent.hasChildNodes() || rubyParent.textContent?.trim() === '') {
-              rubyParent.parentNode?.removeChild(rubyParent);
-            }
+        const isSameTag = block.tagName.toUpperCase() === blockTag.toUpperCase();
+        if (block.parentNode?.nodeName.toUpperCase() === 'RUBY') {
+          const rubyParent = block.parentNode as HTMLElement;
+          rubyParent.parentNode?.insertBefore(block, rubyParent);
+          if (!rubyParent.hasChildNodes() || rubyParent.textContent?.trim() === '') {
+            rubyParent.parentNode?.removeChild(rubyParent);
           }
+        }
+
+        if (!isSameTag) {
+          const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
 
           if (block.tagName.toUpperCase() === 'LI') {
             if (!isTargetDivOrP) {
@@ -1154,13 +1155,20 @@ function applyRuby(reading: string) {
     blk.parentNode?.removeChild(blk)
   })
 
+  // Ensure ruby is inserted inside the current block element (p or h1), not wrapping it
   const ruby = document.createElement('ruby')
   ruby.appendChild(extracted)
 
   const rt = document.createElement('rt')
   rt.textContent = reading
   ruby.appendChild(rt)
-  savedRange.insertNode(ruby)
+
+  const activeBlock = getClosestBlockElement(savedRange.startContainer)
+  if (activeBlock && activeBlock.contains(savedRange.startContainer)) {
+    savedRange.insertNode(ruby)
+  } else {
+    savedRange.insertNode(ruby)
+  }
 
   const zwsp = document.createTextNode('\u200B')
   ruby.parentNode?.insertBefore(zwsp, ruby.nextSibling)
