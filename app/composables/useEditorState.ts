@@ -364,6 +364,19 @@ function updateSelection() {
 
       try {
         let anchor = sel.anchorNode
+        const rtElem = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement?.closest('rt') : (anchor as HTMLElement)?.closest('rt')
+        if (rtElem) {
+          const rubyElem = rtElem.closest('ruby')
+          if (rubyElem) {
+            const escapeRange = document.createRange()
+            escapeRange.setStartBefore(rubyElem)
+            escapeRange.collapse(true)
+            sel.removeAllRanges()
+            sel.addRange(escapeRange)
+            anchor = escapeRange.startContainer
+          }
+        }
+
         if (anchor && anchor.nodeType === Node.ELEMENT_NODE && sel.anchorOffset < anchor.childNodes.length) {
           let selectedNode = anchor.childNodes[sel.anchorOffset]
           if (selectedNode) {
@@ -792,14 +805,6 @@ function applyHeading(blockTag: string) {
     if (blocks.length > 0) {
       blocks.forEach(block => {
         const isSameTag = block.tagName.toUpperCase() === blockTag.toUpperCase();
-        if (block.parentNode?.nodeName.toUpperCase() === 'RUBY') {
-          const rubyParent = block.parentNode as HTMLElement;
-          rubyParent.parentNode?.insertBefore(block, rubyParent);
-          if (!rubyParent.hasChildNodes() || rubyParent.textContent?.trim() === '') {
-            rubyParent.parentNode?.removeChild(rubyParent);
-          }
-        }
-
         if (!isSameTag) {
           const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
 
