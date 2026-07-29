@@ -28,9 +28,13 @@
   margin-inline-end: 0;
 }
 
+h1.writing-vertical,
 .writing-vertical h1,
+h2.writing-vertical,
 .writing-vertical h2,
+h3.writing-vertical,
 .writing-vertical h3,
+h4.writing-vertical,
 .writing-vertical h4 {
   white-space: pre-wrap;
   word-break: break-word;
@@ -42,18 +46,22 @@
   font-weight: bold;
 }
 
+h1.writing-vertical,
 .writing-vertical h1 {
   font-size: 2em;
 }
 
+h2.writing-vertical,
 .writing-vertical h2 {
   font-size: 1.5em;
 }
 
+h3.writing-vertical,
 .writing-vertical h3 {
   font-size: 1.25em;
 }
 
+h4.writing-vertical,
 .writing-vertical h4 {
   font-size: 1em;
 }
