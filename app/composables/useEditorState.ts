@@ -364,18 +364,6 @@ function updateSelection() {
 
       try {
         let anchor = sel.anchorNode
-        const rtElem = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement?.closest('rt') : (anchor as HTMLElement)?.closest('rt')
-        if (rtElem) {
-          const rubyElem = rtElem.closest('ruby')
-          if (rubyElem) {
-            const escapeRange = document.createRange()
-            escapeRange.setStartBefore(rubyElem)
-            escapeRange.collapse(true)
-            sel.removeAllRanges()
-            sel.addRange(escapeRange)
-            anchor = escapeRange.startContainer
-          }
-        }
 
         if (anchor && anchor.nodeType === Node.ELEMENT_NODE && sel.anchorOffset < anchor.childNodes.length) {
           let selectedNode = anchor.childNodes[sel.anchorOffset]
@@ -787,8 +775,8 @@ function applyHeading(blockTag: string) {
   }
 
   const cleanUpBlock = (targetBlock: HTMLElement) => {
-    const spansAndRubies = targetBlock.querySelectorAll('span, ruby')
-    spansAndRubies.forEach(el => {
+    const spans = targetBlock.querySelectorAll('span')
+    spans.forEach(el => {
       (el as HTMLElement).style.removeProperty('font-size')
       if (el.getAttribute('style') === '') el.removeAttribute('style')
       if (el.tagName.toLowerCase() === 'span' && el.attributes.length === 0) {

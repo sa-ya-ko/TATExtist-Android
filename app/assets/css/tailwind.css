@@ -18,9 +18,18 @@
 }
 
 .writing-vertical p,
-.writing-vertical div {
+.writing-vertical div,
+.writing-vertical h1,
+.writing-vertical h2,
+.writing-vertical h3,
+.writing-vertical h4 {
   white-space: pre-wrap;
   word-break: break-word;
+  margin: 0;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
 }
 
 .writing-vertical b,
