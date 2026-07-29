@@ -21,6 +21,49 @@
 .writing-vertical div {
   white-space: pre-wrap;
   word-break: break-word;
+  margin: 0;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+}
+
+h1.writing-vertical,
+.writing-vertical h1,
+h2.writing-vertical,
+.writing-vertical h2,
+h3.writing-vertical,
+.writing-vertical h3,
+h4.writing-vertical,
+.writing-vertical h4 {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  font-weight: bold;
+}
+
+h1.writing-vertical,
+.writing-vertical h1 {
+  font-size: 2em;
+}
+
+h2.writing-vertical,
+.writing-vertical h2 {
+  font-size: 1.5em;
+}
+
+h3.writing-vertical,
+.writing-vertical h3 {
+  font-size: 1.25em;
+}
+
+h4.writing-vertical,
+.writing-vertical h4 {
+  font-size: 1em;
 }
 
 .writing-vertical b,
@@ -40,13 +83,15 @@
 }
 
 .writing-vertical ruby {
-  display: inline-ruby !important;
+  display: inline-ruby;
 }
 
-.writing-vertical rt {
-  display: ruby-text !important;
-  font-size: 0.5em !important;
-  line-height: 1 !important;
+.writing-vertical ruby > rt {
+  display: ruby-text;
+  font-size: 0.5em;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
 }
 
 .writing-vertical b,

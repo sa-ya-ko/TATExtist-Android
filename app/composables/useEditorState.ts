@@ -58,7 +58,7 @@ const wordCountModalVisible = ref(false)
 const showWordCountWhileTyping = ref(false)
 
 const isRubyManagementMode = ref(false)
-const rubyList = ref<Array<{id: string, text: string, rt: string, pageId: number, element: HTMLElement}>>([])
+const rubyList = ref<Array<{ id: string, text: string, rt: string, pageId: number, element: HTMLElement }>>([])
 
 function toggleRubyManagementMode() {
   isRubyManagementMode.value = !isRubyManagementMode.value
@@ -69,7 +69,7 @@ function toggleRubyManagementMode() {
 
 function refreshRubyList() {
   rubyList.value = []
-  
+
   // We need to query all rubies across all pages.
   // In auto mode, pages[0] might contain everything, but we should just query the whole document body or specific container
   // To keep it simple, we can query all `.writing-vertical` elements.
@@ -82,17 +82,17 @@ function refreshRubyList() {
         id = `ruby-${index}-${Date.now()}`
         ruby.setAttribute('data-ruby-id', id)
       }
-      
+
       const rtNode = ruby.querySelector('rt')
       const rtText = rtNode ? rtNode.textContent || '' : ''
-      
+
       const clone = ruby.cloneNode(true) as HTMLElement
       const cloneRt = clone.querySelector('rt')
       if (cloneRt) cloneRt.remove()
       const baseText = clone.textContent || ''
-      
+
       const pageId = Number(ed.getAttribute('data-page-id') || 0)
-      
+
       rubyList.value.push({ id, text: baseText, rt: rtText, pageId, element: ruby })
     })
   })
@@ -136,9 +136,9 @@ function scrollToRuby(id: string) {
     if (rubyElement) {
       rubyElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
       const originalBg = (rubyElement as HTMLElement).style.backgroundColor
-      ;(rubyElement as HTMLElement).style.backgroundColor = 'rgba(239, 68, 68, 0.4)'
+        ; (rubyElement as HTMLElement).style.backgroundColor = 'rgba(239, 68, 68, 0.4)'
       setTimeout(() => {
-        ;(rubyElement as HTMLElement).style.backgroundColor = originalBg
+        ; (rubyElement as HTMLElement).style.backgroundColor = originalBg
       }, 1000)
     }
   })
@@ -148,16 +148,16 @@ const rawTextContent = computed(() => {
   if (typeof document === 'undefined') return ''
   const combinedHtml = pages.value.map(p => p.content).join(' ')
   const temp = document.createElement('div')
-  
+
   let html = combinedHtml.replace(/<br\s*[\/]?>/gi, '\n')
   html = html.replace(/<\/div>/gi, '</div>\n')
   html = html.replace(/<\/p>/gi, '</p>\n')
-  
+
   temp.innerHTML = html
-  
+
   const rts = temp.querySelectorAll('rt')
   rts.forEach(rt => rt.remove())
-  
+
   let text = temp.textContent || ''
   text = text.replace(/\u200B/g, '')
   return text.replace(/\n+$/, '')
@@ -197,7 +197,7 @@ const scrollStyle = ref<'paged' | 'continuous'>('continuous')
 
 function syncPagesFromDocument() {
   documentRevision.value++
-  
+
   const segments = splitPages(documentContent.value)
   if (layoutMode.value === 'manual') {
     pages.value = segments.map((content, i) => ({
@@ -233,12 +233,12 @@ function addManualPage(afterPageId?: number) {
     : pages.value.findIndex(page => page.id === afterPageId)
   const segments = splitPages(documentContent.value)
   const insertAt = index < 0 ? segments.length : index + 1
-  
+
   // 原稿データを分割して新しいページを挿入
   segments.splice(insertAt, 0, '')
   // Vueの表示用配列（pages）も同時に更新し、新IDを割り振ることでズレを防ぐ
   pages.value.splice(insertAt, 0, { id: generateId(), content: '' })
-  
+
   documentContent.value = segments.join(manualBreakMarker)
   documentRevision.value++
   persistDocument()
@@ -248,12 +248,12 @@ function deleteManualPage(pageId: number) {
   const index = pages.value.findIndex(page => page.id === pageId)
   if (index < 0 || pages.value.length <= 1) return
   const segments = splitPages(documentContent.value)
-  
+
   // 原稿データからページを削除
   segments.splice(index, 1)
   // Vueの表示用配列からも同時に削除し、残ったページのIDを正しく維持する
   pages.value.splice(index, 1)
-  
+
   documentContent.value = segments.join(manualBreakMarker)
   documentRevision.value++
   persistDocument()
@@ -276,7 +276,7 @@ const setLayoutMode = (mode: 'auto' | 'manual') => {
     persistDocument()
   }
   layoutMode.value = mode
-  
+
   if (typeof window !== 'undefined') {
     localStorage.setItem('tategaki-layout-mode', mode)
   }
@@ -312,7 +312,7 @@ const paperStyle = computed(() => {
   const paddingBottom = margins.value.bottom * MM_TO_PX
   const paddingLeft = margins.value.left * MM_TO_PX
   const paddingRight = margins.value.right * MM_TO_PX
-  
+
   return {
     '--page-width': `${pageWidth}px`,
     '--page-height': `${pageHeight}px`,
@@ -357,13 +357,14 @@ function updateSelection() {
       }
       node = node.parentNode || null
     }
-    
+
     if (editorEl) {
       editor.value = editorEl
       lastEditorRange = sel.getRangeAt(0).cloneRange()
 
       try {
         let anchor = sel.anchorNode
+
         if (anchor && anchor.nodeType === Node.ELEMENT_NODE && sel.anchorOffset < anchor.childNodes.length) {
           let selectedNode = anchor.childNodes[sel.anchorOffset]
           if (selectedNode) {
@@ -372,7 +373,7 @@ function updateSelection() {
         }
 
         let parent = anchor?.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement
-        
+
         function getDeepestFirstChild(n: Node): Node {
           if (n.firstChild) return getDeepestFirstChild(n.firstChild)
           return n
@@ -451,12 +452,12 @@ function updateSelection() {
 function repairSplitRubies() {
   if (!editor.value) return;
   const rubies = Array.from(editor.value.querySelectorAll('ruby'));
-  
+
   // Go backwards so we can merge right-to-left safely
   for (let i = rubies.length - 1; i > 0; i--) {
     const right = rubies[i];
-    const left = rubies[i-1];
-    
+    const left = rubies[i - 1];
+
     // Check if they are exactly adjacent (ignoring empty text nodes)
     let isAdjacent = false;
     let curr: Node | null = left.nextSibling;
@@ -471,11 +472,11 @@ function repairSplitRubies() {
       }
       break;
     }
-    
+
     if (isAdjacent) {
       const leftRt = left.querySelector('rt');
       const rightRt = right.querySelector('rt');
-      
+
       // If one of them has an <rt> and the other doesn't, it was likely split by execCommand
       if ((leftRt && !rightRt) || (!leftRt && rightRt)) {
         // Merge right into left
@@ -483,7 +484,7 @@ function repairSplitRubies() {
           left.appendChild(right.firstChild);
         }
         right.remove();
-        
+
         // Ensure ALL <rt> elements are moved to the very end of the combined ruby
         const rts = Array.from(left.querySelectorAll('rt'));
         rts.forEach(rt => left.appendChild(rt));
@@ -516,7 +517,7 @@ function execCommand(command: string, value: string | undefined = undefined) {
     const container = lastEditorRange.commonAncestorContainer
     const targetElem = container.nodeType === Node.ELEMENT_NODE ? (container as HTMLElement) : container.parentElement
     const currentEditable = targetElem?.closest('[contenteditable="true"]') as HTMLElement | null
-    
+
     if (currentEditable && document.activeElement !== currentEditable) {
       currentEditable.focus({ preventScroll: true })
       const sel = window.getSelection()
@@ -622,26 +623,21 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
   if (!node) return null;
   let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
   while (element) {
-    if (element.classList?.contains('bg-white') || element.getAttribute('contenteditable') === 'true') break;
-    const tagName = element.tagName.toLowerCase();
-    
-    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote'].includes(tagName)) {
-      return element;
-    }
-    
-    if (tagName === 'div') {
-      const isDirty = Array.from(element.children).some(child => 
-        ['p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(child.tagName.toLowerCase())
-      );
-      if (!isDirty) {
-        return element;
-      }
+    if (element.getAttribute('contenteditable') === 'true' || element.classList?.contains('writing-vertical')) {
       break;
     }
-    
+    const tagName = element.tagName.toLowerCase();
+    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
+      return element;
+    }
     element = element.parentElement;
   }
-  return null;
+
+  let directChild = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+  while (directChild && directChild.parentElement && directChild.parentElement.getAttribute('contenteditable') !== 'true' && !directChild.parentElement.classList?.contains('writing-vertical')) {
+    directChild = directChild.parentElement;
+  }
+  return directChild;
 }
 
 function getBlocksInRange(range: Range): HTMLElement[] {
@@ -769,12 +765,12 @@ function applyHeading(blockTag: string) {
   }
 
   const cleanUpBlock = (targetBlock: HTMLElement) => {
-    const spansAndRubies = targetBlock.querySelectorAll('span, ruby')
-    spansAndRubies.forEach(el => {
+    const spans = targetBlock.querySelectorAll('span')
+    spans.forEach(el => {
       (el as HTMLElement).style.removeProperty('font-size')
       if (el.getAttribute('style') === '') el.removeAttribute('style')
       if (el.tagName.toLowerCase() === 'span' && el.attributes.length === 0) {
-        while(el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
+        while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
         el.parentNode?.removeChild(el)
       }
     })
@@ -785,9 +781,23 @@ function applyHeading(blockTag: string) {
     const range = sel.getRangeAt(0)
     const blocks = getBlocksInRange(range)
     if (blocks.length > 0) {
-      blocks.forEach(block => {
-        if (block.tagName.toUpperCase() !== blockTag.toUpperCase()) {
+      blocks.forEach(rawBlock => {
+        let block = rawBlock;
+        if (['RUBY', 'RT'].includes(block.tagName.toUpperCase())) {
+          const parentBlock = block.closest('p, div, h1, h2, h3, h4, li');
+          if (parentBlock) {
+            block = parentBlock;
+          } else {
+            const p = document.createElement('p');
+            block.parentNode?.insertBefore(p, block);
+            p.appendChild(block);
+            block = p;
+          }
+        }
+        const isSameTag = block.tagName.toUpperCase() === blockTag.toUpperCase();
+        if (!isSameTag) {
           const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
+          const isPageRoot = block.getAttribute('contenteditable') === 'true' || block.hasAttribute('data-page-id');
 
           if (block.tagName.toUpperCase() === 'LI') {
             if (!isTargetDivOrP) {
@@ -799,9 +809,42 @@ function applyHeading(blockTag: string) {
           } else if (isTargetDivOrP && block.parentNode?.nodeName.toUpperCase() === 'LI') {
             while (block.firstChild) block.parentNode.insertBefore(block.firstChild, block)
             block.parentNode.removeChild(block)
+          } else if (isPageRoot && ['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+            // Page root must NOT be replaced. Wrap its content in a heading inside it.
+            const existing = block.querySelector('h1, h2, h3, h4');
+            if (existing) {
+              // Already has a heading inside — just change the heading tag
+              const newHeading = document.createElement(blockTag)
+              while (existing.firstChild) newHeading.appendChild(existing.firstChild)
+              existing.parentNode?.replaceChild(newHeading, existing)
+              cleanUpBlock(newHeading)
+            } else {
+              const newHeading = document.createElement(blockTag)
+              while (block.firstChild) newHeading.appendChild(block.firstChild)
+              block.appendChild(newHeading)
+              cleanUpBlock(newHeading)
+            }
+          } else if (isPageRoot && isTargetDivOrP) {
+            // Unwrap inner heading to plain content
+            const inner = block.querySelector('h1, h2, h3, h4');
+            if (inner) {
+              while (inner.firstChild) block.insertBefore(inner.firstChild, inner)
+              inner.remove()
+            }
           } else {
             const newBlock = document.createElement(blockTag)
-            Array.from(block.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
+            Array.from(block.attributes).forEach(attr => {
+              if (['contenteditable', 'data-page-id', 'dir'].includes(attr.name)) return;
+              if (attr.name === 'class') {
+                let cls = attr.value;
+                if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+                  cls = cls.replace(/text-\[\d+(?:px|pt)\]/g, '').replace(/\s+/g, ' ').trim();
+                }
+                newBlock.setAttribute('class', cls);
+              } else {
+                newBlock.setAttribute(attr.name, attr.value);
+              }
+            })
             while (block.firstChild) newBlock.appendChild(block.firstChild)
             block.parentNode?.replaceChild(newBlock, block)
             cleanUpBlock(newBlock)
@@ -809,15 +852,55 @@ function applyHeading(blockTag: string) {
         }
       })
     } else {
-      document.execCommand('formatBlock', false, blockTag)
-      const newSel = window.getSelection()
-      if (newSel && newSel.rangeCount > 0) {
-        const newBlocks = getBlocksInRange(newSel.getRangeAt(0))
-        newBlocks.forEach(block => cleanUpBlock(block))
+      const caretNode = range.startContainer
+      const caretBlock = getClosestBlockElement(caretNode)
+      if (caretBlock) {
+        const isSameTag = caretBlock.tagName.toUpperCase() === blockTag.toUpperCase();
+        const isPageRoot = caretBlock.getAttribute('contenteditable') === 'true' || caretBlock.hasAttribute('data-page-id');
+
+        if (!isSameTag) {
+          if (isPageRoot && ['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+            const existingH = caretBlock.querySelector('h1, h2, h3, h4');
+            if (existingH) {
+              const newHeading = document.createElement(blockTag)
+              while (existingH.firstChild) newHeading.appendChild(existingH.firstChild)
+              existingH.parentNode?.replaceChild(newHeading, existingH)
+              cleanUpBlock(newHeading)
+            } else {
+              const newHeading = document.createElement(blockTag)
+              while (caretBlock.firstChild) newHeading.appendChild(caretBlock.firstChild)
+              caretBlock.appendChild(newHeading)
+              cleanUpBlock(newHeading)
+            }
+          } else if (isPageRoot && (blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P')) {
+            const inner = caretBlock.querySelector('h1, h2, h3, h4');
+            if (inner) {
+              while (inner.firstChild) caretBlock.insertBefore(inner.firstChild, inner)
+              inner.remove()
+            }
+          } else if (!isPageRoot) {
+            const newBlock = document.createElement(blockTag)
+            Array.from(caretBlock.attributes).forEach(attr => {
+              if (['contenteditable', 'data-page-id', 'dir'].includes(attr.name)) return;
+              if (attr.name === 'class') {
+                let cls = attr.value;
+                if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+                  cls = cls.replace(/text-\[\d+(?:px|pt)\]/g, '').replace(/\s+/g, ' ').trim();
+                }
+                newBlock.setAttribute('class', cls);
+              } else {
+                newBlock.setAttribute(attr.name, attr.value);
+              }
+            })
+            while (caretBlock.firstChild) newBlock.appendChild(caretBlock.firstChild)
+            caretBlock.parentNode?.replaceChild(newBlock, caretBlock)
+            cleanUpBlock(newBlock)
+          }
+        }
       }
     }
   } else {
-    document.execCommand('formatBlock', false, blockTag)
+    // fallback if no selection
   }
 
   editor.value?.focus({ preventScroll: true })
@@ -903,16 +986,16 @@ function applyCustomFontSize(ptSize: string) {
 
   // Use native execCommand for robust selection boundary handling (avoids extractContents corruption)
   document.execCommand('fontSize', false, '7');
-  
+
   if (editor.value) {
     const fonts = Array.from(editor.value.querySelectorAll('font[size="7"], [style*="xxx-large"]'));
     const modifiedElements: HTMLElement[] = [];
-    
+
     fonts.forEach((font: Element) => {
       const el = font as HTMLElement;
       el.style.fontSize = `${ptSize}pt`;
       let finalEl = el;
-      
+
       if (el.tagName === 'FONT') {
         el.removeAttribute('size');
         // Convert to span if it only has styles now
@@ -924,6 +1007,8 @@ function applyCustomFontSize(ptSize: string) {
           finalEl = span;
         }
       }
+      // Ensure <rt> inside ruby retains CSS 0.5em font size
+      finalEl.querySelectorAll('rt').forEach(rtElem => (rtElem as HTMLElement).style.removeProperty('font-size'));
       modifiedElements.push(finalEl);
     });
 
@@ -940,7 +1025,7 @@ function applyCustomFontSize(ptSize: string) {
       }
     }
   }
-  
+
   onInput();
   syncUnderlineColors();
   syncRubyStyles();
@@ -956,16 +1041,16 @@ function applyColor() {
 
   const tempColor = '#fefefe';
   document.execCommand('foreColor', false, tempColor);
-  
+
   if (editor.value) {
     const fonts = Array.from(editor.value.querySelectorAll(`font[color="${tempColor}"], [style*="rgb(254, 254, 254)"], [style*="#fefefe"]`));
     const modifiedElements: HTMLElement[] = [];
-    
+
     fonts.forEach((font: Element) => {
       const el = font as HTMLElement;
       el.style.color = selectedColor.value;
       let finalEl = el;
-      
+
       if (el.tagName === 'FONT') {
         el.removeAttribute('color');
         if (el.attributes.length === 1 && el.hasAttribute('style')) {
@@ -992,7 +1077,7 @@ function applyColor() {
       }
     }
   }
-  
+
   onInput();
   syncUnderlineColors();
   syncRubyStyles();
@@ -1027,14 +1112,14 @@ async function downloadPDF() {
     const segments = documentContent.value.split(MANUAL_BREAK);
     const cleanSegments = segments.map(seg => seg.replace(/(<div[^>]*>\s*<br\s*\/?>\s*<\/div>|<p[^>]*>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>|\s)+$/i, ''));
     const htmlContent = cleanSegments.join('<hr style="page-break-after: always; visibility: hidden; margin: 0; padding: 0; border: none;">');
-    
+
     // サーバーサイドAPIにHTMLを送信してPDFを生成
     const response = await fetch('/api/export-pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         html: htmlContent,
         paperSize: paperSize.value,
         margins: margins.value
@@ -1082,11 +1167,11 @@ function openRubyModal() {
 
   if (sel && sel.rangeCount > 0 && isInsideEditor && sel.toString().length > 0) {
     const range = sel.getRangeAt(0)
-    
+
     let currentAnchor = sel.anchorNode
     let currentFocus = sel.focusNode
     let hasRubyAncestor = false
-    
+
     const checkRuby = (n: Node | null) => {
       while (n && n !== editor.value) {
         if (n.nodeName.toUpperCase() === 'RUBY') return true
@@ -1094,11 +1179,11 @@ function openRubyModal() {
       }
       return false
     }
-    
+
     if (checkRuby(currentAnchor) || checkRuby(currentFocus)) {
       hasRubyAncestor = true
     }
-    
+
     const container = document.createElement('div')
     container.appendChild(range.cloneContents())
     const hasRubyChild = container.querySelector('ruby') !== null
@@ -1137,23 +1222,33 @@ function applyRuby(reading: string) {
   }
 
   const extracted = savedRange.extractContents()
+  const blockElements = extracted.querySelectorAll('h1, h2, h3, h4, p, div, section, article')
+  blockElements.forEach(blk => {
+    while (blk.firstChild) blk.parentNode?.insertBefore(blk.firstChild, blk)
+    blk.parentNode?.removeChild(blk)
+  })
+
+  // Ensure ruby is inserted inside the current block element (p or h1), not wrapping it
   const ruby = document.createElement('ruby')
   ruby.appendChild(extracted)
 
   const rt = document.createElement('rt')
   rt.textContent = reading
-  rt.setAttribute('contenteditable', 'false')
   ruby.appendChild(rt)
-  savedRange.insertNode(ruby)
 
-  const zwsp = document.createTextNode('\u200B')
-  ruby.parentNode?.insertBefore(zwsp, ruby.nextSibling)
+  const activeBlock = getClosestBlockElement(savedRange.startContainer)
+  if (activeBlock && activeBlock.contains(savedRange.startContainer)) {
+    savedRange.insertNode(ruby)
+  } else {
+    savedRange.insertNode(ruby)
+  }
 
   sel?.removeAllRanges()
   const newRange = document.createRange()
-  newRange.setStartAfter(zwsp)
+  newRange.setStartAfter(ruby)
   newRange.collapse(true)
   sel?.addRange(newRange)
+  lastEditorRange = newRange.cloneRange()
   lastEditorRange = newRange.cloneRange()
 
   savedRange = null
@@ -1286,7 +1381,7 @@ function onInput(e?: Event) {
       el.innerHTML = '';
       currentFontSize.value = 12;
     }
-    
+
     // 漢字テキストが削除され<rt>ふりがなだけ残った孤立ルビを自動消去
     const rubies = el.querySelectorAll('ruby');
     rubies.forEach(ruby => {
@@ -1494,19 +1589,32 @@ function exportDocument(format: 'print' | 'html' = 'print') {
   }
 }
 
-function isCursorAtStartOfRuby(range: Range, rubyAncestor: Element) {
-  if (range.startContainer.nodeType === 3 && range.startOffset === 0) {
-    let prev = range.startContainer.previousSibling;
+function isCursorAtStartOfRuby(range: Range, rubyElement: Element) {
+  const container = range.startContainer;
+  const offset = range.startOffset;
+
+  if (container === rubyElement && offset === 0) return true;
+
+  if (container.nodeType === 1 && container.contains(rubyElement)) {
+    const children = Array.from(container.childNodes);
+    const rubyIdx = children.indexOf(rubyElement as ChildNode);
+    if (offset <= rubyIdx) return true;
+  }
+
+  if (container.nodeType === 3) {
+    let textBeforeInRuby = container.textContent?.substring(0, offset) || '';
+    if (textBeforeInRuby.trim().length > 0) return false;
+
+    let prev = container.previousSibling;
     while (prev) {
-      if (prev.nodeType === 3 && prev.textContent && prev.textContent.length > 0) return false;
-      if (prev.nodeType === 1 && prev.nodeName !== 'RT') return false;
+      if (prev.nodeName !== 'RT' && prev.textContent && prev.textContent.trim().length > 0) {
+        return false;
+      }
       prev = prev.previousSibling;
     }
     return true;
   }
-  if (range.startContainer === rubyAncestor && range.startOffset === 0) {
-    return true;
-  }
+
   return false;
 }
 
@@ -1514,10 +1622,10 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Tab') {
     if (e.isComposing) return;
     e.preventDefault();
-    
+
     const selection = window.getSelection();
     const isCollapsed = selection ? selection.isCollapsed : true;
-    
+
     if (e.shiftKey) {
       customOutdent();
     } else if (!isCollapsed) {
@@ -1527,7 +1635,7 @@ function handleKeyDown(e: KeyboardEvent) {
         const range = selection.getRangeAt(0);
         let container = range.startContainer;
         let targetRuby: Element | null = null;
-        
+
         if (container.nodeType === 3) {
           const ruby = container.parentElement?.closest('ruby');
           if (ruby && isCursorAtStartOfRuby(range, ruby)) {
@@ -1539,16 +1647,16 @@ function handleKeyDown(e: KeyboardEvent) {
             targetRuby = child as Element;
           }
         }
-        
+
         if (targetRuby) {
           const space = document.createTextNode('　');
           targetRuby.parentNode?.insertBefore(space, targetRuby);
-          
+
           range.setStartAfter(space);
           range.collapse(true);
           selection.removeAllRanges();
           selection.addRange(range);
-          
+
           if (editor.value) {
             editor.value.dispatchEvent(new Event('input', { bubbles: true }));
           }
@@ -1560,8 +1668,85 @@ function handleKeyDown(e: KeyboardEvent) {
     return;
   }
 
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.isComposing) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0);
+      const container = r.startContainer;
+      const rt = (container.nodeType === 3)
+        ? container.parentElement?.closest('rt')
+        : (container instanceof HTMLElement ? container.closest('rt') : null);
+
+      if (rt) {
+        const ruby = rt.closest('ruby');
+        if (ruby) {
+          e.preventDefault();
+          const newRange = document.createRange();
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+            newRange.setStartBefore(ruby);
+          } else {
+            newRange.setStartAfter(ruby);
+          }
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          return;
+        }
+      }
+    }
+  }
+
   if (e.key === 'Enter') {
     if (e.isComposing) return;
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+
+      // Check if the contenteditable root itself is a heading (h1–h4)
+      // This happens when the entire page block IS the h1 element
+      const editorRoot = editor.value;
+      const rootIsHeading = editorRoot && ['H1', 'H2', 'H3', 'H4'].includes(editorRoot.tagName);
+
+      const activeBlock = rootIsHeading ? editorRoot : getClosestBlockElement(range.startContainer);
+
+      if (activeBlock) {
+        const rubyElement = (range.startContainer.nodeType === 3)
+          ? range.startContainer.parentElement?.closest('ruby')
+          : (range.startContainer instanceof HTMLElement ? range.startContainer.closest('ruby') : null);
+
+        if (rubyElement || ['h1', 'h2', 'h3', 'h4'].includes(activeBlock.tagName.toLowerCase())) {
+          e.preventDefault();
+          const isAtStart = rubyElement
+            ? isCursorAtStartOfRuby(range, rubyElement)
+            : (range.startOffset === 0);
+
+          const newP = document.createElement('p');
+          newP.innerHTML = '<br>';
+
+          if (rootIsHeading) {
+            // h1 is the editor root itself → insert new paragraph after the h1 in its parent container
+            editorRoot.parentNode?.insertBefore(newP, editorRoot.nextSibling);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newP);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          } else if (isAtStart) {
+            activeBlock.parentNode?.insertBefore(newP, activeBlock);
+          } else {
+            activeBlock.parentNode?.insertBefore(newP, activeBlock.nextSibling);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newP);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+          updateSelectionState();
+          return;
+        }
+      }
+    }
 
     if (e.shiftKey) {
       e.preventDefault();
@@ -1594,51 +1779,57 @@ function handleKeyDown(e: KeyboardEvent) {
 
           if (textBefore.length === 0) {
             const tag = block.tagName.toLowerCase();
-            if (['h1', 'h2', 'h3', 'h4'].includes(tag)) {
-              const prevBlock = block.previousElementSibling as HTMLElement | null;
-              if (!prevBlock || prevBlock.textContent?.trim() === '') {
-                // 【パターンA】前に文字がない（空行）場合: 見出しスタイルはそのまま維持し、上の空行だけ削除して引き上げる
-                if (prevBlock) prevBlock.remove();
-                e.preventDefault();
-                updateSelectionState();
-                return;
-              } else {
-                // 【パターンB】前に文字があり結合する場合: 前のテキストのスタイル（前行）に合わせて末尾に結合し、前行の拡大を完全防止
-                e.preventDefault();
-                const prevRange = document.createRange();
-                prevRange.selectNodeContents(prevBlock);
-                prevRange.collapse(false);
-                while (block.firstChild) {
-                  prevBlock.appendChild(block.firstChild);
-                }
-                block.remove();
-                const sel = window.getSelection();
-                if (sel) {
-                  sel.removeAllRanges();
-                  sel.addRange(prevRange);
-                }
-                updateSelectionState();
-                return;
-              }
-            }
-            if (tag === 'li') {
+            const prevBlock = block.previousElementSibling as HTMLElement | null;
+
+            if (!prevBlock || prevBlock.textContent?.trim() === '') {
+              // 【パターンA: 前に文字がない場合】元のスタイル（見出し・文字サイズ）をそのまま100%維持して引き上げる
+              if (prevBlock) prevBlock.remove();
               e.preventDefault();
-              document.execCommand('outdent', false, undefined);
               updateSelectionState();
               return;
             } else {
-              const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
-              if (currentPadding > 0) {
-                e.preventDefault();
-                const newPadding = Math.max(0, currentPadding - indentSize.value);
-                if (newPadding > 0) {
-                  block.style.paddingInlineStart = `${newPadding}em`;
-                } else {
-                  block.style.paddingInlineStart = '';
+              // 【パターンB: 前に文字があり結合する場合】移動先（前行）のフォントサイズ・スタイルに自動変更して末尾へ合体
+              e.preventDefault();
+              const prevRange = document.createRange();
+              prevRange.selectNodeContents(prevBlock);
+              prevRange.collapse(false);
+
+              while (block.firstChild) {
+                const child = block.firstChild;
+                if (child.nodeType === 1) {
+                  const elem = child as HTMLElement;
+                  elem.style.removeProperty('font-size');
+                  elem.querySelectorAll('*').forEach(inner => (inner as HTMLElement).style.removeProperty('font-size'));
                 }
-                updateSelectionState();
-                return;
+                prevBlock.appendChild(child);
               }
+              block.remove();
+              const sel = window.getSelection();
+              if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(prevRange);
+              }
+              updateSelectionState();
+              return;
+            }
+          }
+          if (tag === 'li') {
+            e.preventDefault();
+            document.execCommand('outdent', false, undefined);
+            updateSelectionState();
+            return;
+          } else {
+            const currentPadding = parseFloat(block.style.paddingInlineStart || '0');
+            if (currentPadding > 0) {
+              e.preventDefault();
+              const newPadding = Math.max(0, currentPadding - indentSize.value);
+              if (newPadding > 0) {
+                block.style.paddingInlineStart = `${newPadding}em`;
+              } else {
+                block.style.paddingInlineStart = '';
+              }
+              updateSelectionState();
+              return;
             }
           }
         } else if (e.key === 'Delete') {
