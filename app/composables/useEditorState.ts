@@ -622,39 +622,22 @@ function updateSelectionState() {
 function getClosestBlockElement(node: Node | null): HTMLElement | null {
   if (!node) return null;
   let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
-  let lastDirectChild: HTMLElement | null = null;
-
   while (element) {
     if (element.getAttribute('contenteditable') === 'true' || element.classList?.contains('writing-vertical')) {
-      if (lastDirectChild) {
-        if (['ruby', 'rt'].includes(lastDirectChild.tagName.toLowerCase())) {
-          return lastDirectChild.parentElement;
-        }
-        return lastDirectChild;
-      }
       break;
     }
     const tagName = element.tagName.toLowerCase();
-
-    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote'].includes(tagName)) {
+    if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
       return element;
-    }
-
-    if (tagName === 'div') {
-      const isDirty = Array.from(element.children).some(child =>
-        ['p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(child.tagName.toLowerCase())
-      );
-      if (!isDirty) {
-        return element;
-      }
-    }
-
-    if (!['ruby', 'rt'].includes(tagName)) {
-      lastDirectChild = element;
     }
     element = element.parentElement;
   }
-  return lastDirectChild;
+
+  let directChild = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+  while (directChild && directChild.parentElement && directChild.parentElement.getAttribute('contenteditable') !== 'true' && !directChild.parentElement.classList?.contains('writing-vertical')) {
+    directChild = directChild.parentElement;
+  }
+  return directChild;
 }
 
 function getBlocksInRange(range: Range): HTMLElement[] {
@@ -801,7 +784,15 @@ function applyHeading(blockTag: string) {
       blocks.forEach(rawBlock => {
         let block = rawBlock;
         if (['RUBY', 'RT'].includes(block.tagName.toUpperCase())) {
-          block = block.closest('p, div, h1, h2, h3, h4, li') || block.parentElement || block;
+          const parentBlock = block.closest('p, div, h1, h2, h3, h4, li');
+          if (parentBlock) {
+            block = parentBlock;
+          } else {
+            const p = document.createElement('p');
+            block.parentNode?.insertBefore(p, block);
+            p.appendChild(block);
+            block = p;
+          }
         }
         const isSameTag = block.tagName.toUpperCase() === blockTag.toUpperCase();
         if (!isSameTag) {
