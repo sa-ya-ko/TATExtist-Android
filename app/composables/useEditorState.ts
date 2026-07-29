@@ -1651,7 +1651,13 @@ function handleKeyDown(e: KeyboardEvent) {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      const activeBlock = getClosestBlockElement(range.startContainer);
+
+      // Check if the contenteditable root itself is a heading (h1–h4)
+      // This happens when the entire page block IS the h1 element
+      const editorRoot = editor.value;
+      const rootIsHeading = editorRoot && ['H1', 'H2', 'H3', 'H4'].includes(editorRoot.tagName);
+
+      const activeBlock = rootIsHeading ? editorRoot : getClosestBlockElement(range.startContainer);
 
       if (activeBlock) {
         const rubyElement = (range.startContainer.nodeType === 3)
@@ -1667,7 +1673,15 @@ function handleKeyDown(e: KeyboardEvent) {
           const newP = document.createElement('p');
           newP.innerHTML = '<br>';
 
-          if (isAtStart) {
+          if (rootIsHeading) {
+            // h1 is the editor root itself → insert new paragraph after the h1 in its parent container
+            editorRoot.parentNode?.insertBefore(newP, editorRoot.nextSibling);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newP);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          } else if (isAtStart) {
             activeBlock.parentNode?.insertBefore(newP, activeBlock);
           } else {
             activeBlock.parentNode?.insertBefore(newP, activeBlock.nextSibling);
