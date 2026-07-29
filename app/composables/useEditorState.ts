@@ -1603,31 +1603,31 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.isComposing) {
-    setTimeout(() => {
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const r = sel.getRangeAt(0);
-        const container = r.startContainer;
-        const rt = (container.nodeType === 3)
-          ? container.parentElement?.closest('rt')
-          : (container instanceof HTMLElement ? container.closest('rt') : null);
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0);
+      const container = r.startContainer;
+      const rt = (container.nodeType === 3)
+        ? container.parentElement?.closest('rt')
+        : (container instanceof HTMLElement ? container.closest('rt') : null);
 
-        if (rt) {
-          const ruby = rt.closest('ruby');
-          if (ruby) {
-            const newRange = document.createRange();
-            if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-              newRange.setStartBefore(ruby);
-            } else {
-              newRange.setStartAfter(ruby);
-            }
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
+      if (rt) {
+        const ruby = rt.closest('ruby');
+        if (ruby) {
+          e.preventDefault();
+          const newRange = document.createRange();
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+            newRange.setStartBefore(ruby);
+          } else {
+            newRange.setStartAfter(ruby);
           }
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          return;
         }
       }
-    }, 0);
+    }
   }
 
   if (e.key === 'Enter') {
@@ -1713,8 +1713,15 @@ function handleKeyDown(e: KeyboardEvent) {
               const prevRange = document.createRange();
               prevRange.selectNodeContents(prevBlock);
               prevRange.collapse(false);
+
               while (block.firstChild) {
-                prevBlock.appendChild(block.firstChild);
+                const child = block.firstChild;
+                if (child.nodeType === 1) {
+                  const elem = child as HTMLElement;
+                  elem.style.removeProperty('font-size');
+                  elem.querySelectorAll('*').forEach(inner => (inner as HTMLElement).style.removeProperty('font-size'));
+                }
+                prevBlock.appendChild(child);
               }
               block.remove();
               const sel = window.getSelection();
