@@ -810,7 +810,17 @@ function applyHeading(blockTag: string) {
             block.parentNode.removeChild(block)
           } else {
             const newBlock = document.createElement(blockTag)
-            Array.from(block.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
+            Array.from(block.attributes).forEach(attr => {
+              if (attr.name === 'class') {
+                let cls = attr.value;
+                if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+                  cls = cls.replace(/text-\[\d+(?:px|pt)\]/g, '').replace(/\s+/g, ' ').trim();
+                }
+                newBlock.setAttribute('class', cls);
+              } else {
+                newBlock.setAttribute(attr.name, attr.value);
+              }
+            })
             while (block.firstChild) newBlock.appendChild(block.firstChild)
             block.parentNode?.replaceChild(newBlock, block)
             cleanUpBlock(newBlock)
@@ -822,7 +832,17 @@ function applyHeading(blockTag: string) {
       const caretBlock = getClosestBlockElement(caretNode)
       if (caretBlock && caretBlock.tagName.toUpperCase() !== blockTag.toUpperCase()) {
         const newBlock = document.createElement(blockTag)
-        Array.from(caretBlock.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
+        Array.from(caretBlock.attributes).forEach(attr => {
+          if (attr.name === 'class') {
+            let cls = attr.value;
+            if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+              cls = cls.replace(/text-\[\d+(?:px|pt)\]/g, '').replace(/\s+/g, ' ').trim();
+            }
+            newBlock.setAttribute('class', cls);
+          } else {
+            newBlock.setAttribute(attr.name, attr.value);
+          }
+        })
         while (caretBlock.firstChild) newBlock.appendChild(caretBlock.firstChild)
         caretBlock.parentNode?.replaceChild(newBlock, caretBlock)
         cleanUpBlock(newBlock)
