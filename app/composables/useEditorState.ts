@@ -797,6 +797,7 @@ function applyHeading(blockTag: string) {
         const isSameTag = block.tagName.toUpperCase() === blockTag.toUpperCase();
         if (!isSameTag) {
           const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
+          const isPageRoot = block.getAttribute('contenteditable') === 'true' || block.hasAttribute('data-page-id');
 
           if (block.tagName.toUpperCase() === 'LI') {
             if (!isTargetDivOrP) {
@@ -808,9 +809,32 @@ function applyHeading(blockTag: string) {
           } else if (isTargetDivOrP && block.parentNode?.nodeName.toUpperCase() === 'LI') {
             while (block.firstChild) block.parentNode.insertBefore(block.firstChild, block)
             block.parentNode.removeChild(block)
+          } else if (isPageRoot && ['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+            // Page root must NOT be replaced. Wrap its content in a heading inside it.
+            const existing = block.querySelector('h1, h2, h3, h4');
+            if (existing) {
+              // Already has a heading inside — just change the heading tag
+              const newHeading = document.createElement(blockTag)
+              while (existing.firstChild) newHeading.appendChild(existing.firstChild)
+              existing.parentNode?.replaceChild(newHeading, existing)
+              cleanUpBlock(newHeading)
+            } else {
+              const newHeading = document.createElement(blockTag)
+              while (block.firstChild) newHeading.appendChild(block.firstChild)
+              block.appendChild(newHeading)
+              cleanUpBlock(newHeading)
+            }
+          } else if (isPageRoot && isTargetDivOrP) {
+            // Unwrap inner heading to plain content
+            const inner = block.querySelector('h1, h2, h3, h4');
+            if (inner) {
+              while (inner.firstChild) block.insertBefore(inner.firstChild, inner)
+              inner.remove()
+            }
           } else {
             const newBlock = document.createElement(blockTag)
             Array.from(block.attributes).forEach(attr => {
+              if (['contenteditable', 'data-page-id', 'dir'].includes(attr.name)) return;
               if (attr.name === 'class') {
                 let cls = attr.value;
                 if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
@@ -830,22 +854,49 @@ function applyHeading(blockTag: string) {
     } else {
       const caretNode = range.startContainer
       const caretBlock = getClosestBlockElement(caretNode)
-      if (caretBlock && caretBlock.tagName.toUpperCase() !== blockTag.toUpperCase()) {
-        const newBlock = document.createElement(blockTag)
-        Array.from(caretBlock.attributes).forEach(attr => {
-          if (attr.name === 'class') {
-            let cls = attr.value;
-            if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
-              cls = cls.replace(/text-\[\d+(?:px|pt)\]/g, '').replace(/\s+/g, ' ').trim();
+      if (caretBlock) {
+        const isSameTag = caretBlock.tagName.toUpperCase() === blockTag.toUpperCase();
+        const isPageRoot = caretBlock.getAttribute('contenteditable') === 'true' || caretBlock.hasAttribute('data-page-id');
+
+        if (!isSameTag) {
+          if (isPageRoot && ['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+            const existingH = caretBlock.querySelector('h1, h2, h3, h4');
+            if (existingH) {
+              const newHeading = document.createElement(blockTag)
+              while (existingH.firstChild) newHeading.appendChild(existingH.firstChild)
+              existingH.parentNode?.replaceChild(newHeading, existingH)
+              cleanUpBlock(newHeading)
+            } else {
+              const newHeading = document.createElement(blockTag)
+              while (caretBlock.firstChild) newHeading.appendChild(caretBlock.firstChild)
+              caretBlock.appendChild(newHeading)
+              cleanUpBlock(newHeading)
             }
-            newBlock.setAttribute('class', cls);
-          } else {
-            newBlock.setAttribute(attr.name, attr.value);
+          } else if (isPageRoot && (blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P')) {
+            const inner = caretBlock.querySelector('h1, h2, h3, h4');
+            if (inner) {
+              while (inner.firstChild) caretBlock.insertBefore(inner.firstChild, inner)
+              inner.remove()
+            }
+          } else if (!isPageRoot) {
+            const newBlock = document.createElement(blockTag)
+            Array.from(caretBlock.attributes).forEach(attr => {
+              if (['contenteditable', 'data-page-id', 'dir'].includes(attr.name)) return;
+              if (attr.name === 'class') {
+                let cls = attr.value;
+                if (['H1', 'H2', 'H3', 'H4'].includes(blockTag.toUpperCase())) {
+                  cls = cls.replace(/text-\[\d+(?:px|pt)\]/g, '').replace(/\s+/g, ' ').trim();
+                }
+                newBlock.setAttribute('class', cls);
+              } else {
+                newBlock.setAttribute(attr.name, attr.value);
+              }
+            })
+            while (caretBlock.firstChild) newBlock.appendChild(caretBlock.firstChild)
+            caretBlock.parentNode?.replaceChild(newBlock, caretBlock)
+            cleanUpBlock(newBlock)
           }
-        })
-        while (caretBlock.firstChild) newBlock.appendChild(caretBlock.firstChild)
-        caretBlock.parentNode?.replaceChild(newBlock, caretBlock)
-        cleanUpBlock(newBlock)
+        }
       }
     }
   } else {
