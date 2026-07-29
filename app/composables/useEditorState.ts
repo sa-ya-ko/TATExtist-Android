@@ -789,6 +789,14 @@ function applyHeading(blockTag: string) {
         if (block.tagName.toUpperCase() !== blockTag.toUpperCase()) {
           const isTargetDivOrP = blockTag.toUpperCase() === 'DIV' || blockTag.toUpperCase() === 'P';
 
+          if (block.parentNode?.nodeName.toUpperCase() === 'RUBY') {
+            const rubyParent = block.parentNode as HTMLElement;
+            rubyParent.parentNode?.insertBefore(block, rubyParent);
+            if (!rubyParent.hasChildNodes() || rubyParent.textContent?.trim() === '') {
+              rubyParent.parentNode?.removeChild(rubyParent);
+            }
+          }
+
           if (block.tagName.toUpperCase() === 'LI') {
             if (!isTargetDivOrP) {
               const innerBlock = document.createElement(blockTag)
@@ -1140,6 +1148,12 @@ function applyRuby(reading: string) {
   }
 
   const extracted = savedRange.extractContents()
+  const blockElements = extracted.querySelectorAll('h1, h2, h3, h4, p, div, section, article')
+  blockElements.forEach(blk => {
+    while (blk.firstChild) blk.parentNode?.insertBefore(blk.firstChild, blk)
+    blk.parentNode?.removeChild(blk)
+  })
+
   const ruby = document.createElement('ruby')
   ruby.appendChild(extracted)
 
