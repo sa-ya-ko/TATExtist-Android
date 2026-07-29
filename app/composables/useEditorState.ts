@@ -809,15 +809,18 @@ function applyHeading(blockTag: string) {
         }
       })
     } else {
-      document.execCommand('formatBlock', false, blockTag)
-      const newSel = window.getSelection()
-      if (newSel && newSel.rangeCount > 0) {
-        const newBlocks = getBlocksInRange(newSel.getRangeAt(0))
-        newBlocks.forEach(block => cleanUpBlock(block))
+      const caretNode = range.startContainer
+      const caretBlock = getClosestBlockElement(caretNode)
+      if (caretBlock && caretBlock.tagName.toUpperCase() !== blockTag.toUpperCase()) {
+        const newBlock = document.createElement(blockTag)
+        Array.from(caretBlock.attributes).forEach(attr => newBlock.setAttribute(attr.name, attr.value))
+        while (caretBlock.firstChild) newBlock.appendChild(caretBlock.firstChild)
+        caretBlock.parentNode?.replaceChild(newBlock, caretBlock)
+        cleanUpBlock(newBlock)
       }
     }
   } else {
-    document.execCommand('formatBlock', false, blockTag)
+    // fallback if no selection
   }
 
   editor.value?.focus({ preventScroll: true })
@@ -1142,7 +1145,6 @@ function applyRuby(reading: string) {
 
   const rt = document.createElement('rt')
   rt.textContent = reading
-  rt.setAttribute('contenteditable', 'false')
   ruby.appendChild(rt)
   savedRange.insertNode(ruby)
 
