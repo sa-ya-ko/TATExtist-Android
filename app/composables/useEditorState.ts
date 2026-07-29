@@ -419,13 +419,22 @@ function updateSelection() {
             }
           }
 
-          // Heading
-          const block = parent.closest('h1, h2, h3, h4, p')
-          if (block) {
-            currentHeading.value = block.tagName.toUpperCase()
-          } else {
-            currentHeading.value = 'P'
+          // Heading — walk up from current element to find nearest h1-h4 or p, stopping at contenteditable boundary
+          let headingEl: Element | null = parent
+          let foundHeading: string = 'P'
+          while (headingEl && headingEl.getAttribute('contenteditable') !== 'true') {
+            const tag = headingEl.tagName?.toUpperCase()
+            if (['H1', 'H2', 'H3', 'H4'].includes(tag)) {
+              foundHeading = tag
+              break
+            }
+            if (tag === 'P') {
+              foundHeading = 'P'
+              break
+            }
+            headingEl = headingEl.parentElement
           }
+          currentHeading.value = foundHeading
 
           // Indent
           const blockForIndent = parent.closest('div, p, h1, h2, h3, h4, blockquote, li')
@@ -906,6 +915,7 @@ function applyHeading(blockTag: string) {
   editor.value?.focus({ preventScroll: true })
   syncEditorToVue()
   onInput()
+  updateSelectionState()
 }
 
 function updateFakeSelection() {
