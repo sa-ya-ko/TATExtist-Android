@@ -40,13 +40,15 @@
 }
 
 .writing-vertical ruby {
-  display: inline-ruby !important;
+  display: inline-ruby;
 }
 
-.writing-vertical rt {
-  display: ruby-text !important;
-  font-size: 0.5em !important;
-  line-height: 1 !important;
+.writing-vertical ruby > rt {
+  display: ruby-text;
+  font-size: 0.5em;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
 }
 
 .writing-vertical b,
