@@ -769,11 +769,11 @@ function applyHeading(blockTag: string) {
   }
 
   const cleanUpBlock = (targetBlock: HTMLElement) => {
-    const spansAndRubies = targetBlock.querySelectorAll('span, ruby')
-    spansAndRubies.forEach(el => {
+    const spans = targetBlock.querySelectorAll('span')
+    spans.forEach(el => {
       (el as HTMLElement).style.removeProperty('font-size')
       if (el.getAttribute('style') === '') el.removeAttribute('style')
-      if (el.tagName.toLowerCase() === 'span' && el.attributes.length === 0) {
+      if (el.attributes.length === 0) {
         while(el.firstChild) el.parentNode?.insertBefore(el.firstChild, el)
         el.parentNode?.removeChild(el)
       }
@@ -1142,7 +1142,6 @@ function applyRuby(reading: string) {
 
   const rt = document.createElement('rt')
   rt.textContent = reading
-  rt.setAttribute('contenteditable', 'false')
   ruby.appendChild(rt)
   savedRange.insertNode(ruby)
 
