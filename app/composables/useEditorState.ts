@@ -621,8 +621,13 @@ function updateSelectionState() {
 function getClosestBlockElement(node: Node | null): HTMLElement | null {
   if (!node) return null;
   let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+  let lastDirectChild: HTMLElement | null = null;
+
   while (element) {
-    if (element.classList?.contains('bg-white') || element.getAttribute('contenteditable') === 'true') break;
+    if (element.getAttribute('contenteditable') === 'true' || element.classList?.contains('writing-vertical')) {
+      if (lastDirectChild) return lastDirectChild;
+      break;
+    }
     const tagName = element.tagName.toLowerCase();
 
     if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote'].includes(tagName)) {
@@ -636,12 +641,12 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
       if (!isDirty) {
         return element;
       }
-      break;
     }
 
+    lastDirectChild = element;
     element = element.parentElement;
   }
-  return null;
+  return lastDirectChild;
 }
 
 function getBlocksInRange(range: Range): HTMLElement[] {
@@ -1597,35 +1602,69 @@ function handleKeyDown(e: KeyboardEvent) {
     return;
   }
 
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.isComposing) {
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0);
+        const container = r.startContainer;
+        const rt = (container.nodeType === 3)
+          ? container.parentElement?.closest('rt')
+          : (container instanceof HTMLElement ? container.closest('rt') : null);
+
+        if (rt) {
+          const ruby = rt.closest('ruby');
+          if (ruby) {
+            const newRange = document.createRange();
+            if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+              newRange.setStartBefore(ruby);
+            } else {
+              newRange.setStartAfter(ruby);
+            }
+            newRange.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+          }
+        }
+      }
+    }, 0);
+  }
+
   if (e.key === 'Enter') {
     if (e.isComposing) return;
 
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      const rawContainer = range.startContainer;
-      const rubyElement = (rawContainer.nodeType === 3)
-        ? rawContainer.parentElement?.closest('ruby')
-        : (rawContainer instanceof HTMLElement ? rawContainer.closest('ruby') : null);
+      const activeBlock = getClosestBlockElement(range.startContainer);
 
-      if (rubyElement) {
-        e.preventDefault();
-        if (isCursorAtStartOfRuby(range, rubyElement)) {
-          range.setStartBefore(rubyElement);
-        } else {
-          range.setStartAfter(rubyElement);
-        }
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+      if (activeBlock) {
+        const rubyElement = (range.startContainer.nodeType === 3)
+          ? range.startContainer.parentElement?.closest('ruby')
+          : (range.startContainer instanceof HTMLElement ? range.startContainer.closest('ruby') : null);
 
-        if (e.shiftKey) {
-          document.execCommand('insertLineBreak');
-        } else {
-          document.execCommand('insertParagraph');
+        if (rubyElement || ['h1', 'h2', 'h3', 'h4'].includes(activeBlock.tagName.toLowerCase())) {
+          e.preventDefault();
+          const isAtStart = rubyElement
+            ? isCursorAtStartOfRuby(range, rubyElement)
+            : (range.startOffset === 0);
+
+          const newP = document.createElement('p');
+          newP.innerHTML = '<br>';
+
+          if (isAtStart) {
+            activeBlock.parentNode?.insertBefore(newP, activeBlock);
+          } else {
+            activeBlock.parentNode?.insertBefore(newP, activeBlock.nextSibling);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newP);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+          updateSelectionState();
+          return;
         }
-        onInput(e);
-        return;
       }
     }
 
