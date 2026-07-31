@@ -1657,6 +1657,31 @@ function exportDocument(format: 'print' | 'html' = 'print') {
             h2 { font-size: 1.5em; margin-bottom: 0.83em; }
             h3 { font-size: 1.17em; margin-bottom: 1em; }
             h4 { font-size: 1em; margin-bottom: 1.33em; }
+            ul, ol { 
+              margin: 0; 
+              padding: 0; 
+              list-style: none;
+              margin-block-start: 0;
+              margin-block-end: 0;
+              margin-inline-start: 0;
+              margin-inline-end: 0;
+              padding-inline-start: 1.5em;
+            }
+            li { 
+              display: block;
+              writing-mode: vertical-rl;
+              margin: 0; 
+              padding: 0; 
+              list-style: none;
+              margin-block-start: 0;
+              margin-block-end: 0;
+              margin-inline-start: 0;
+              margin-inline-end: 0;
+            }
+            li::before {
+              content: '・';
+              display: inline;
+            }
             p:empty::before { content: '\\200B'; }
             ruby > rt {
               font-size: 0.5em;

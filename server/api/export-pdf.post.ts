@@ -47,26 +47,31 @@ export default defineEventHandler(async (event) => {
           margin: 0; 
           padding: 0; 
           list-style: none;
-          margin-block-start: 0.5em; 
-          margin-block-end: 0.5em; 
+          margin-block-start: 0;
+          margin-block-end: 0;
+          margin-inline-start: 0;
+          margin-inline-end: 0;
+          padding-inline-start: 1.5em;
         }
         li { 
+          display: block;
+          writing-mode: vertical-rl;
           margin: 0; 
           padding: 0; 
-          margin-inline-end: 0.5em; 
           list-style: none;
-          display: inline-block;
-          writing-mode: vertical-rl;
+          margin-block-start: 0;
+          margin-block-end: 0;
+          margin-inline-start: 0;
+          margin-inline-end: 0;
         }
         li div, li p, li span {
           display: inline;
           margin: 0;
           padding: 0;
         }
-        li::before { 
-          content: '・'; 
+        li::before {
+          content: '・';
           display: inline;
-          line-height: inherit;
         }
 
         h1, h2, h3, h4 { font-weight: bold; margin: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; }
