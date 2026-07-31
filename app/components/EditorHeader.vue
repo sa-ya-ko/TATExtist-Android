@@ -7,7 +7,7 @@
               <div class="flex items-center gap-2 shrink-0">
                   <img src="/logo.webp" alt="TATExtist" class="w-10 h-10 object-contain" />
                   <div class="flex flex-col justify-center">
-                      <span class="text-[9px] text-gray-500 dark:text-gray-400 leading-none mb-0.5">横書き専用エディタ</span>
+                      <span class="text-[9px] text-gray-500 dark:text-gray-400 leading-none mb-0.5">縦書き専用エディタ</span>
                       <span class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none">TATExtist</span>
                   </div>
               </div>
@@ -203,7 +203,7 @@
           
           <div class="w-px h-6 bg-outline-variant dark:bg-gray-700 mx-1"></div>
           
-          <button @mousedown.prevent="execCommand('insertUnorderedList')" :class="['p-1 md:p-2 transition-colors rounded', isList ? 'bg-primary/10 text-primary' : 'hover:bg-surface-container-low dark:hover:bg-gray-800']" title="箇条書き">
+          <button @mousedown.prevent="toggleUnorderedList" :class="['p-1 md:p-2 transition-colors rounded', isList ? 'bg-primary/10 text-primary' : 'hover:bg-surface-container-low dark:hover:bg-gray-800']" title="箇条書き">
               <span class="material-symbols-outlined" data-icon="format_list_bulleted">format_list_bulleted</span>
           </button>
           <button @mousedown.prevent="customOutdent" class="p-1 md:p-2 transition-colors rounded hover:bg-surface-container-low dark:hover:bg-gray-800" title="インデントを減らす（字上げ）">
@@ -312,6 +312,7 @@ const {
   documentTitle,
   fileInput,
   execCommand,
+  toggleUnorderedList,
   applyHeading,
   changeFontSize,
   commitFontSize,

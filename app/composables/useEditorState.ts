@@ -538,6 +538,45 @@ function execCommand(command: string, value: string | undefined = undefined) {
   updateSelection()
 }
 
+function ensureBlockStructure(targetRoot?: HTMLElement | null) {
+  const root = targetRoot || editor.value
+  if (!root) return
+
+  const childNodes = Array.from(root.childNodes)
+  const blockTags = ['DIV', 'P', 'LI', 'UL', 'OL', 'H1', 'H2', 'H3', 'H4', 'BLOCKQUOTE']
+  let currentDiv: HTMLElement | null = null
+
+  if (childNodes.length === 0) {
+    const div = document.createElement('div')
+    div.innerHTML = '<br>'
+    root.appendChild(div)
+    return
+  }
+
+  childNodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.textContent && node.textContent.length > 0) {
+        if (!currentDiv) {
+          currentDiv = document.createElement('div')
+          root.insertBefore(currentDiv, node)
+        }
+        currentDiv.appendChild(node)
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const elem = node as HTMLElement
+      if (blockTags.includes(elem.tagName.toUpperCase())) {
+        currentDiv = null
+      } else {
+        if (!currentDiv) {
+          currentDiv = document.createElement('div')
+          root.insertBefore(currentDiv, elem)
+        }
+        currentDiv.appendChild(elem)
+      }
+    }
+  })
+}
+
 function toggleUnorderedList() {
   let targetEditor: HTMLElement | null = null
 
@@ -549,6 +588,11 @@ function toggleUnorderedList() {
 
   if (!targetEditor && editor.value) {
     targetEditor = editor.value
+  }
+
+  // 裸テキストをブロック要素へ正規化
+  if (targetEditor) {
+    ensureBlockStructure(targetEditor)
   }
 
   if (targetEditor && document.activeElement !== targetEditor) {
@@ -565,22 +609,20 @@ function toggleUnorderedList() {
 
   if (sel && sel.rangeCount > 0) {
     const range = sel.getRangeAt(0)
-    blocks = getBlocksInRange(range)
+    blocks = getBlocksInRange(range).filter(b => b && b.getAttribute('contenteditable') !== 'true')
   }
 
   if (blocks.length === 0 && targetEditor) {
-    const firstBlock = targetEditor.querySelector('div, p, li, h1, h2, h3, h4') as HTMLElement | null
-    if (firstBlock) {
+    const firstBlock = getClosestBlockElement(targetEditor)
+    if (firstBlock && firstBlock.getAttribute('contenteditable') !== 'true') {
       blocks = [firstBlock]
-    } else {
-      const newDiv = document.createElement('div')
-      newDiv.innerHTML = '<br>'
-      targetEditor.appendChild(newDiv)
-      blocks = [newDiv]
     }
   }
 
   if (blocks.length > 0) {
+    let lastCreatedInner: HTMLElement | null = null
+    let lastCreatedDiv: HTMLElement | null = null
+
     const isAllLi = blocks.every(b => b.tagName.toUpperCase() === 'LI' || b.closest('li') !== null)
 
     if (isAllLi) {
@@ -591,33 +633,64 @@ function toggleUnorderedList() {
           const ul = li.parentElement
           const newDiv = document.createElement('div')
           while (li.firstChild) newDiv.appendChild(li.firstChild)
-          if (!newDiv.textContent) newDiv.innerHTML = '<br>'
+          if (!newDiv.textContent?.trim() && !newDiv.querySelector('br')) {
+            newDiv.innerHTML = '<br>'
+          }
           if (ul?.parentNode) {
-            ul.parentNode.insertBefore(newDiv, ul)
+            ul.parentNode.insertBefore(newDiv, ul.nextSibling)
+          } else if (targetEditor) {
+            targetEditor.appendChild(newDiv)
           }
           li.remove()
           if (ul && ul.children.length === 0) ul.remove()
+          lastCreatedDiv = newDiv
         }
       })
     } else {
       // 箇条書きでない場合はUL > LIでラップする
       blocks.forEach(block => {
-        const targetBlock = block.closest('li') ? block.closest('li')! : block
-        if (targetBlock.tagName.toUpperCase() !== 'LI') {
-          const ul = document.createElement('ul')
-          const li = document.createElement('li')
-          const innerDiv = document.createElement('div')
-          innerDiv.style.display = 'inline'
+        let targetBlock = block.closest('li') ? block.closest('li')! : block
 
-          while (targetBlock.firstChild) innerDiv.appendChild(targetBlock.firstChild)
-          if (!innerDiv.textContent) innerDiv.textContent = '\u200B'
+        const ul = document.createElement('ul')
+        const li = document.createElement('li')
 
-          li.appendChild(innerDiv)
-          ul.appendChild(li)
-          targetBlock.parentNode?.replaceChild(ul, targetBlock)
+        while (targetBlock.firstChild) {
+          const child = targetBlock.firstChild
+          if (child.nodeType === 1 && (child as HTMLElement).tagName.toUpperCase() === 'DIV') {
+            while (child.firstChild) li.appendChild(child.firstChild)
+            child.remove()
+          } else {
+            li.appendChild(child)
+          }
         }
+        
+        if (!li.textContent?.trim() && !li.querySelector('br')) {
+          li.innerHTML = '<br>'
+        }
+
+        ul.appendChild(li)
+
+        if (targetBlock.parentNode) {
+          targetBlock.parentNode.replaceChild(ul, targetBlock)
+        } else if (targetEditor) {
+          targetEditor.appendChild(ul)
+        }
+        lastCreatedInner = li
       })
     }
+
+    // 新しく作成した要素の中にカーソルを確実に移動・復元する
+    const targetToFocus = lastCreatedInner || lastCreatedDiv
+    if (targetToFocus) {
+      const newRange = document.createRange()
+      newRange.setStart(targetToFocus, 0)
+      newRange.collapse(true) // キャレット（単一カーソル）にしてIME破壊を100%防止
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(newRange)
+      lastEditorRange = newRange.cloneRange() // カーソル巻き戻り防止のために保存
+    }
+
     syncEditorToVue()
     updateSelectionState()
   }
@@ -630,11 +703,20 @@ function updateSelectionState() {
 
 function getClosestBlockElement(node: Node | null): HTMLElement | null {
   if (!node) return null;
-  let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
-  while (element) {
-    if (element.getAttribute('contenteditable') === 'true' || element.classList?.contains('writing-vertical')) {
-      break;
+
+  if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).getAttribute('contenteditable') === 'true') {
+    const root = node as HTMLElement;
+    let first = root.firstElementChild as HTMLElement | null;
+    if (!first) {
+      first = document.createElement('div');
+      first.innerHTML = '<br>';
+      root.appendChild(first);
     }
+    return first;
+  }
+
+  let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
+  while (element && element.getAttribute('contenteditable') !== 'true' && !element.classList?.contains('writing-vertical')) {
     const tagName = element.tagName.toLowerCase();
     if (['p', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'div'].includes(tagName)) {
       return element;
@@ -646,7 +728,22 @@ function getClosestBlockElement(node: Node | null): HTMLElement | null {
   while (directChild && directChild.parentElement && directChild.parentElement.getAttribute('contenteditable') !== 'true' && !directChild.parentElement.classList?.contains('writing-vertical')) {
     directChild = directChild.parentElement;
   }
-  return directChild;
+
+  if (directChild && directChild.getAttribute('contenteditable') !== 'true') {
+    return directChild;
+  }
+
+  if (editor.value) {
+    let first = editor.value.firstElementChild as HTMLElement | null;
+    if (!first) {
+      first = document.createElement('div');
+      first.innerHTML = '<br>';
+      editor.value.appendChild(first);
+    }
+    return first;
+  }
+
+  return null;
 }
 
 function getBlocksInRange(range: Range): HTMLElement[] {
@@ -1629,8 +1726,11 @@ function isCursorAtStartOfRuby(range: Range, rubyElement: Element) {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
+  if (e.isComposing) return;
+
+  ensureBlockStructure()
+
   if (e.key === 'Tab') {
-    if (e.isComposing) return;
     e.preventDefault();
 
     const selection = window.getSelection();
@@ -1713,45 +1813,66 @@ function handleKeyDown(e: KeyboardEvent) {
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
 
-      // Check if the contenteditable root itself is a heading (h1–h4)
-      // This happens when the entire page block IS the h1 element
       const editorRoot = editor.value;
       const rootIsHeading = editorRoot && ['H1', 'H2', 'H3', 'H4'].includes(editorRoot.tagName);
-
       const activeBlock = rootIsHeading ? editorRoot : getClosestBlockElement(range.startContainer);
 
       if (activeBlock) {
+        const tag = activeBlock.tagName.toLowerCase();
+
+        // 1. 箇条書き (li) の中で Enter が押された場合
+        if (tag === 'li' || activeBlock.closest('li')) {
+          e.preventDefault();
+          const currentLi = activeBlock.closest('li')!;
+          const isEmpty = !currentLi.textContent?.trim();
+
+          if (isEmpty) {
+            toggleUnorderedList();
+          } else {
+            const newLi = document.createElement('li');
+            newLi.innerHTML = '<br>';
+            currentLi.parentNode?.insertBefore(newLi, currentLi.nextSibling);
+
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newLi);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            lastEditorRange = newRange.cloneRange();
+          }
+          updateSelectionState();
+          return;
+        }
+
+        // 2. ルビ、見出し(h1-h4)、標準段落(div, p) で Enter が押された場合
         const rubyElement = (range.startContainer.nodeType === 3)
           ? range.startContainer.parentElement?.closest('ruby')
           : (range.startContainer instanceof HTMLElement ? range.startContainer.closest('ruby') : null);
 
-        if (rubyElement || ['h1', 'h2', 'h3', 'h4'].includes(activeBlock.tagName.toLowerCase())) {
+        if (rubyElement || ['h1', 'h2', 'h3', 'h4', 'div', 'p'].includes(tag)) {
           e.preventDefault();
           const isAtStart = rubyElement
             ? isCursorAtStartOfRuby(range, rubyElement)
-            : (range.startOffset === 0);
+            : (range.startOffset === 0 && !range.startContainer.previousSibling);
 
-          const newP = document.createElement('p');
-          newP.innerHTML = '<br>';
+          const newBlock = document.createElement('div');
+          newBlock.innerHTML = '<br>';
 
           if (rootIsHeading) {
-            // h1 is the editor root itself → insert new paragraph after the h1 in its parent container
-            editorRoot.parentNode?.insertBefore(newP, editorRoot.nextSibling);
-            const newRange = document.createRange();
-            newRange.selectNodeContents(newP);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
+            editorRoot.parentNode?.insertBefore(newBlock, editorRoot.nextSibling);
           } else if (isAtStart) {
-            activeBlock.parentNode?.insertBefore(newP, activeBlock);
+            activeBlock.parentNode?.insertBefore(newBlock, activeBlock);
           } else {
-            activeBlock.parentNode?.insertBefore(newP, activeBlock.nextSibling);
-            const newRange = document.createRange();
-            newRange.selectNodeContents(newP);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
+            activeBlock.parentNode?.insertBefore(newBlock, activeBlock.nextSibling);
           }
+
+          const newRange = document.createRange();
+          newRange.selectNodeContents(newBlock);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+          lastEditorRange = newRange.cloneRange();
+
           updateSelectionState();
           return;
         }
@@ -1789,16 +1910,22 @@ function handleKeyDown(e: KeyboardEvent) {
 
           if (textBefore.length === 0) {
             const tag = block.tagName.toLowerCase();
-            const prevBlock = block.previousElementSibling as HTMLElement | null;
+            let prevBlock = block.previousElementSibling as HTMLElement | null;
+
+            // もしprevBlockが見つからず、1行目が裸のテキストノードやルート直下にある場合の補正
+            if (!prevBlock && block.parentNode && block.parentNode !== editor.value) {
+              const parentPrev = (block.parentNode as HTMLElement).previousElementSibling as HTMLElement | null;
+              if (parentPrev) prevBlock = parentPrev;
+            }
 
             if (!prevBlock || prevBlock.textContent?.trim() === '') {
-              // 【パターンA: 前に文字がない場合】元のスタイル（見出し・文字サイズ）をそのまま100%維持して引き上げる
+              // 【パターンA: 前に文字がない場合】元のスタイルを維持して引き上げる
               if (prevBlock) prevBlock.remove();
               e.preventDefault();
               updateSelectionState();
               return;
             } else {
-              // 【パターンB: 前に文字があり結合する場合】移動先（前行）のフォントサイズ・スタイルに自動変更して末尾へ合体
+              // 【パターンB: 前に文字があり結合する場合】前行の末尾へ合体してカーソル移動
               e.preventDefault();
               const prevRange = document.createRange();
               prevRange.selectNodeContents(prevBlock);
@@ -1814,11 +1941,11 @@ function handleKeyDown(e: KeyboardEvent) {
                 prevBlock.appendChild(child);
               }
               block.remove();
-              const sel = window.getSelection();
-              if (sel) {
-                sel.removeAllRanges();
-                sel.addRange(prevRange);
-              }
+
+              const selObj = window.getSelection();
+              selObj?.removeAllRanges();
+              selObj?.addRange(prevRange);
+
               updateSelectionState();
               return;
             }

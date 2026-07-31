@@ -55,9 +55,10 @@ export default defineEventHandler(async (event) => {
           padding: 0; 
           margin-inline-end: 0.5em; 
           list-style: none;
-          display: block;
+          display: inline-block;
+          writing-mode: vertical-rl;
         }
-        li div, li p {
+        li div, li p, li span {
           display: inline;
           margin: 0;
           padding: 0;

@@ -1,5 +1,7 @@
 <template>
-  <VitePwaManifest />
+  <ClientOnly>
+    <VitePwaManifest />
+  </ClientOnly>
   <NuxtPage />
 </template>
 
