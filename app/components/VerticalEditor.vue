@@ -12,12 +12,12 @@
 
         <!-- Editor Canvas (Vertical Scroll for manual, Horizontal for auto) -->
         <div ref="scrollContainer" 
-             class="min-h-0 min-w-0 flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white px-2 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] transition-colors duration-300 w-full max-w-full md:px-6 md:pb-0"
+             class="h-full min-h-0 min-w-0 flex-1 bg-surface dark:bg-gray-900 print:overflow-visible print:block print:p-0 print:bg-white px-2 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] transition-colors duration-300 w-full max-w-full md:px-6 md:pb-16"
              :class="[layoutMode === 'auto' ? 'overflow-x-auto overflow-y-hidden flex items-start' : 'overflow-y-auto overflow-x-hidden block', { 'ruby-management-mode': isRubyManagementMode }]"
              :dir="layoutMode === 'auto' ? 'rtl' : 'ltr'">
           
           <!-- MANUAL MODE -->
-          <div v-if="layoutMode === 'manual'" class="print:block min-h-full min-w-0 print:min-h-0 print:min-w-0 w-full h-auto md:min-h-max md:min-w-max">
+          <div v-if="layoutMode === 'manual'" class="print:block min-h-full min-w-0 print:min-h-0 print:min-w-0 w-full h-auto md:min-h-full md:min-w-max">
             
             <!-- Horizontal Ruler (Perfectly aligned with pages in manual mode) -->
             <EditorRulerHorizontal class="print:hidden mx-auto w-full md:w-max" />
