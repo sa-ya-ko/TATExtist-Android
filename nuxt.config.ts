@@ -14,7 +14,7 @@ export default defineNuxtConfig({
     }
   },
   site: {
-    url: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    url: process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app',
     name: 'TATExtist',
     description: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのまま印刷もできる縦書き専用エディタです。'
   },
@@ -28,15 +28,16 @@ export default defineNuxtConfig({
         { property: 'og:title', content: 'TATExtist - 縦書き専用エディタ' },
         { property: 'og:description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのまま印刷もできる縦書き専用エディタです。' },
         { property: 'og:type', content: 'website' },
-        { property: 'og:url', content: process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app/' },
-        { property: 'og:image', content: (process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app/') + '/OGP.webp' },
+        { property: 'og:url', content: (process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app') + '/' },
+        { property: 'og:image', content: (process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app') + '/OGP.webp' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:site', content: '@tatextist' },
         { name: 'twitter:title', content: 'TATExtist - 縦書き専用エディタ' },
         { name: 'twitter:description', content: '縦書きで文章を執筆･PDF出力できるWebサイト。基本的なツールから、ルビを振る機能、Google Driveと連携して保存、読み込む機能まで使えて、縦書きのまま印刷もできる縦書き専用エディタです。' },
-        { name: 'twitter:image', content: (process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app/') + '/OGP.webp' }
+        { name: 'twitter:image', content: (process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app') + '/OGP.webp' }
       ],
       link: [
+        { rel: 'canonical', href: (process.env.NUXT_PUBLIC_SITE_URL || 'https://tat-extist-gamma.vercel.app') + '/' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&display=swap' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600&display=swap' },
