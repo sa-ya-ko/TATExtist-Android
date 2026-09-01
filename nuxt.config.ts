@@ -61,7 +61,7 @@ export default defineNuxtConfig({
     'nuxt-gtag'
   ],
   gtag: {
-    id: process.env.NUXT_PUBLIC_GTAG_ID // Vercelの環境変数で設定します
+    id: process.env.NUXT_PUBLIC_GTAG_ID || 'G-R14PWVE364' // 環境変数またはデフォルト値
   },
   security: {
     xssValidator: false,
@@ -75,8 +75,8 @@ export default defineNuxtConfig({
       crossOriginResourcePolicy: 'cross-origin',
       contentSecurityPolicy: {
         'default-src': ["'self'"],
-        'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://apis.google.com', 'https://accounts.google.com'],
-        'connect-src': ["'self'", 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
+        'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://apis.google.com', 'https://accounts.google.com', 'https://*.googletagmanager.com'],
+        'connect-src': ["'self'", 'https://oauth2.googleapis.com', 'https://www.googleapis.com', 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'],
         'frame-src': ["'self'", 'https://accounts.google.com'],
         'img-src': ["'self'", 'data:', 'blob:', 'https:'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],

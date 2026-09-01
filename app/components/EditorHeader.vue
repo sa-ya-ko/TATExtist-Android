@@ -270,7 +270,7 @@ const presetColors = [
 
 const selectPresetColor = (colorValue: string) => {
   selectedColor.value = colorValue
-  execCommand('foreColor', colorValue)
+  applyColor()
   showColorMenu.value = false
 }
 
@@ -278,7 +278,7 @@ const applyCustomColor = (e: Event) => {
   const target = e.target as HTMLInputElement
   if (target && target.value) {
     selectedColor.value = target.value
-    execCommand('foreColor', target.value)
+    applyColor()
   }
 }
 

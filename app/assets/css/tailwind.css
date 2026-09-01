@@ -110,6 +110,8 @@ h4.writing-vertical,
   margin-inline-end: 0;
 }
 
+.writing-vertical.outline-none span,
+.writing-vertical.outline-none font,
 .writing-vertical b,
 .writing-vertical strong,
 .writing-vertical i,
@@ -119,11 +121,20 @@ h4.writing-vertical,
 .writing-vertical span:not(ruby):not(rt),
 .writing-vertical font:not(ruby):not(rt) {
   display: inline;
+  writing-mode: inherit;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: inherit;
+  font-family: inherit;
+  letter-spacing: inherit;
   line-height: inherit;
   vertical-align: baseline;
   box-sizing: border-box;
-  overflow-wrap: normal;
+  overflow-wrap: inherit;
   white-space: inherit;
+  text-wrap: inherit;
+  word-break: inherit;
 }
 
 .writing-vertical ruby {

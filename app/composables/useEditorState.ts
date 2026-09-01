@@ -1159,14 +1159,11 @@ function applyColor() {
       let finalEl = el;
 
       if (el.tagName === 'FONT') {
-        el.removeAttribute('color');
-        if (el.attributes.length === 1 && el.hasAttribute('style')) {
-          const span = document.createElement('span');
-          span.setAttribute('style', el.getAttribute('style')!);
-          while (el.firstChild) span.appendChild(el.firstChild);
-          el.parentNode?.replaceChild(span, el);
-          finalEl = span;
-        }
+        const span = document.createElement('span');
+        span.style.color = selectedColor.value;
+        while (el.firstChild) span.appendChild(el.firstChild);
+        el.parentNode?.replaceChild(span, el);
+        finalEl = span;
       }
       modifiedElements.push(finalEl);
     });
