@@ -9,8 +9,7 @@ export default defineNuxtConfig({
     googleClientSecret: '', // .env の NUXT_GOOGLE_CLIENT_SECRET で上書きされます
     public: {
       googleClientId: '', // .env の NUXT_PUBLIC_GOOGLE_CLIENT_ID で上書きされます
-      googleApiKey: '',   // .env の NUXT_PUBLIC_GOOGLE_API_KEY で上書きされます
-      gtagId: ''          // .env の NUXT_PUBLIC_GTAG_ID で上書きされます
+      googleApiKey: ''    // .env の NUXT_PUBLIC_GOOGLE_API_KEY で上書きされます
     }
   },
   site: {
@@ -49,7 +48,16 @@ export default defineNuxtConfig({
       ],
       script: [
         { src: 'https://apis.google.com/js/api.js', async: true, defer: true },
-        { src: 'https://accounts.google.com/gsi/client', async: true, defer: true }
+        { src: 'https://accounts.google.com/gsi/client', async: true, defer: true },
+        { src: 'https://www.googletagmanager.com/gtag/js?id=G-R14PWVE364', async: true },
+        {
+          innerHTML: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-R14PWVE364');
+          `
+        }
       ]
     }
   },
