@@ -32,6 +32,12 @@ fun EditorScreen(
     
     // 2. ルビの「ふりがな」を入力するための記憶係
     var rubyReading by remember { mutableStateOf("") }
+    
+    // 3. WebViewにルビ挿入を命令するためのリクエスト用変数
+    var rubyRequest by remember { mutableStateOf<String?>(null) }
+
+    // 4. 太字や斜体、ルビ解除を命令するための変数
+    var formatCommand by remember { mutableStateOf<String?>(null) }
 
     // 画面全体の骨組み（Scaffold）を作ります
     Scaffold(
@@ -48,6 +54,18 @@ fun EditorScreen(
                 TextButton(onClick = { showSettingsSheet = true }) {
                     Text("ルビ付与")
                 }
+                TextButton(onClick = { formatCommand = "removeRuby" }) {
+                    Text("ルビ解除")
+                }
+                
+                Spacer(modifier = Modifier.weight(1f))
+                
+                TextButton(onClick = { formatCommand = "bold" }) {
+                    Text("B", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
+                TextButton(onClick = { formatCommand = "italic" }) {
+                    Text("I", fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                }
             }
         }
     ) { innerPadding ->
@@ -55,6 +73,10 @@ fun EditorScreen(
         VerticalEditor(
             value = uiState.content,
             onValueChange = onValueChange,
+            rubyRequest = rubyRequest,
+            onRubyApplied = { rubyRequest = null },
+            formatCommand = formatCommand,
+            onFormatApplied = { formatCommand = null },
             modifier = Modifier.padding(innerPadding)
         )
     }
@@ -97,28 +119,8 @@ fun EditorScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     Button(onClick = {
-                        // ルビ挿入ロジック
-                        val currentText = uiState.content.text
-                        val selection = uiState.content.selection
-                        
-                        // 選択範囲がある場合のみルビを振る
-                        if (!selection.collapsed) {
-                            val start = selection.min
-                            val end = selection.max
-                            val baseText = currentText.substring(start, end)
-                            
-                            // |漢字《かんじ》 の形式を作成
-                            val replacement = "|$baseText《$rubyReading》"
-                            
-                            // 文字列を結合
-                            val newText = currentText.substring(0, start) + 
-                                          replacement + 
-                                          currentText.substring(end)
-                            
-                            // 記憶係に新しい文章と、カーソル位置（挿入したルビの直後）を渡す
-                            val newCursorPos = start + replacement.length
-                            onValueChange(TextFieldValue(text = newText, selection = TextRange(newCursorPos)))
-                        }
+                        // WebViewにルビ挿入のリクエストを送る（テキストの切り貼りはWebViewのJSに任せる）
+                        rubyRequest = rubyReading
                         
                         showSettingsSheet = false
                         rubyReading = ""

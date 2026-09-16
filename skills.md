@@ -1,10 +1,14 @@
 # Project Rules & Reference Context
 
+まずは、移植元アプリをアンドロイドアプリにすること。
+
 ## 1. Primary References (参照対象Webページ)
 - **移植元Webアプリ:** https://tat-extist-gamma.vercel.app/
 - **Android Architecture Best Practices:** https://developer.android.com/topic/architecture
 - **Material 3 Expressive:** https://m3.material.io/
 - **Android Jetpack Compose UI 指針:** https://developer.android.com/develop/ui/compose
+- **WebViewのベストプラクティス:** https://developer.android.com/develop/ui/views/layout/webapps/best-practices
+-**AndroidWebViewのベストプラクティス:**https://developer.android.com/develop/ui/views/layout/webapps/webview
 
 ## 2. Test-Driven Development (TDD) Methodology 【厳守ルール】
 コード実装を行う際は、必ず以下の **TDDサイクル（Red-Green-Refactor）** に従って対話・コード生成を行ってください。
@@ -29,3 +33,6 @@
 1. **TDDの強制:** ユーザーからの新機能要求に対しては、まず「どのようなテストコードを書くか」を提案してください。
 2. **公式プラクティスの遵守:** Google推奨のアーキテクチャおよびMaterial 3 Expressiveガイドラインに従ってください。
 3. **Webサイトの要素解析:** `https://tat-extist-gamma.vercel.app/` の仕様を読み解き、画面ロジックとUIコンポーネントを分解してテスト設計に落とし込んでください。
+
+## 5. CSSについて
+1. !importantは極力使わない
