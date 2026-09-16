@@ -43,16 +43,22 @@ class EditorViewModelTest {
     }
 
     @Test
-    fun `when content is updated, state should reflect the new content`() = runTest {
+    fun `when content is updated with selection, state should reflect the new content and selection`() = runTest {
         viewModel.uiState.test {
-            // Initial state
-            assertEquals("", awaitItem().content)
+            // Initial state (should default to empty TextFieldValue)
+            assertEquals(androidx.compose.ui.text.input.TextFieldValue(), awaitItem().content)
 
-            // Action
-            viewModel.updateContent("こんにちは、世界")
+            // Action: Text with selection
+            val newValue = androidx.compose.ui.text.input.TextFieldValue(
+                text = "こんにちは、世界",
+                selection = androidx.compose.ui.text.TextRange(0, 5)
+            )
+            viewModel.updateContent(newValue)
 
-            // State changes (this will fail until we implement updateContent)
-            assertEquals("こんにちは、世界", awaitItem().content)
+            // State changes (will fail to compile/run because updateContent doesn't accept TextFieldValue yet)
+            val newState = awaitItem().content
+            assertEquals("こんにちは、世界", newState.text)
+            assertEquals(androidx.compose.ui.text.TextRange(0, 5), newState.selection)
         }
     }
 }
