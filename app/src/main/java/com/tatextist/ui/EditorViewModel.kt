@@ -30,6 +30,16 @@ class EditorViewModel(
         
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+
+            val signInResult = driveRepository.signIn()
+            if (signInResult.isFailure) {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    needsSignIn = true
+                )
+                return@launch
+            }
+
             val result = driveRepository.saveToDrive(uiState.value.content.text, uiState.value.documentTitle)
             
             if (result.isSuccess) {
@@ -48,6 +58,16 @@ class EditorViewModel(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+
+            val signInResult = driveRepository.signIn()
+            if (signInResult.isFailure) {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    needsSignIn = true
+                )
+                return@launch
+            }
+
             val result = driveRepository.loadFromDrive(filename)
             
             if (result.isSuccess) {
@@ -64,5 +84,9 @@ class EditorViewModel(
                 )
             }
         }
+    }
+
+    fun onSignInLaunched() {
+        _uiState.value = _uiState.value.copy(needsSignIn = false)
     }
 }

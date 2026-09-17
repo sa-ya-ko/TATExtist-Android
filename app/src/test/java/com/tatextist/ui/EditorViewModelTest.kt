@@ -69,6 +69,7 @@ class EditorViewModelTest {
     }
     @Test
     fun `when saveToCloud succeeds, isCloudLoading should be false and no error`() = runTest {
+        coEvery { mockDriveRepository.signIn() } returns Result.success(Unit)
         coEvery { mockDriveRepository.saveToDrive(any(), any()) } returns Result.success(Unit)
 
         // Action
@@ -84,6 +85,7 @@ class EditorViewModelTest {
 
     @Test
     fun `when loadFromCloud fails, error message should be set`() = runTest {
+        coEvery { mockDriveRepository.signIn() } returns Result.success(Unit)
         coEvery { mockDriveRepository.loadFromDrive(any()) } returns Result.failure(Exception("Not Found"))
 
         // Action

@@ -14,6 +14,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import com.tatextist.data.GoogleDriveRepositoryImpl
 import com.tatextist.ui.EditorScreen
 import com.tatextist.ui.EditorViewModel
@@ -29,18 +33,37 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // DriveレポジトリをActivityレベルで保持
+                    val driveRepository = remember { GoogleDriveRepositoryImpl(applicationContext) }
+                    
                     // エディタ画面の記憶係（ViewModel）を準備（Driveレポジトリを注入）
                     val viewModel: EditorViewModel = viewModel(
                         factory = object : ViewModelProvider.Factory {
                             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                                val repo = GoogleDriveRepositoryImpl(applicationContext)
                                 @Suppress("UNCHECKED_CAST")
-                                return EditorViewModel(repo) as T
+                                return EditorViewModel(driveRepository) as T
                             }
                         }
                     )
                     // 記憶係が持っている状態を「常に監視」して取得（更新されたら自動で画面を描き直す）
                     val uiState by viewModel.uiState.collectAsState()
+
+                    // サインイン画面を呼び出すランチャー
+                    val signInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.StartActivityForResult()
+                    ) { result ->
+                        if (result.resultCode == Activity.RESULT_OK) {
+                            // 認証成功時にもう一度保存や読み込みをユーザーに促す等の処理が可能
+                        }
+                    }
+
+                    // ViewModelが「サインインが必要」と言ってきたらランチャーを起動する
+                    LaunchedEffect(uiState.needsSignIn) {
+                        if (uiState.needsSignIn) {
+                            signInLauncher.launch(driveRepository.getSignInIntent())
+                            viewModel.onSignInLaunched()
+                        }
+                    }
 
                     // 私たちが作ったエディタ画面を表示！
                     EditorScreen(

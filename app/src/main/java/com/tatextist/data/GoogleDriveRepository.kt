@@ -1,6 +1,13 @@
 package com.tatextist.data
 
+import android.content.Intent
+
 interface GoogleDriveRepository {
+    /**
+     * Provides the Intent needed to launch the Google Sign-In flow.
+     */
+    fun getSignInIntent(): Intent
+
     /**
      * Signs the user in and establishes Drive API access.
      */

@@ -24,6 +24,10 @@ class GoogleDriveRepositoryImpl(private val context: Context) : GoogleDriveRepos
 
     private val googleSignInClient = GoogleSignIn.getClient(context, gso)
 
+    override fun getSignInIntent(): android.content.Intent {
+        return googleSignInClient.signInIntent
+    }
+
     override suspend fun signIn(): Result<Unit> {
         // Implementation requires Activity result, this will be handled via UI.
         // For the repository layer, we assume signIn is successful if we have an account.

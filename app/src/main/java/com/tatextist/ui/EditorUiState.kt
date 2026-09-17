@@ -8,5 +8,6 @@ data class EditorUiState(
     val isDarkMode: Boolean = false,
     val fontSize: Int = 12,
     val isCloudLoading: Boolean = false,
-    val cloudError: String? = null
+    val cloudError: String? = null,
+    val needsSignIn: Boolean = false
 )
