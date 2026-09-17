@@ -9,6 +9,8 @@
 - **Android Jetpack Compose UI 指針:** https://developer.android.com/develop/ui/compose
 - **WebViewのベストプラクティス:** https://developer.android.com/develop/ui/views/layout/webapps/best-practices
 -**AndroidWebViewのベストプラクティス:**https://developer.android.com/develop/ui/views/layout/webapps/webview
+-**Androidセキュリティのベストプラクティス:** https://developer.android.com/privacy-and-security/security-tips?hl=ja
+-**OAuth 2.0ネイティブアプリ用:** https://developers.google.com/identity/protocols/oauth2/native-app?hl=ja
 
 ## 2. Test-Driven Development (TDD) Methodology 【厳守ルール】
 コード実装を行う際は、必ず以下の **TDDサイクル（Red-Green-Refactor）** に従って対話・コード生成を行ってください。

@@ -20,13 +20,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     uiState: EditorUiState,
-    onValueChange: (TextFieldValue) -> Unit = {}
+    onValueChange: (TextFieldValue) -> Unit = {},
+    onSaveToCloud: () -> Unit = {},
+    onLoadFromCloud: (String) -> Unit = {}
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // エラーが出た時はスナックバーで表示する
+    LaunchedEffect(uiState.cloudError) {
+        if (uiState.cloudError != null) {
+            snackbarHostState.showSnackbar(uiState.cloudError)
+        }
+    }
     // 1. 記憶係（設定パネルが開いているかどうかを覚えておくメモ）
     var showSettingsSheet by remember { mutableStateOf(false) }
     
@@ -41,10 +56,33 @@ fun EditorScreen(
 
     // 画面全体の骨組み（Scaffold）を作ります
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         // 画面の上のバー（タイトルを表示）
         topBar = {
             TopAppBar(
-                title = { Text(uiState.documentTitle) }
+                title = { Text(uiState.documentTitle) },
+                actions = {
+                    if (uiState.isCloudLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    TextButton(
+                        onClick = onSaveToCloud,
+                        enabled = !uiState.isCloudLoading
+                    ) {
+                        Text("保存")
+                    }
+                    TextButton(
+                        onClick = { onLoadFromCloud(uiState.documentTitle) },
+                        enabled = !uiState.isCloudLoading
+                    ) {
+                        Text("読込")
+                    }
+                }
             )
         },
         // 画面の下のバー（ルビ付与ボタンなどを配置）

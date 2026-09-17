@@ -7,7 +7,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 import androidx.compose.ui.text.input.TextFieldValue
 
-class EditorViewModel : ViewModel() {
+import androidx.lifecycle.viewModelScope
+import com.tatextist.data.GoogleDriveRepository
+import kotlinx.coroutines.launch
+
+class EditorViewModel(
+    private val driveRepository: GoogleDriveRepository? = null
+) : ViewModel() {
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
 
@@ -17,5 +23,46 @@ class EditorViewModel : ViewModel() {
 
     fun updateContent(newContent: TextFieldValue) {
         _uiState.value = _uiState.value.copy(content = newContent)
+    }
+
+    fun saveToCloud() {
+        if (driveRepository == null) return
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+            val result = driveRepository.saveToDrive(uiState.value.content.text, uiState.value.documentTitle)
+            
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(isCloudLoading = false)
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    cloudError = result.exceptionOrNull()?.message ?: "保存に失敗しました"
+                )
+            }
+        }
+    }
+
+    fun loadFromCloud(filename: String) {
+        if (driveRepository == null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+            val result = driveRepository.loadFromDrive(filename)
+            
+            if (result.isSuccess) {
+                val content = result.getOrNull() ?: ""
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    content = TextFieldValue(text = content),
+                    documentTitle = filename
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    cloudError = result.exceptionOrNull()?.message ?: "読み込みに失敗しました"
+                )
+            }
+        }
     }
 }

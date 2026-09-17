@@ -12,15 +12,21 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 
+import io.mockk.coEvery
+import io.mockk.mockk
+import com.tatextist.data.GoogleDriveRepository
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorViewModelTest {
 
     private lateinit var viewModel: EditorViewModel
+    private lateinit var mockDriveRepository: GoogleDriveRepository
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        viewModel = EditorViewModel()
+        mockDriveRepository = mockk()
+        viewModel = EditorViewModel(driveRepository = mockDriveRepository)
     }
 
     @AfterEach
@@ -59,6 +65,35 @@ class EditorViewModelTest {
             val newState = awaitItem().content
             assertEquals("こんにちは、世界", newState.text)
             assertEquals(androidx.compose.ui.text.TextRange(0, 5), newState.selection)
+        }
+    }
+    @Test
+    fun `when saveToCloud succeeds, isCloudLoading should be false and no error`() = runTest {
+        coEvery { mockDriveRepository.saveToDrive(any(), any()) } returns Result.success(Unit)
+
+        // Action
+        viewModel.saveToCloud()
+
+        viewModel.uiState.test {
+            // State after save succeeds (due to UnconfinedTestDispatcher, execution is immediate)
+            val successState = awaitItem()
+            assertEquals(false, successState.isCloudLoading)
+            assertEquals(null, successState.cloudError)
+        }
+    }
+
+    @Test
+    fun `when loadFromCloud fails, error message should be set`() = runTest {
+        coEvery { mockDriveRepository.loadFromDrive(any()) } returns Result.failure(Exception("Not Found"))
+
+        // Action
+        viewModel.loadFromCloud("file.txt")
+
+        viewModel.uiState.test {
+            // State after load fails
+            val errorState = awaitItem()
+            assertEquals(false, errorState.isCloudLoading)
+            assertEquals("Not Found", errorState.cloudError)
         }
     }
 }

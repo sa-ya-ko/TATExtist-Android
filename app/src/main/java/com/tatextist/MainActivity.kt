@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.tatextist.data.GoogleDriveRepositoryImpl
 import com.tatextist.ui.EditorScreen
 import com.tatextist.ui.EditorViewModel
 import com.tatextist.ui.theme.TATExtistTheme
@@ -26,8 +29,16 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // エディタ画面の記憶係（ViewModel）を準備
-                    val viewModel: EditorViewModel = viewModel()
+                    // エディタ画面の記憶係（ViewModel）を準備（Driveレポジトリを注入）
+                    val viewModel: EditorViewModel = viewModel(
+                        factory = object : ViewModelProvider.Factory {
+                            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                val repo = GoogleDriveRepositoryImpl(applicationContext)
+                                @Suppress("UNCHECKED_CAST")
+                                return EditorViewModel(repo) as T
+                            }
+                        }
+                    )
                     // 記憶係が持っている状態を「常に監視」して取得（更新されたら自動で画面を描き直す）
                     val uiState by viewModel.uiState.collectAsState()
 
@@ -36,6 +47,12 @@ class MainActivity : ComponentActivity() {
                         uiState = uiState,
                         onValueChange = { newValue ->
                             viewModel.updateContent(newValue)
+                        },
+                        onSaveToCloud = {
+                            viewModel.saveToCloud()
+                        },
+                        onLoadFromCloud = { filename ->
+                            viewModel.loadFromCloud(filename)
                         }
                     )
                 }
