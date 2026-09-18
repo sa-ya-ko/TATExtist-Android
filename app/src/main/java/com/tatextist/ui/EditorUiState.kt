@@ -9,5 +9,10 @@ data class EditorUiState(
     val fontSize: Int = 12,
     val isCloudLoading: Boolean = false,
     val cloudError: String? = null,
-    val needsSignIn: Boolean = false
+    val needsSignIn: Boolean = false,
+    val characterCount: Int = 0,
+    val characterCountWithoutSpaces: Int = 0,
+    val lineCount: Int = 1,
+    val showWordCountModal: Boolean = false,
+    val showWordCountWhileTyping: Boolean = false
 )

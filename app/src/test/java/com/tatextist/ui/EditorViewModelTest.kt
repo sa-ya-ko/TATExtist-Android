@@ -98,4 +98,50 @@ class EditorViewModelTest {
             assertEquals("Not Found", errorState.cloudError)
         }
     }
+
+    @Test
+    fun `when content is updated, character and line counts should be updated`() = runTest {
+        viewModel.uiState.test {
+            // Initial state: empty text
+            val initial = awaitItem()
+            assertEquals(0, initial.characterCount)
+            assertEquals(0, initial.characterCountWithoutSpaces)
+            assertEquals(1, initial.lineCount)
+
+            // Action: input multi-line text with spaces
+            val textWithSpaces = "こんにちは\n 世界"
+            viewModel.updateContent(androidx.compose.ui.text.input.TextFieldValue(text = textWithSpaces))
+
+            // State changes:
+            // "こんにちは\n 世界" length = 9 chars
+            // without spaces/newlines: "こんにちは世界" = 7 chars
+            // lines: 2 lines
+            val updated = awaitItem()
+            assertEquals(9, updated.characterCount)
+            assertEquals(7, updated.characterCountWithoutSpaces)
+            assertEquals(2, updated.lineCount)
+        }
+    }
+
+    @Test
+    fun `word count modal and live display state should be toggled correctly`() = runTest {
+        viewModel.uiState.test {
+            // Initial state
+            val initial = awaitItem()
+            assertEquals(false, initial.showWordCountModal)
+            assertEquals(false, initial.showWordCountWhileTyping)
+
+            // Open modal
+            viewModel.openWordCountModal()
+            assertEquals(true, awaitItem().showWordCountModal)
+
+            // Toggle live display
+            viewModel.toggleShowWordCountWhileTyping(true)
+            assertEquals(true, awaitItem().showWordCountWhileTyping)
+
+            // Close modal
+            viewModel.closeWordCountModal()
+            assertEquals(false, awaitItem().showWordCountModal)
+        }
+    }
 }

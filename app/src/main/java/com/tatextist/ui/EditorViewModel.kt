@@ -22,7 +22,17 @@ class EditorViewModel(
     }
 
     fun updateContent(newContent: TextFieldValue) {
-        _uiState.value = _uiState.value.copy(content = newContent)
+        val text = newContent.text
+        val charCount = text.length
+        val charCountWithoutSpaces = text.replace("\\s+".toRegex(), "").length
+        val lineCount = if (text.isEmpty()) 1 else text.lines().size
+
+        _uiState.value = _uiState.value.copy(
+            content = newContent,
+            characterCount = charCount,
+            characterCountWithoutSpaces = charCountWithoutSpaces,
+            lineCount = lineCount
+        )
     }
 
     fun saveToCloud() {
@@ -72,10 +82,17 @@ class EditorViewModel(
             
             if (result.isSuccess) {
                 val content = result.getOrNull() ?: ""
+                val charCount = content.length
+                val charCountWithoutSpaces = content.replace("\\s+".toRegex(), "").length
+                val lineCount = if (content.isEmpty()) 1 else content.lines().size
+
                 _uiState.value = _uiState.value.copy(
                     isCloudLoading = false,
                     content = TextFieldValue(text = content),
-                    documentTitle = filename
+                    documentTitle = filename,
+                    characterCount = charCount,
+                    characterCountWithoutSpaces = charCountWithoutSpaces,
+                    lineCount = lineCount
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
@@ -88,5 +105,17 @@ class EditorViewModel(
 
     fun onSignInLaunched() {
         _uiState.value = _uiState.value.copy(needsSignIn = false)
+    }
+
+    fun openWordCountModal() {
+        _uiState.value = _uiState.value.copy(showWordCountModal = true)
+    }
+
+    fun closeWordCountModal() {
+        _uiState.value = _uiState.value.copy(showWordCountModal = false)
+    }
+
+    fun toggleShowWordCountWhileTyping(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(showWordCountWhileTyping = enabled)
     }
 }

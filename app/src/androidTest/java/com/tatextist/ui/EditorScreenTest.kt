@@ -67,4 +67,53 @@ class EditorScreenTest {
         // 適用ボタンが押された後、パネルがきちんと閉じて画面から消えているかを確認
         composeTestRule.onNodeWithText("適用").assertDoesNotExist()
     }
+
+    @Test
+    fun editorScreen_displaysCharacterAndLineCount_onlyWhenEnabled() {
+        // 通常時（showWordCountWhileTyping = false）は常時表示されない
+        val defaultState = EditorUiState(characterCount = 42, lineCount = 3, showWordCountWhileTyping = false)
+        composeTestRule.setContent { EditorScreen(uiState = defaultState) }
+        composeTestRule.onNodeWithText("42字").assertDoesNotExist()
+
+        // 有効時（showWordCountWhileTyping = true）は表示される（行数は表示されない）
+        val enabledState = EditorUiState(characterCount = 42, lineCount = 3, showWordCountWhileTyping = true)
+        composeTestRule.setContent { EditorScreen(uiState = enabledState) }
+        composeTestRule.onNodeWithText("42字").assertIsDisplayed()
+        composeTestRule.onNodeWithText("3行").assertDoesNotExist()
+    }
+
+    @Test
+    fun editorScreen_tappingCharacterCount_opensWordCountModal() {
+        var modalOpened = false
+        val enabledState = EditorUiState(characterCount = 42, showWordCountWhileTyping = true)
+        composeTestRule.setContent {
+            EditorScreen(
+                uiState = enabledState,
+                onOpenWordCountModal = { modalOpened = true }
+            )
+        }
+
+        // 下部バーの「42字」をタップするとコールバックが呼ばれること
+        composeTestRule.onNodeWithText("42字").performClick()
+        assert(modalOpened)
+    }
+
+    @Test
+    fun editorScreen_displaysWordCountModal_whenShowWordCountModalIsTrue() {
+        val modalState = EditorUiState(
+            characterCount = 100,
+            characterCountWithoutSpaces = 85,
+            showWordCountModal = true
+        )
+        composeTestRule.setContent { EditorScreen(uiState = modalState) }
+
+        // モーダル内の項目が表示されることを確認
+        composeTestRule.onNodeWithText("文字カウント").assertIsDisplayed()
+        composeTestRule.onNodeWithText("文字数（スペースなし）").assertIsDisplayed()
+        composeTestRule.onNodeWithText("85").assertIsDisplayed()
+        composeTestRule.onNodeWithText("文字数（スペースあり）").assertIsDisplayed()
+        composeTestRule.onNodeWithText("100").assertIsDisplayed()
+        composeTestRule.onNodeWithText("入力中に文字数を表示する").assertIsDisplayed()
+        composeTestRule.onNodeWithText("OK").assertIsDisplayed()
+    }
 }

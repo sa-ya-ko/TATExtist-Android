@@ -76,6 +76,15 @@ class MainActivity : ComponentActivity() {
                         },
                         onLoadFromCloud = { filename ->
                             viewModel.loadFromCloud(filename)
+                        },
+                        onOpenWordCountModal = {
+                            viewModel.openWordCountModal()
+                        },
+                        onCloseWordCountModal = {
+                            viewModel.closeWordCountModal()
+                        },
+                        onToggleShowWordCountWhileTyping = { enabled ->
+                            viewModel.toggleShowWordCountWhileTyping(enabled)
                         }
                     )
                 }

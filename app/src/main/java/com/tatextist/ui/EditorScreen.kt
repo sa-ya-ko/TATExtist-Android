@@ -32,7 +32,10 @@ fun EditorScreen(
     uiState: EditorUiState,
     onValueChange: (TextFieldValue) -> Unit = {},
     onSaveToCloud: () -> Unit = {},
-    onLoadFromCloud: (String) -> Unit = {}
+    onLoadFromCloud: (String) -> Unit = {},
+    onOpenWordCountModal: () -> Unit = {},
+    onCloseWordCountModal: () -> Unit = {},
+    onToggleShowWordCountWhileTyping: (Boolean) -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -45,6 +48,9 @@ fun EditorScreen(
     // 1. 記憶係（設定パネルが開いているかどうかを覚えておくメモ）
     var showSettingsSheet by remember { mutableStateOf(false) }
     
+    // ツールメニュードロップダウンの開閉状態
+    var showToolsMenu by remember { mutableStateOf(false) }
+
     // 2. ルビの「ふりがな」を入力するための記憶係
     var rubyReading by remember { mutableStateOf("") }
     
@@ -82,6 +88,25 @@ fun EditorScreen(
                     ) {
                         Text("読込")
                     }
+
+                    // 「ツール」ドロップダウンメニュー
+                    Box {
+                        TextButton(onClick = { showToolsMenu = true }) {
+                            Text("ツール")
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = showToolsMenu,
+                            onDismissRequest = { showToolsMenu = false }
+                        ) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("文字カウント") },
+                                onClick = {
+                                    showToolsMenu = false
+                                    onOpenWordCountModal()
+                                }
+                            )
+                        }
+                    }
                 }
             )
         },
@@ -97,6 +122,20 @@ fun EditorScreen(
                 }
                 
                 Spacer(modifier = Modifier.weight(1f))
+
+                // 「入力中に文字数を表示する」が有効な場合のみリアルタイム表示（タップで詳細モーダルを開く）
+                if (uiState.showWordCountWhileTyping) {
+                    TextButton(
+                        onClick = onOpenWordCountModal,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "${uiState.characterCount}字",
+                            style = androidx.compose.material3.MaterialTheme.typography.labelLarge
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                }
                 
                 TextButton(onClick = { formatCommand = "bold" }) {
                     Text("B", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
@@ -171,5 +210,72 @@ fun EditorScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+
+    // 4. 文字カウントモーダル（Web版のWordCountModalに準拠）
+    if (uiState.showWordCountModal) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onCloseWordCountModal,
+            title = {
+                Text(
+                    text = "文字カウント",
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("文字数（スペースなし）")
+                        Text(
+                            text = "${uiState.characterCountWithoutSpaces}",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    }
+                    androidx.compose.material3.HorizontalDivider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("文字数（スペースあり）")
+                        Text(
+                            text = "${uiState.characterCount}",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    }
+                    androidx.compose.material3.HorizontalDivider()
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = uiState.showWordCountWhileTyping,
+                            onCheckedChange = onToggleShowWordCountWhileTyping
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "入力中に文字数を表示する",
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onCloseWordCountModal) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
