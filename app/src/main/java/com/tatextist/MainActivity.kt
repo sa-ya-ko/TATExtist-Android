@@ -68,6 +68,9 @@ class MainActivity : ComponentActivity() {
                     // 私たちが作ったエディタ画面を表示！
                     EditorScreen(
                         uiState = uiState,
+                        onTitleChange = { newTitle ->
+                            viewModel.updateTitle(newTitle)
+                        },
                         onValueChange = { newValue ->
                             viewModel.updateContent(newValue)
                         },

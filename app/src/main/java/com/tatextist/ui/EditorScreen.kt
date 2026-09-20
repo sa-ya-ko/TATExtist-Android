@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun EditorScreen(
     uiState: EditorUiState,
+    onTitleChange: (String) -> Unit = {},
     onValueChange: (TextFieldValue) -> Unit = {},
     onSaveToCloud: () -> Unit = {},
     onLoadFromCloud: () -> Unit = {},
@@ -66,10 +67,37 @@ fun EditorScreen(
     // 画面全体の骨組み（Scaffold）を作ります
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        // 画面の上のバー（タイトルを表示）
+        // 画面の上のバー（タイトルを表示・編集）
         topBar = {
             TopAppBar(
-                title = { Text(uiState.documentTitle) },
+                title = {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = uiState.documentTitle,
+                        onValueChange = onTitleChange,
+                        singleLine = true,
+                        textStyle = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                        ),
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (uiState.documentTitle.isEmpty()) {
+                                    Text(
+                                        text = "無題のドキュメント",
+                                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
                 actions = {
                     if (uiState.isCloudLoading) {
                         CircularProgressIndicator(

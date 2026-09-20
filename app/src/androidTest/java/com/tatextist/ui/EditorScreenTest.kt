@@ -144,4 +144,20 @@ class EditorScreenTest {
         composeTestRule.onNodeWithText("こころ.txt").performClick()
         assert(selectedFile?.name == "こころ.txt")
     }
+
+    @Test
+    fun editorScreen_allowsEditingTitle() {
+        var updatedTitle = ""
+        val initialState = EditorUiState(documentTitle = "無題のドキュメント")
+        composeTestRule.setContent {
+            EditorScreen(
+                uiState = initialState,
+                onTitleChange = { updatedTitle = it }
+            )
+        }
+
+        // タイトル入力欄を見つけて新しいタイトルを入力する
+        composeTestRule.onNodeWithText("無題のドキュメント").performTextInput(" (新)")
+        assert(updatedTitle.isNotEmpty())
+    }
 }
