@@ -100,4 +100,53 @@ class GoogleDriveRepositoryImpl(private val context: Context) : GoogleDriveRepos
             Result.failure(e)
         }
     }
+
+    override suspend fun loadFromDriveById(fileId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val driveService = getDriveService() ?: return@withContext Result.failure(Exception("Google Driveに接続できません"))
+            val outputStream = java.io.ByteArrayOutputStream()
+            driveService.files().get(fileId).executeMediaAndDownloadTo(outputStream)
+            Result.success(outputStream.toString("UTF-8"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun listDriveFiles(): Result<List<DriveFileInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val driveService = getDriveService() ?: return@withContext Result.failure(Exception("Google Driveに接続できません"))
+            val query = "trashed = false"
+            val fileList = driveService.files().list()
+                .setQ(query)
+                .setSpaces("drive")
+                .setFields("files(id, name)")
+                .setOrderBy("modifiedTime desc")
+                .execute()
+
+            val files = fileList.files?.map { file ->
+                DriveFileInfo(id = file.id, name = file.name)
+            } ?: emptyList()
+
+            Result.success(files)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun signOut(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            com.google.android.gms.tasks.Tasks.await(googleSignInClient.signOut())
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override fun isSignedIn(): Boolean {
+        val account = GoogleSignIn.getLastSignedInAccount(context)
+        return account != null && GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))
+    }
 }

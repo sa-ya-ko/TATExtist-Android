@@ -17,6 +17,11 @@ class EditorViewModel(
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
 
+    init {
+        val initialSignedIn = driveRepository?.isSignedIn() ?: false
+        _uiState.value = _uiState.value.copy(isDriveSignedIn = initialSignedIn)
+    }
+
     fun updateTitle(newTitle: String) {
         _uiState.value = _uiState.value.copy(documentTitle = newTitle)
     }
@@ -45,11 +50,13 @@ class EditorViewModel(
             if (signInResult.isFailure) {
                 _uiState.value = _uiState.value.copy(
                     isCloudLoading = false,
-                    needsSignIn = true
+                    needsSignIn = true,
+                    isDriveSignedIn = false
                 )
                 return@launch
             }
 
+            _uiState.value = _uiState.value.copy(isDriveSignedIn = true)
             val result = driveRepository.saveToDrive(uiState.value.content.text, uiState.value.documentTitle)
             
             if (result.isSuccess) {
@@ -73,11 +80,13 @@ class EditorViewModel(
             if (signInResult.isFailure) {
                 _uiState.value = _uiState.value.copy(
                     isCloudLoading = false,
-                    needsSignIn = true
+                    needsSignIn = true,
+                    isDriveSignedIn = false
                 )
                 return@launch
             }
 
+            _uiState.value = _uiState.value.copy(isDriveSignedIn = true)
             val result = driveRepository.loadFromDrive(filename)
             
             if (result.isSuccess) {
@@ -103,6 +112,27 @@ class EditorViewModel(
         }
     }
 
+    fun signOutFromCloud() {
+        if (driveRepository == null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+            val result = driveRepository.signOut()
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    isDriveSignedIn = false,
+                    cloudError = "Drive連携を解除しました"
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    cloudError = result.exceptionOrNull()?.message ?: "連携解除に失敗しました"
+                )
+            }
+        }
+    }
+
     fun onSignInLaunched() {
         _uiState.value = _uiState.value.copy(needsSignIn = false)
     }
@@ -117,5 +147,87 @@ class EditorViewModel(
 
     fun toggleShowWordCountWhileTyping(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(showWordCountWhileTyping = enabled)
+    }
+
+    fun fetchDriveFiles() {
+        if (driveRepository == null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+
+            val signInResult = driveRepository.signIn()
+            if (signInResult.isFailure) {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    needsSignIn = true,
+                    isDriveSignedIn = false
+                )
+                return@launch
+            }
+
+            _uiState.value = _uiState.value.copy(isDriveSignedIn = true)
+            val result = driveRepository.listDriveFiles()
+
+            if (result.isSuccess) {
+                val files = result.getOrNull() ?: emptyList()
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    cloudFiles = files,
+                    showFilePickerModal = true
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    cloudError = result.exceptionOrNull()?.message ?: "ファイル一覧の取得に失敗しました"
+                )
+            }
+        }
+    }
+
+    fun loadDriveFile(file: com.tatextist.data.DriveFileInfo) {
+        if (driveRepository == null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCloudLoading = true, cloudError = null)
+
+            val signInResult = driveRepository.signIn()
+            if (signInResult.isFailure) {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    needsSignIn = true,
+                    isDriveSignedIn = false
+                )
+                return@launch
+            }
+
+            _uiState.value = _uiState.value.copy(isDriveSignedIn = true)
+            val result = driveRepository.loadFromDriveById(file.id)
+
+            if (result.isSuccess) {
+                val content = result.getOrNull() ?: ""
+                val charCount = content.length
+                val charCountWithoutSpaces = content.replace("\\s+".toRegex(), "").length
+                val lineCount = if (content.isEmpty()) 1 else content.lines().size
+
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    content = TextFieldValue(text = content),
+                    documentTitle = file.name,
+                    characterCount = charCount,
+                    characterCountWithoutSpaces = charCountWithoutSpaces,
+                    lineCount = lineCount,
+                    showFilePickerModal = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isCloudLoading = false,
+                    cloudError = result.exceptionOrNull()?.message ?: "読み込みに失敗しました"
+                )
+            }
+        }
+    }
+
+    fun closeFilePickerModal() {
+        _uiState.value = _uiState.value.copy(showFilePickerModal = false)
     }
 }

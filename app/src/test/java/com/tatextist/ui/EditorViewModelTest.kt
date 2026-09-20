@@ -25,7 +25,7 @@ class EditorViewModelTest {
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        mockDriveRepository = mockk()
+        mockDriveRepository = mockk(relaxed = true)
         viewModel = EditorViewModel(driveRepository = mockDriveRepository)
     }
 
@@ -142,6 +142,53 @@ class EditorViewModelTest {
             // Close modal
             viewModel.closeWordCountModal()
             assertEquals(false, awaitItem().showWordCountModal)
+        }
+    }
+
+    @Test
+    fun `when signOutFromCloud succeeds, isDriveSignedIn should be false`() = runTest {
+        coEvery { mockDriveRepository.signOut() } returns Result.success(Unit)
+
+        viewModel.signOutFromCloud()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(false, state.isDriveSignedIn)
+        }
+    }
+
+    @Test
+    fun `when fetchDriveFiles succeeds, cloudFiles and showFilePickerModal should be updated`() = runTest {
+        val mockFiles = listOf(
+            com.tatextist.data.DriveFileInfo(id = "1", name = "作品1.txt"),
+            com.tatextist.data.DriveFileInfo(id = "2", name = "作品2.txt")
+        )
+        coEvery { mockDriveRepository.signIn() } returns Result.success(Unit)
+        coEvery { mockDriveRepository.listDriveFiles() } returns Result.success(mockFiles)
+
+        viewModel.fetchDriveFiles()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(true, state.showFilePickerModal)
+            assertEquals(2, state.cloudFiles.size)
+            assertEquals("作品1.txt", state.cloudFiles[0].name)
+        }
+    }
+
+    @Test
+    fun `when loadDriveFile succeeds, content and title should update and modal should close`() = runTest {
+        val targetFile = com.tatextist.data.DriveFileInfo(id = "file123", name = "吾輩は猫である.txt")
+        coEvery { mockDriveRepository.signIn() } returns Result.success(Unit)
+        coEvery { mockDriveRepository.loadFromDriveById("file123") } returns Result.success("吾輩は猫である。名前はまだ無い。")
+
+        viewModel.loadDriveFile(targetFile)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(false, state.showFilePickerModal)
+            assertEquals("吾輩は猫である.txt", state.documentTitle)
+            assertEquals("吾輩は猫である。名前はまだ無い。", state.content.text)
         }
     }
 }

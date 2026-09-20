@@ -116,4 +116,32 @@ class EditorScreenTest {
         composeTestRule.onNodeWithText("入力中に文字数を表示する").assertIsDisplayed()
         composeTestRule.onNodeWithText("OK").assertIsDisplayed()
     }
+
+    @Test
+    fun editorScreen_displaysFilePickerModal_andHandlesSelection() {
+        var selectedFile: com.tatextist.data.DriveFileInfo? = null
+        val testFiles = listOf(
+            com.tatextist.data.DriveFileInfo(id = "1", name = "こころ.txt"),
+            com.tatextist.data.DriveFileInfo(id = "2", name = "銀河鉄道の夜.txt")
+        )
+        val modalState = EditorUiState(
+            cloudFiles = testFiles,
+            showFilePickerModal = true
+        )
+        composeTestRule.setContent {
+            EditorScreen(
+                uiState = modalState,
+                onSelectDriveFile = { selectedFile = it }
+            )
+        }
+
+        // ダイアログのタイトルとファイル一覧が表示されること
+        composeTestRule.onNodeWithText("Driveから開く").assertIsDisplayed()
+        composeTestRule.onNodeWithText("こころ.txt").assertIsDisplayed()
+        composeTestRule.onNodeWithText("銀河鉄道の夜.txt").assertIsDisplayed()
+
+        // ファイル名をタップすると選択コールバックが呼ばれること
+        composeTestRule.onNodeWithText("こころ.txt").performClick()
+        assert(selectedFile?.name == "こころ.txt")
+    }
 }

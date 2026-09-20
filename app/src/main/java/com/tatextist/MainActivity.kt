@@ -74,8 +74,17 @@ class MainActivity : ComponentActivity() {
                         onSaveToCloud = {
                             viewModel.saveToCloud()
                         },
-                        onLoadFromCloud = { filename ->
-                            viewModel.loadFromCloud(filename)
+                        onLoadFromCloud = {
+                            viewModel.fetchDriveFiles()
+                        },
+                        onSelectDriveFile = { file ->
+                            viewModel.loadDriveFile(file)
+                        },
+                        onCloseFilePickerModal = {
+                            viewModel.closeFilePickerModal()
+                        },
+                        onSignOutFromCloud = {
+                            viewModel.signOutFromCloud()
                         },
                         onOpenWordCountModal = {
                             viewModel.openWordCountModal()

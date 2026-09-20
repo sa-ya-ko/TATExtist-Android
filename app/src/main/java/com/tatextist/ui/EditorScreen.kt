@@ -32,7 +32,10 @@ fun EditorScreen(
     uiState: EditorUiState,
     onValueChange: (TextFieldValue) -> Unit = {},
     onSaveToCloud: () -> Unit = {},
-    onLoadFromCloud: (String) -> Unit = {},
+    onLoadFromCloud: () -> Unit = {},
+    onSelectDriveFile: (com.tatextist.data.DriveFileInfo) -> Unit = {},
+    onCloseFilePickerModal: () -> Unit = {},
+    onSignOutFromCloud: () -> Unit = {},
     onOpenWordCountModal: () -> Unit = {},
     onCloseWordCountModal: () -> Unit = {},
     onToggleShowWordCountWhileTyping: (Boolean) -> Unit = {}
@@ -48,7 +51,7 @@ fun EditorScreen(
     // 1. 記憶係（設定パネルが開いているかどうかを覚えておくメモ）
     var showSettingsSheet by remember { mutableStateOf(false) }
     
-    // ツールメニュードロップダウンの開閉状態
+    // ツールメデュードロップダウンの開閉状態
     var showToolsMenu by remember { mutableStateOf(false) }
 
     // 2. ルビの「ふりがな」を入力するための記憶係
@@ -83,7 +86,7 @@ fun EditorScreen(
                         Text("保存")
                     }
                     TextButton(
-                        onClick = { onLoadFromCloud(uiState.documentTitle) },
+                        onClick = onLoadFromCloud,
                         enabled = !uiState.isCloudLoading
                     ) {
                         Text("読込")
@@ -105,6 +108,21 @@ fun EditorScreen(
                                     onOpenWordCountModal()
                                 }
                             )
+                            if (uiState.isDriveSignedIn) {
+                                androidx.compose.material3.HorizontalDivider()
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { 
+                                        Text(
+                                            text = "Drive連携解除",
+                                            color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                                        ) 
+                                    },
+                                    onClick = {
+                                        showToolsMenu = false
+                                        onSignOutFromCloud()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -274,6 +292,65 @@ fun EditorScreen(
             confirmButton = {
                 Button(onClick = onCloseWordCountModal) {
                     Text("OK")
+                }
+            }
+        )
+    }
+
+    // 5. Google Drive ファイル選択モーダル
+    if (uiState.showFilePickerModal) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onCloseFilePickerModal,
+            title = {
+                Text(
+                    text = "Driveから開く",
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                if (uiState.cloudFiles.isEmpty()) {
+                    Text(
+                        text = "保存されているファイルがありません",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        items(uiState.cloudFiles.size) { index ->
+                            val file = uiState.cloudFiles[index]
+                            androidx.compose.material3.Surface(
+                                onClick = { onSelectDriveFile(file) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                color = androidx.compose.ui.graphics.Color.Transparent
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = file.name,
+                                        style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                            if (index < uiState.cloudFiles.size - 1) {
+                                androidx.compose.material3.HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onCloseFilePickerModal) {
+                    Text("キャンセル")
                 }
             }
         )

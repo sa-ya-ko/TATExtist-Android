@@ -1,6 +1,7 @@
 package com.tatextist.ui
 
 import androidx.compose.ui.text.input.TextFieldValue
+import com.tatextist.data.DriveFileInfo
 
 data class EditorUiState(
     val documentTitle: String = "無題のドキュメント",
@@ -14,5 +15,8 @@ data class EditorUiState(
     val characterCountWithoutSpaces: Int = 0,
     val lineCount: Int = 1,
     val showWordCountModal: Boolean = false,
-    val showWordCountWhileTyping: Boolean = false
+    val showWordCountWhileTyping: Boolean = false,
+    val isDriveSignedIn: Boolean = false,
+    val cloudFiles: List<DriveFileInfo> = emptyList(),
+    val showFilePickerModal: Boolean = false
 )
