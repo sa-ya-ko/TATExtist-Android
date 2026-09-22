@@ -24,11 +24,14 @@ fun VerticalEditor(
     onRubyApplied: () -> Unit = {},
     formatCommand: String? = null,
     onFormatApplied: () -> Unit = {},
+    fontSize: Int = 20,
+    fontFamily: EditorFontFamily = EditorFontFamily.SERIF,
     modifier: Modifier = Modifier
 ) {
     // ダークモード判定：端末の設定に合わせてテキスト色を切り替えます
     val isDarkTheme = isSystemInDarkTheme()
     val textColorCss = if (isDarkTheme) "#FFFFFF" else "#000000"
+    val fontFamilyCss = if (fontFamily == EditorFontFamily.SERIF) "serif, 'Noto Serif JP'" else "sans-serif, 'Noto Sans JP'"
 
     // WebViewとComposeのテキスト状態を同期するための変数（ループ防止用）
     // mutableStateOfを使うと不要な再描画が走り、IMEの漢字変換（コンポジション）が強制終了されるため、配列で状態を持たせます
@@ -92,9 +95,9 @@ fun VerticalEditor(
                                 width: 100vw;
                                 box-sizing: border-box;
                                 padding: 20px;
-                                font-size: 20px;
+                                font-size: ${fontSize}px;
                                 line-height: 2;
-                                font-family: serif;
+                                font-family: $fontFamilyCss;
                                 outline: none;
                                 overflow-x: auto;
                                 overflow-y: hidden;
@@ -158,6 +161,11 @@ fun VerticalEditor(
         update = { webView ->
             // テーマ（ダーク/ライト）が切り替わった時に、文字色をリアルタイムに更新する
             webView.evaluateJavascript("document.getElementById('editor').style.color = '$textColorCss';", null)
+            // フォントサイズと書体のリアルタイム更新
+            webView.evaluateJavascript(
+                "var ed = document.getElementById('editor'); if (ed) { ed.style.fontSize = '${fontSize}px'; ed.style.fontFamily = \"$fontFamilyCss\"; }",
+                null
+            )
             
             if (rubyRequest != null) {
                 // ルビリクエストが来た場合、保存しておいた選択範囲を使ってルビを挿入する

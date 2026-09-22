@@ -97,6 +97,21 @@ class MainActivity : ComponentActivity() {
                         },
                         onToggleShowWordCountWhileTyping = { enabled ->
                             viewModel.toggleShowWordCountWhileTyping(enabled)
+                        },
+                        onOpenFontSettings = {
+                            viewModel.openFontSettingsBottomSheet()
+                        },
+                        onCloseFontSettings = {
+                            viewModel.closeFontSettingsBottomSheet()
+                        },
+                        onFontFamilyChange = { fontFamily ->
+                            viewModel.updateFontFamily(fontFamily)
+                        },
+                        onIncreaseFontSize = {
+                            viewModel.increaseFontSize()
+                        },
+                        onDecreaseFontSize = {
+                            viewModel.decreaseFontSize()
                         }
                     )
                 }

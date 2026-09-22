@@ -40,6 +40,37 @@ class EditorViewModel(
         )
     }
 
+    fun updateFontFamily(fontFamily: EditorFontFamily) {
+        _uiState.value = _uiState.value.copy(fontFamily = fontFamily)
+    }
+
+    fun updateFontSize(newSize: Int) {
+        val clampedSize = newSize.coerceIn(12, 36)
+        _uiState.value = _uiState.value.copy(fontSize = clampedSize)
+    }
+
+    fun increaseFontSize() {
+        val currentSize = _uiState.value.fontSize
+        if (currentSize < 36) {
+            updateFontSize(currentSize + 1)
+        }
+    }
+
+    fun decreaseFontSize() {
+        val currentSize = _uiState.value.fontSize
+        if (currentSize > 12) {
+            updateFontSize(currentSize - 1)
+        }
+    }
+
+    fun openFontSettingsBottomSheet() {
+        _uiState.value = _uiState.value.copy(showFontSettingsBottomSheet = true)
+    }
+
+    fun closeFontSettingsBottomSheet() {
+        _uiState.value = _uiState.value.copy(showFontSettingsBottomSheet = false)
+    }
+
     fun saveToCloud() {
         if (driveRepository == null) return
         
