@@ -167,20 +167,18 @@ fun VerticalEditor(
                         var baseText = range.toString();
                         if (baseText.length > 0) {
                             var html = "<ruby>" + baseText + "<rt>${rubyRequest}</rt></ruby>";
-                            var span = document.createElement("span");
-                            span.innerHTML = html;
-                            
-                            var frag = document.createDocumentFragment();
-                            while(span.firstChild) {
-                                frag.appendChild(span.firstChild);
-                            }
                             
                             window.ignoreSelectionChange = true;
-                            range.deleteContents();
-                            range.insertNode(frag);
+                            
+                            // 保存された範囲をブラウザのアクティブな選択状態として復元
+                            var sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                            
+                            // ブラウザの編集履歴（Undoスタック）に正しく記録させながらルビを挿入
+                            document.execCommand('insertHTML', false, html);
                             
                             // 挿入後、選択状態を完全に解除する（二重実行バグ防止）
-                            var sel = window.getSelection();
                             sel.removeAllRanges();
                             
                             // 挿入後、変更されたHTMLをAndroid側に送信
@@ -197,9 +195,15 @@ fun VerticalEditor(
                     onRubyApplied()
                 }
             } else if (formatCommand != null) {
-                // 文字装飾（太字、斜体、ルビ解除）のリクエストが来た場合
+                // 文字装飾やUndo/Redoのリクエストが来た場合
                 val js = """
-                    if (window.savedRange && !window.savedRange.collapsed) {
+                    if ('$formatCommand' === 'undo') {
+                        document.execCommand('undo', false, null);
+                        AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                    } else if ('$formatCommand' === 'redo') {
+                        document.execCommand('redo', false, null);
+                        AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                    } else if (window.savedRange && !window.savedRange.collapsed) {
                         var range = window.savedRange;
                         var sel = window.getSelection();
                         sel.removeAllRanges();

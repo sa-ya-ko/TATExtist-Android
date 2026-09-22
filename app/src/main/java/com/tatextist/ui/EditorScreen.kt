@@ -22,6 +22,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
@@ -99,6 +104,25 @@ fun EditorScreen(
                     )
                 },
                 actions = {
+                    IconButton(
+                        onClick = { formatCommand = "undo" },
+                        enabled = !uiState.isCloudLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "元に戻す"
+                        )
+                    }
+                    IconButton(
+                        onClick = { formatCommand = "redo" },
+                        enabled = !uiState.isCloudLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Redo,
+                            contentDescription = "やり直す"
+                        )
+                    }
+
                     if (uiState.isCloudLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier

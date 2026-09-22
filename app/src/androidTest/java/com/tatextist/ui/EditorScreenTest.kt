@@ -2,6 +2,7 @@ package com.tatextist.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -159,5 +160,16 @@ class EditorScreenTest {
         // タイトル入力欄を見つけて新しいタイトルを入力する
         composeTestRule.onNodeWithText("無題のドキュメント").performTextInput(" (新)")
         assert(updatedTitle.isNotEmpty())
+    }
+
+    @Test
+    fun editorScreen_hasUndoAndRedoButtons() {
+        composeTestRule.setContent {
+            EditorScreen(uiState = EditorUiState())
+        }
+
+        // Undo（元に戻す）ボタンとRedo（やり直す）ボタンが表示されていること
+        composeTestRule.onNodeWithContentDescription("元に戻す").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("やり直す").assertIsDisplayed()
     }
 }
