@@ -1063,13 +1063,13 @@ function handleFontSizeEnter(e: KeyboardEvent) {
 function selectDropdownFontSize(size: number) {
   currentFontSize.value = size
   showFontSizeDropdown.value = false
-  commitFontSize()
   editor.value?.focus({ preventScroll: true })
   const sel = window.getSelection()
   if (lastEditorRange) {
     sel?.removeAllRanges()
     sel?.addRange(lastEditorRange)
   }
+  commitFontSize()
 }
 
 function changeFontSize(delta: number) {
@@ -1081,6 +1081,59 @@ function changeFontSize(delta: number) {
   if (size < 1) size = 1
   currentFontSize.value = size
   applyCustomFontSize(size.toString())
+}
+
+function applyCustomFontFamily(fontFamily: string) {
+  const sel = window.getSelection();
+  if (lastEditorRange && document.activeElement?.tagName !== 'INPUT') {
+    editor.value?.focus({ preventScroll: true });
+    sel?.removeAllRanges();
+    sel?.addRange(lastEditorRange);
+  }
+
+  const tempFont = '__CUSTOM_FONT_FAMILY__';
+  document.execCommand('fontName', false, tempFont);
+
+  if (editor.value) {
+    const fonts = Array.from(editor.value.querySelectorAll(`font[face="${tempFont}"]`));
+    const modifiedElements: HTMLElement[] = [];
+
+    fonts.forEach((font: Element) => {
+      const el = font as HTMLElement;
+      el.removeAttribute('face');
+      el.style.fontFamily = fontFamily;
+      let finalEl: HTMLElement = el;
+
+      const span = document.createElement('span');
+      span.setAttribute('style', el.getAttribute('style') || '');
+      while (el.firstChild) span.appendChild(el.firstChild);
+      el.parentNode?.replaceChild(span, el);
+      finalEl = span;
+
+      finalEl.querySelectorAll('rt').forEach(rtElem => {
+        (rtElem as HTMLElement).style.removeProperty('font-size');
+      });
+      modifiedElements.push(finalEl);
+    });
+
+    if (modifiedElements.length > 0) {
+      try {
+        const newRange = document.createRange();
+        newRange.setStartBefore(modifiedElements[0]);
+        newRange.setEndAfter(modifiedElements[modifiedElements.length - 1]);
+        sel?.removeAllRanges();
+        sel?.addRange(newRange);
+        lastEditorRange = newRange.cloneRange();
+      } catch (e) {
+        console.warn("Could not perfectly restore selection", e);
+      }
+    }
+  }
+
+  currentFontFamily.value = fontFamily;
+  onInput();
+  repairSplitRubies();
+  syncRubyStyles();
 }
 
 function applyCustomFontSize(ptSize: string) {
@@ -1134,6 +1187,7 @@ function applyCustomFontSize(ptSize: string) {
   }
 
   onInput();
+  repairSplitRubies();
   syncUnderlineColors();
   syncRubyStyles();
 }
@@ -2073,6 +2127,7 @@ export const useEditorState = () => {
     handleFontSizeEnter,
     selectDropdownFontSize,
     changeFontSize,
+    applyCustomFontFamily,
     applyColor,
     onInput,
     openRubyModal,

@@ -99,7 +99,7 @@
                   <span class="material-symbols-outlined text-[16px] pointer-events-none">arrow_drop_down</span>
               </button>
               <ul v-if="showFontFamilyDropdown" class="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 w-full md:absolute md:bottom-auto md:top-full md:mb-0 md:mt-1 md:left-1/2 md:-translate-x-1/2 md:w-max md:min-w-[160px] bg-white dark:bg-gray-800 border-t md:border border-gray-200 dark:border-gray-700 md:rounded shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.1)] md:shadow-lg z-[100] max-h-[50vh] overflow-y-auto list-none p-0 m-0">
-                  <li v-for="font in fontOptions" :key="font.value" @mousedown.prevent="() => { execCommand('fontName', font.value); currentFontFamily = font.value; showFontFamilyDropdown = false }" class="px-4 py-4 md:px-2 md:py-1.5 text-center text-lg md:text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 transition-colors whitespace-nowrap border-b border-gray-100 dark:border-gray-700 md:border-none" :style="{ fontFamily: font.value }">
+                  <li v-for="font in fontOptions" :key="font.value" @mousedown.prevent="() => { applyCustomFontFamily(font.value); showFontFamilyDropdown = false }" class="px-4 py-4 md:px-2 md:py-1.5 text-center text-lg md:text-sm hover:bg-surface-container-low dark:hover:bg-gray-700 cursor-pointer text-on-surface dark:text-gray-200 m-0 transition-colors whitespace-nowrap border-b border-gray-100 dark:border-gray-700 md:border-none" :style="{ fontFamily: font.value }">
                       {{ font.label }}
                   </li>
               </ul>
@@ -318,6 +318,7 @@ const {
   commitFontSize,
   handleFontSizeEnter,
   selectDropdownFontSize,
+  applyCustomFontFamily,
   applyColor,
   openRubyModal,
   removeRuby,
