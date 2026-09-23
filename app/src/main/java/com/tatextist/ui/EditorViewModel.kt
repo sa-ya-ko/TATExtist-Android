@@ -41,12 +41,18 @@ class EditorViewModel(
     }
 
     fun updateFontFamily(fontFamily: EditorFontFamily) {
-        _uiState.value = _uiState.value.copy(fontFamily = fontFamily)
+        _uiState.value = _uiState.value.copy(
+            fontFamily = fontFamily,
+            fontApplyRequest = FontApplyRequest(fontFamily = fontFamily)
+        )
     }
 
     fun updateFontSize(newSize: Int) {
         val clampedSize = newSize.coerceIn(12, 36)
-        _uiState.value = _uiState.value.copy(fontSize = clampedSize)
+        _uiState.value = _uiState.value.copy(
+            fontSize = clampedSize,
+            fontApplyRequest = FontApplyRequest(fontSize = clampedSize)
+        )
     }
 
     fun increaseFontSize() {
@@ -61,6 +67,17 @@ class EditorViewModel(
         if (currentSize > 12) {
             updateFontSize(currentSize - 1)
         }
+    }
+
+    fun updateDetectedStyle(fontFamily: EditorFontFamily, fontSize: Int) {
+        _uiState.value = _uiState.value.copy(
+            fontFamily = fontFamily,
+            fontSize = fontSize.coerceIn(12, 36)
+        )
+    }
+
+    fun consumeFontApplyRequest() {
+        _uiState.value = _uiState.value.copy(fontApplyRequest = null)
     }
 
     fun openFontSettingsBottomSheet() {

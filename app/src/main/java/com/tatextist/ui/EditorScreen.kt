@@ -50,7 +50,9 @@ fun EditorScreen(
     onCloseFontSettings: () -> Unit = {},
     onFontFamilyChange: (EditorFontFamily) -> Unit = {},
     onIncreaseFontSize: () -> Unit = {},
-    onDecreaseFontSize: () -> Unit = {}
+    onDecreaseFontSize: () -> Unit = {},
+    onConsumeFontApplyRequest: () -> Unit = {},
+    onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> }
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -238,6 +240,9 @@ fun EditorScreen(
             onFormatApplied = { formatCommand = null },
             fontSize = uiState.fontSize,
             fontFamily = uiState.fontFamily,
+            fontApplyRequest = uiState.fontApplyRequest,
+            onFontApplyConsumed = onConsumeFontApplyRequest,
+            onStyleDetected = onStyleDetected,
             modifier = Modifier.padding(innerPadding)
         )
     }

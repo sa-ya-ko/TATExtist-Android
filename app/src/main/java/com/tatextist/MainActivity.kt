@@ -112,6 +112,12 @@ class MainActivity : ComponentActivity() {
                         },
                         onDecreaseFontSize = {
                             viewModel.decreaseFontSize()
+                        },
+                        onConsumeFontApplyRequest = {
+                            viewModel.consumeFontApplyRequest()
+                        },
+                        onStyleDetected = { family, size ->
+                            viewModel.updateDetectedStyle(family, size)
                         }
                     )
                 }

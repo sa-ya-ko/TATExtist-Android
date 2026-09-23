@@ -8,12 +8,19 @@ enum class EditorFontFamily {
     SANS_SERIF
 }
 
+data class FontApplyRequest(
+    val fontFamily: EditorFontFamily? = null,
+    val fontSize: Int? = null,
+    val id: Long = System.currentTimeMillis()
+)
+
 data class EditorUiState(
     val documentTitle: String = "無題のドキュメント",
     val content: TextFieldValue = TextFieldValue(),
     val isDarkMode: Boolean = false,
     val fontSize: Int = 20,
     val fontFamily: EditorFontFamily = EditorFontFamily.SERIF,
+    val fontApplyRequest: FontApplyRequest? = null,
     val showFontSettingsBottomSheet: Boolean = false,
     val isCloudLoading: Boolean = false,
     val cloudError: String? = null,

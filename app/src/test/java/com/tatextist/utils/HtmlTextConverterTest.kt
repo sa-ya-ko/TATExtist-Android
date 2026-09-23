@@ -52,4 +52,14 @@ class HtmlTextConverterTest {
         val actual = HtmlTextConverter.convertFromHtml(input)
         assertEquals(expected, actual)
     }
+
+    @Test
+    fun test_convertFromHtml_preserves_span_styles() {
+        val input = "吾輩は<span style=\"font-size: 24px;\">猫</span>である"
+        val expected = "吾輩は<span style=\"font-size: 24px;\">猫</span>である"
+        
+        val actual = HtmlTextConverter.convertFromHtml(input)
+        assertEquals(expected, actual)
+    }
 }
+
