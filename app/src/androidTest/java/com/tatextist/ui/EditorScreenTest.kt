@@ -172,4 +172,15 @@ class EditorScreenTest {
         composeTestRule.onNodeWithContentDescription("元に戻す").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("やり直す").assertIsDisplayed()
     }
+
+    @Test
+    fun editorScreen_hasFontSettingsButton() {
+        composeTestRule.setContent {
+            EditorScreen(uiState = EditorUiState())
+        }
+
+        // 「文字設定」ボタンが表示されていること
+        composeTestRule.onNodeWithContentDescription("文字設定").assertIsDisplayed()
+    }
 }
+

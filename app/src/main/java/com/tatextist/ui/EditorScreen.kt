@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
@@ -44,7 +45,14 @@ fun EditorScreen(
     onSignOutFromCloud: () -> Unit = {},
     onOpenWordCountModal: () -> Unit = {},
     onCloseWordCountModal: () -> Unit = {},
-    onToggleShowWordCountWhileTyping: (Boolean) -> Unit = {}
+    onToggleShowWordCountWhileTyping: (Boolean) -> Unit = {},
+    onOpenFontSettings: () -> Unit = {},
+    onCloseFontSettings: () -> Unit = {},
+    onFontFamilyChange: (EditorFontFamily) -> Unit = {},
+    onIncreaseFontSize: () -> Unit = {},
+    onDecreaseFontSize: () -> Unit = {},
+    onConsumeFontApplyRequest: () -> Unit = {},
+    onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> }
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -213,6 +221,12 @@ fun EditorScreen(
                 TextButton(onClick = { formatCommand = "italic" }) {
                     Text("I", fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                 }
+                IconButton(onClick = onOpenFontSettings) {
+                    Icon(
+                        imageVector = Icons.Default.FormatSize,
+                        contentDescription = "文字設定"
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -224,6 +238,11 @@ fun EditorScreen(
             onRubyApplied = { rubyRequest = null },
             formatCommand = formatCommand,
             onFormatApplied = { formatCommand = null },
+            fontSize = uiState.fontSize,
+            fontFamily = uiState.fontFamily,
+            fontApplyRequest = uiState.fontApplyRequest,
+            onFontApplyConsumed = onConsumeFontApplyRequest,
+            onStyleDetected = onStyleDetected,
             modifier = Modifier.padding(innerPadding)
         )
     }
@@ -280,6 +299,18 @@ fun EditorScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+
+    // 文字・フォント設定ボトムシート
+    if (uiState.showFontSettingsBottomSheet) {
+        FontSettingsBottomSheet(
+            fontSize = uiState.fontSize,
+            fontFamily = uiState.fontFamily,
+            onFontFamilyChange = onFontFamilyChange,
+            onIncreaseFontSize = onIncreaseFontSize,
+            onDecreaseFontSize = onDecreaseFontSize,
+            onDismissRequest = onCloseFontSettings
+        )
     }
 
     // 4. 文字カウントモーダル（Web版のWordCountModalに準拠）

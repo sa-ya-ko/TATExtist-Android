@@ -24,18 +24,26 @@ fun VerticalEditor(
     onRubyApplied: () -> Unit = {},
     formatCommand: String? = null,
     onFormatApplied: () -> Unit = {},
+    fontSize: Int = 20,
+    fontFamily: EditorFontFamily = EditorFontFamily.SERIF,
+    fontApplyRequest: FontApplyRequest? = null,
+    onFontApplyConsumed: () -> Unit = {},
+    onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     // ダークモード判定：端末の設定に合わせてテキスト色を切り替えます
     val isDarkTheme = isSystemInDarkTheme()
     val textColorCss = if (isDarkTheme) "#FFFFFF" else "#000000"
+    val fontFamilyCss = if (fontFamily == EditorFontFamily.SERIF) "serif, 'Noto Serif JP'" else "sans-serif, 'Noto Sans JP'"
 
     // WebViewとComposeのテキスト状態を同期するための変数（ループ防止用）
     // mutableStateOfを使うと不要な再描画が走り、IMEの漢字変換（コンポジション）が強制終了されるため、配列で状態を持たせます
     val lastKnownTextRef = remember { arrayOf(value.text) }
+    val lastHandledRequestIdRef = remember { arrayOf<Long?>(null) }
+    val isInternalUpdateRef = remember { arrayOf(false) }
 
     // 3. ComposeとWebViewの通信（ブリッジ）
-    val jsBridge = remember(onValueChange) {
+    val jsBridge = remember(onValueChange, onStyleDetected) {
         object {
             // メインスレッド（UI操作担当）に処理を委譲するためのハンドラー
             private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -46,7 +54,16 @@ fun VerticalEditor(
                 handler.post {
                     val plainText = HtmlTextConverter.convertFromHtml(newHtml)
                     lastKnownTextRef[0] = plainText // WebViewからの更新を記録（再描画はトリガーしない）
+                    isInternalUpdateRef[0] = true
                     onValueChange(TextFieldValue(text = plainText))
+                }
+            }
+
+            @JavascriptInterface
+            fun onSelectionStyle(familyStr: String, sizePx: Int) {
+                handler.post {
+                    val family = if (familyStr.contains("sans-serif")) EditorFontFamily.SANS_SERIF else EditorFontFamily.SERIF
+                    onStyleDetected(family, sizePx)
                 }
             }
         }
@@ -92,9 +109,9 @@ fun VerticalEditor(
                                 width: 100vw;
                                 box-sizing: border-box;
                                 padding: 20px;
-                                font-size: 20px;
+                                font-size: ${fontSize}px;
                                 line-height: 2;
-                                font-family: serif;
+                                font-family: $fontFamilyCss;
                                 outline: none;
                                 overflow-x: auto;
                                 overflow-y: hidden;
@@ -144,7 +161,20 @@ fun VerticalEditor(
                                 if (window.ignoreSelectionChange) return;
                                 var sel = window.getSelection();
                                 if (sel.rangeCount > 0) {
-                                    window.savedRange = sel.getRangeAt(0);
+                                    if (!sel.isCollapsed) {
+                                        window.savedRange = sel.getRangeAt(0).cloneRange();
+                                        
+                                        var node = window.savedRange.startContainer;
+                                        if (node.nodeType === 3) node = node.parentNode;
+                                        if (node) {
+                                            var comp = window.getComputedStyle(node);
+                                            var family = comp.fontFamily || 'serif';
+                                            var size = parseInt(comp.fontSize, 10) || 20;
+                                            AndroidBridge.onSelectionStyle(family, size);
+                                        }
+                                    } else if (document.activeElement === editor) {
+                                        window.savedRange = null;
+                                    }
                                 }
                             });
                         </script>
@@ -158,6 +188,70 @@ fun VerticalEditor(
         update = { webView ->
             // テーマ（ダーク/ライト）が切り替わった時に、文字色をリアルタイムに更新する
             webView.evaluateJavascript("document.getElementById('editor').style.color = '$textColorCss';", null)
+            
+            if (fontApplyRequest != null && fontApplyRequest.id != lastHandledRequestIdRef[0]) {
+                lastHandledRequestIdRef[0] = fontApplyRequest.id
+                
+                val targetFamilyCss = if ((fontApplyRequest.fontFamily ?: fontFamily) == EditorFontFamily.SERIF) "serif, 'Noto Serif JP'" else "sans-serif, 'Noto Sans JP'"
+                val targetSize = fontApplyRequest.fontSize ?: fontSize
+                val applyFamily = fontApplyRequest.fontFamily != null
+                val applySize = fontApplyRequest.fontSize != null
+                
+                val js = """
+                    if (window.savedRange && !window.savedRange.collapsed) {
+                        var sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(window.savedRange);
+                        
+                        ${if (applyFamily) """
+                        document.execCommand('fontName', false, '__CUSTOM_FONT_FAMILY__');
+                        var fonts = document.querySelectorAll('font[face="__CUSTOM_FONT_FAMILY__"]');
+                        fonts.forEach(function(el) {
+                            el.removeAttribute('face');
+                            el.style.fontFamily = "$targetFamilyCss";
+                        });
+                        """ else ""}
+                        
+                        ${if (applySize) """
+                        document.execCommand('fontSize', false, '7');
+                        var fonts = document.querySelectorAll('font[size="7"], [style*="xxx-large"]');
+                        fonts.forEach(function(el) {
+                            el.removeAttribute('size');
+                            el.style.fontSize = '${targetSize}px';
+                        });
+                        """ else ""}
+                        
+                        var rts = document.querySelectorAll('rt');
+                        rts.forEach(function(rt) {
+                            rt.style.fontSize = '';
+                        });
+                        
+                        AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                        window.savedRange = null;
+                    } else {
+                        var sel = window.getSelection();
+                        var range = (sel.rangeCount > 0) ? sel.getRangeAt(0) : window.savedRange;
+                        if (range) {
+                            var span = document.createElement('span');
+                            ${if (applyFamily) "span.style.fontFamily = \"$targetFamilyCss\";" else ""}
+                            ${if (applySize) "span.style.fontSize = '${targetSize}px';" else ""}
+                            var textNode = document.createTextNode('\u200B');
+                            span.appendChild(textNode);
+                            range.insertNode(span);
+                            
+                            var newRange = document.createRange();
+                            newRange.setStart(textNode, 1);
+                            newRange.collapse(true);
+                            sel.removeAllRanges();
+                            sel.addRange(newRange);
+                            window.savedRange = newRange.cloneRange();
+                            AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                        }
+                    }
+                """.trimIndent()
+                webView.evaluateJavascript(js, null)
+                onFontApplyConsumed()
+            }
             
             if (rubyRequest != null) {
                 // ルビリクエストが来た場合、保存しておいた選択範囲を使ってルビを挿入する
@@ -271,7 +365,9 @@ fun VerticalEditor(
                 }
             } else {
                 // Compose側から（ファイル読み込み等で）全体のテキストが変更された場合のみ反映
-                if (value.text != lastKnownTextRef[0]) {
+                if (isInternalUpdateRef[0]) {
+                    isInternalUpdateRef[0] = false
+                } else if (value.text != lastKnownTextRef[0]) {
                     lastKnownTextRef[0] = value.text
                     val escapedHtml = HtmlTextConverter.convertToHtml(value.text)
                         .replace("\\", "\\\\")

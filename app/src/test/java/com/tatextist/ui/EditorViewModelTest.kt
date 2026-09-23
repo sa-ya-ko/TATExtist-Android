@@ -11,6 +11,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -191,4 +192,85 @@ class EditorViewModelTest {
             assertEquals("吾輩は猫である。名前はまだ無い。", state.content.text)
         }
     }
+
+    @Test
+    fun `when fontFamily is updated, state should reflect the new fontFamily`() = runTest {
+        viewModel.uiState.test {
+            assertEquals(EditorFontFamily.SERIF, awaitItem().fontFamily)
+
+            viewModel.updateFontFamily(EditorFontFamily.SANS_SERIF)
+            assertEquals(EditorFontFamily.SANS_SERIF, awaitItem().fontFamily)
+        }
+    }
+
+    @Test
+    fun `when fontSize is increased or decreased, state should update within bounds`() = runTest {
+        viewModel.uiState.test {
+            assertEquals(20, awaitItem().fontSize)
+
+            viewModel.increaseFontSize()
+            assertEquals(21, awaitItem().fontSize)
+
+            viewModel.decreaseFontSize()
+            assertEquals(20, awaitItem().fontSize)
+
+            // Test custom direct update and boundaries
+            viewModel.updateFontSize(36)
+            assertEquals(36, awaitItem().fontSize)
+
+            viewModel.increaseFontSize() // Should not exceed 36
+            expectNoEvents()
+
+            viewModel.updateFontSize(12)
+            assertEquals(12, awaitItem().fontSize)
+
+            viewModel.decreaseFontSize() // Should not go below 12
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `when font settings bottom sheet is opened or closed, state should reflect accordingly`() = runTest {
+        viewModel.uiState.test {
+            assertEquals(false, awaitItem().showFontSettingsBottomSheet)
+
+            viewModel.openFontSettingsBottomSheet()
+            assertEquals(true, awaitItem().showFontSettingsBottomSheet)
+
+            viewModel.closeFontSettingsBottomSheet()
+            assertEquals(false, awaitItem().showFontSettingsBottomSheet)
+        }
+    }
+
+    @Test
+    fun `updateDetectedStyle_synchronizesUiStateWithSelectedText`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateFontFamily(EditorFontFamily.SANS_SERIF)
+            assertEquals(EditorFontFamily.SANS_SERIF, awaitItem().fontFamily)
+            viewModel.updateFontSize(30)
+            assertEquals(30, awaitItem().fontSize)
+
+            viewModel.updateDetectedStyle(EditorFontFamily.SERIF, 20)
+
+            val detectedState = awaitItem()
+            assertEquals(EditorFontFamily.SERIF, detectedState.fontFamily)
+            assertEquals(20, detectedState.fontSize)
+        }
+    }
+
+    @Test
+    fun `updateFontFamily_emitsApplyRequestToWebView`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateFontFamily(EditorFontFamily.SANS_SERIF)
+
+            val state = awaitItem()
+            assertNotNull(state.fontApplyRequest)
+            assertEquals(EditorFontFamily.SANS_SERIF, state.fontApplyRequest?.fontFamily)
+        }
+    }
 }
+
