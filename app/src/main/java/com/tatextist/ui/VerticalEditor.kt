@@ -78,8 +78,8 @@ fun VerticalEditor(
                 // WebViewのデバッグモードを有効にする（ChromeのInspect用）
                 WebView.setWebContentsDebuggingEnabled(true)
                 
-                // 背景を透明（Transparent）にする
-                setBackgroundColor(Color.Transparent.toArgb())
+                // 背景色をComposeのsurfaceColorと同期
+                setBackgroundColor(surfaceColor.toArgb())
                 
                 settings.apply {
                     javaScriptEnabled = true
@@ -102,7 +102,7 @@ fun VerticalEditor(
                                 margin: 0;
                                 padding: 0;
                                 width: 100vw;
-                                background-color: transparent;
+                                background-color: $surfaceColorCss;
                                 overflow: hidden;
                             }
                             #editor {
@@ -118,6 +118,7 @@ fun VerticalEditor(
                                 overflow-y: hidden;
                                 word-break: break-all;
                                 white-space: pre-wrap;
+                                background-color: $surfaceColorCss;
                                 color: $textColorCss;
                             }
 
@@ -187,10 +188,18 @@ fun VerticalEditor(
             }
         },
         update = { webView ->
+            // AndroidネイティブのWebView背景色を即座に更新
+            webView.setBackgroundColor(surfaceColor.toArgb())
+
             // テーマ（ダーク/ライト）が切り替わった時に、背景色と文字色をリアルタイムに更新する
             val themeJs = """
+                document.documentElement.style.backgroundColor = '$surfaceColorCss';
                 document.body.style.backgroundColor = '$surfaceColorCss';
-                document.getElementById('editor').style.color = '$textColorCss';
+                var ed = document.getElementById('editor');
+                if (ed) {
+                    ed.style.backgroundColor = '$surfaceColorCss';
+                    ed.style.color = '$textColorCss';
+                }
             """.trimIndent()
             webView.evaluateJavascript(themeJs, null)
             

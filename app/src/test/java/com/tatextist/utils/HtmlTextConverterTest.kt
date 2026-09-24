@@ -61,5 +61,16 @@ class HtmlTextConverterTest {
         val actual = HtmlTextConverter.convertFromHtml(input)
         assertEquals(expected, actual)
     }
+
+    @Test
+    fun test_convertFromHtml_empty_editor_returns_empty_string() {
+        // WebViewで全文字を消去した際に残るタグのパターンを網羅
+        assertEquals("", HtmlTextConverter.convertFromHtml("<br>"))
+        assertEquals("", HtmlTextConverter.convertFromHtml("<br/>"))
+        assertEquals("", HtmlTextConverter.convertFromHtml("<div><br></div>"))
+        assertEquals("", HtmlTextConverter.convertFromHtml("<p><br></p>"))
+        assertEquals("", HtmlTextConverter.convertFromHtml("\u200B")) // ゼロ幅スペースのみ
+        assertEquals("", HtmlTextConverter.convertFromHtml("   "))
+    }
 }
 

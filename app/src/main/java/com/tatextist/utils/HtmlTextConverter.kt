@@ -17,6 +17,13 @@ object HtmlTextConverter {
     }
 
     fun convertFromHtml(html: String): String {
+        // 0. エディタ全消去時の残骸タグ (<br>, <div><br></div> 等) の空判定
+        // 可視文字やルビが存在しない場合は即座に空文字を返し、誤って文字数1 (\n) と判定されるのを防ぐ
+        val stripped = html.replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
+        if (stripped.isEmpty() && !html.contains("<ruby", ignoreCase = true)) {
+            return ""
+        }
+
         // 1. <ruby> を |漢字《かんじ》 に戻す
         // WebViewが属性や改行を勝手に追加した場合でも確実にパースできるよう強化
         val rubyRegex = Regex(
