@@ -109,6 +109,19 @@
   - Google のベストプラクティスに基づき、文字数カウントや行数カウント用の「純粋な可視プレーンテキスト抽出（`extractPlainText`）」を導入。
   - ルビ（`|漢字《かんじ》`）からフリガナ記法を除去して親文字（漢字）のみを抽出し、すべてのHTMLタグ（`<font>`, `<span>`, `<b>` 等）および `\u200B` を完全除去した純粋な可視文字列に対して `charCount` を計算するように分離・改修。
 
+---
+
+## Bug 010: PC/デスクトップ（1920×1080）におけるツールバー間延びおよびボトムシート下部見切れ
+- **現象 (What):**
+  1. Medium Desktop（1920×1080）などの大画面環境で、フローティングツールバーが画面横いっぱいに伸びてしまい、各ボタンの間隔が不自然に開いて間延びしていた。
+  2. 書式設定やツール設定のボトムシート（`ModalBottomSheet`）において、横幅が全画面に広がるとともに、縦方向の高さ制限で見切れ（Clipping）が発生し、下部の項目（太字・斜体や下部ボタン）が画面外に隠れて操作不能になっていた。
+- **原因 (Why):**
+  1. ツールバーの `Surface` に最大幅制限がなく、`fillMaxWidth()` に従い画面端まで延伸していた。
+  2. ボトムシートの内部コンテンツである `Column` に垂直スクロール（`Modifier.verticalScroll`）およびシステム余白（`navigationBarsPadding`）が適用されておらず、画面の高さがコンテンツの高さを下回った場合に溢れた要素が表示できなかった。
+- **対策 (How):**
+  1. ツールバーの `Surface` を `Box(contentAlignment = Alignment.BottomCenter)` で包み、`.widthIn(max = 520.dp)` を設定して画面下部中央に適切なカプセルサイズで収まるように制限。
+  2. 書式設定、ルビ設定、ツール設定の各ボトムシート `Column` に `.widthIn(max = 560.dp)`、`.align(Alignment.CenterHorizontally)`、`.verticalScroll(rememberScrollState())`、および `.navigationBarsPadding()` を適用し、中央揃えかつ全項目を確実にスクロール・操作可能に改善。
+
 
 
 

@@ -9,8 +9,9 @@
 - **Android Jetpack Compose UI 指針:** https://developer.android.com/develop/ui/compose
 - **WebViewのベストプラクティス:** https://developer.android.com/develop/ui/views/layout/webapps/best-practices
 -**AndroidWebViewのベストプラクティス:**https://developer.android.com/develop/ui/views/layout/webapps/webview
--**Androidセキュリティのベストプラクティス:** https://developer.android.com/privacy-and-security/security-tips?hl=ja
--**OAuth 2.0ネイティブアプリ用:** https://developers.google.com/identity/protocols/oauth2/native-app?hl=ja
+-**Androidセキュリティのベストプラクティス:** https://developer.android.com/privacy-and-security/security-tips
+-**OAuth 2.0ネイティブアプリ用:** https://developers.google.com/identity/protocols/oauth2/native-app
+- **Androidadaptive-layouts:** https://developer.android.com/design/ui/wear/guides/m2-5/foundations/adaptive-layouts
 
 ## 2. Test-Driven Development (TDD) Methodology 【厳守ルール】
 コード実装を行う際は、必ず以下の **TDDサイクル（Red-Green-Refactor）** に従って対話・コード生成を行ってください。
@@ -71,3 +72,16 @@
      単にKotlin側のテストをパスさせるだけでなく、PCのChrome（`chrome://inspect`）でWebView内部のDOM状態（`window.savedRange` の中身など）が意図通りに遷移しているかを確認しながら、確実に一段ずつ詰めていくこと。
 2. **作業結果の記録義務:**
    - 上記の作業を実施した結果、得られた知見や挙動の詳細を必ずプロジェクトルートの `knowledge.md` に記録・蓄積すること。
+
+## 10. アダプティブレイアウト設計方針 (Adaptive Layout Guidelines)
+Material 3 Expressive のデザイン思想に加え、様々な画面サイズ（小画面スマートフォン、折りたたみ端末、タブレット、PC・デスクトップ画面など）で破綻なく自然に操作できるアダプティブなUI設計を標準ルールとする。
+
+1. **画面拡大時の間延び防止（No Proportional Stretching）:**
+   - 大画面（PC・タブレット等）になったからといって、画面全体へ無制限にUI要素を引き伸ばさない。
+   - ツールバーやボトムシート、ダイアログなどの操作部品は、人間工学的に適切な最大幅（例: ツールバーは `widthIn(max = 520.dp)`、ボトムシートは `widthIn(max = 560.dp)`）を設け、中央（または両端）にカプセル化・整列させる。
+2. **見切れ（Clipping）の防止とスクロール保証:**
+   - 画面の縦横比の変化（デスクトップの横長画面やランドスケープ表示）や文字サイズの拡大時にも、コンテンツや操作ボタンが画面外に見切れる（Clipping）のを防ぐ。
+   - ボトムシートや設定パネル等のコンテンツ `Column` には、必ず垂直スクロール（`Modifier.verticalScroll(rememberScrollState())`）とシステム余白（`navigationBarsPadding()`）を適用し、最下部までスクロールして操作できることを保証する。
+3. **段階的適応（Ready → Responsive & Optimized）:**
+   - **Step 1 (Ready):** すべてのサポート画面サイズにおいて、余白崩れ（Margins）や見切れ（Clipping）がなく、ユーザーがすべてのタスクを確実に完遂できる品質基準を維持する。
+   - **Step 2 (Optimized):** 将来的に大画面の余白を活かし、リストとエディタの2ペイン表示や、サイドナビゲーションレール等のより高度なレイアウト最適化を段階的に導入する。

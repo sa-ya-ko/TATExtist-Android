@@ -1,6 +1,8 @@
 package com.tatextist.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -207,80 +209,87 @@ fun EditorScreen(
                 }
             )
         },
-        // 画面の下のバー（M3 Expressive フローティング・ツールバー）
+        // 画面の下のバー（M3 Expressive レスポンシブ・フローティングツールバー）
         bottomBar = {
             val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-            androidx.compose.material3.Surface(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
                     .navigationBarsPadding(),
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                tonalElevation = 0.dp,
-                shadowElevation = 6.dp
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Row(
+                androidx.compose.material3.Surface(
                     modifier = Modifier
+                        .widthIn(max = 520.dp)
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 6.dp
                 ) {
-                    // 1. スタイルボトムシート展開ボタン
-                    androidx.compose.material3.FilledTonalButton(
-                        onClick = {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                            onOpenFontSettings()
-                        },
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("スタイル", style = MaterialTheme.typography.labelLarge)
-                    }
-
-                    // 2. ルビボトムシート展開ボタン
-                    androidx.compose.material3.FilledTonalButton(
-                        onClick = {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                            showSettingsSheet = true
-                        },
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text("ルビ", style = MaterialTheme.typography.labelLarge)
-                    }
-
-                    // 3. ツールボトムシート展開ボタン
-                    androidx.compose.material3.FilledTonalButton(
-                        onClick = {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                            showToolsBottomSheet = true
-                        },
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text("ツール", style = MaterialTheme.typography.labelLarge)
-                    }
-
-                    // 4. リアルタイム文字数バッジ（ツールの右側に配置）
-                    if (uiState.showWordCountWhileTyping) {
-                        androidx.compose.material3.Surface(
+                        // 1. スタイルボトムシート展開ボタン
+                        androidx.compose.material3.FilledTonalButton(
                             onClick = {
                                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                                onOpenWordCountModal()
+                                onOpenFontSettings()
                             },
                             shape = androidx.compose.foundation.shape.CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = "${uiState.characterCount}字",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text("スタイル", style = MaterialTheme.typography.labelLarge)
+                        }
+
+                        // 2. ルビボトムシート展開ボタン
+                        androidx.compose.material3.FilledTonalButton(
+                            onClick = {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                showSettingsSheet = true
+                            },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("ルビ", style = MaterialTheme.typography.labelLarge)
+                        }
+
+                        // 3. ツールボトムシート展開ボタン
+                        androidx.compose.material3.FilledTonalButton(
+                            onClick = {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                showToolsBottomSheet = true
+                            },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("ツール", style = MaterialTheme.typography.labelLarge)
+                        }
+
+                        // 4. リアルタイム文字数バッジ（ツールの右側に配置）
+                        if (uiState.showWordCountWhileTyping) {
+                            androidx.compose.material3.Surface(
+                                onClick = {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    onOpenWordCountModal()
+                                },
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${uiState.characterCount}字",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -316,8 +325,12 @@ fun EditorScreen(
         ) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = 560.dp)
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .align(Alignment.CenterHorizontally)
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -407,8 +420,12 @@ fun EditorScreen(
         ) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = 560.dp)
                     .fillMaxWidth()
+                    .align(Alignment.CenterHorizontally)
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
+                    .navigationBarsPadding()
                     .padding(bottom = 36.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
