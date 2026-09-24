@@ -27,26 +27,32 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            // DriveレポジトリをActivityレベルで保持
+            val driveRepository = remember { GoogleDriveRepositoryImpl(applicationContext) }
+            
+            // エディタ画面の記憶係（ViewModel）を準備（Driveレポジトリを注入）
+            val viewModel: EditorViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        @Suppress("UNCHECKED_CAST")
+                        return EditorViewModel(driveRepository) as T
+                    }
+                }
+            )
+            // 記憶係が持っている状態を「常に監視」して取得（更新されたら自動で画面を描き直す）
+            val uiState by viewModel.uiState.collectAsState()
+
+            val systemInDark = androidx.compose.foundation.isSystemInDarkTheme()
+            LaunchedEffect(Unit) {
+                viewModel.toggleDarkMode(systemInDark)
+            }
+
             // アプリ全体のテーマ（色やフォントの設定）を適用します
-            TATExtistTheme {
+            TATExtistTheme(darkTheme = uiState.isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.surface
                 ) {
-                    // DriveレポジトリをActivityレベルで保持
-                    val driveRepository = remember { GoogleDriveRepositoryImpl(applicationContext) }
-                    
-                    // エディタ画面の記憶係（ViewModel）を準備（Driveレポジトリを注入）
-                    val viewModel: EditorViewModel = viewModel(
-                        factory = object : ViewModelProvider.Factory {
-                            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                                @Suppress("UNCHECKED_CAST")
-                                return EditorViewModel(driveRepository) as T
-                            }
-                        }
-                    )
-                    // 記憶係が持っている状態を「常に監視」して取得（更新されたら自動で画面を描き直す）
-                    val uiState by viewModel.uiState.collectAsState()
 
                     // サインイン画面を呼び出すランチャー
                     val signInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -118,6 +124,9 @@ class MainActivity : ComponentActivity() {
                         },
                         onStyleDetected = { family, size ->
                             viewModel.updateDetectedStyle(family, size)
+                        },
+                        onToggleDarkMode = {
+                            viewModel.toggleDarkMode()
                         }
                     )
                 }

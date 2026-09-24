@@ -5,7 +5,7 @@
 ## 1. Primary References (参照対象Webページ)
 - **移植元Webアプリ:** https://tat-extist-gamma.vercel.app/
 - **Android Architecture Best Practices:** https://developer.android.com/topic/architecture
-- **Material 3 Expressive:** https://m3.material.io/
+- **Material 3 Expressive:** https://m3.material.io/ https://developer.android.com/develop/ui/compose/designsystems/material3
 - **Android Jetpack Compose UI 指針:** https://developer.android.com/develop/ui/compose
 - **WebViewのベストプラクティス:** https://developer.android.com/develop/ui/views/layout/webapps/best-practices
 -**AndroidWebViewのベストプラクティス:**https://developer.android.com/develop/ui/views/layout/webapps/webview

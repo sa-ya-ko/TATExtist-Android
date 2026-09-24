@@ -28,6 +28,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material3.FilledTonalIconToggleButton
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
@@ -52,7 +62,8 @@ fun EditorScreen(
     onIncreaseFontSize: () -> Unit = {},
     onDecreaseFontSize: () -> Unit = {},
     onConsumeFontApplyRequest: () -> Unit = {},
-    onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> }
+    onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> },
+    onToggleDarkMode: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -129,6 +140,35 @@ fun EditorScreen(
                             imageVector = Icons.AutoMirrored.Filled.Redo,
                             contentDescription = "やり直す"
                         )
+                    }
+
+                    // M3 Expressive: 状態に応じたコンテナ配色とシェイプを持つトグルボタン
+                    FilledTonalIconToggleButton(
+                        checked = uiState.isDarkMode,
+                        onCheckedChange = { onToggleDarkMode() },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        shape = androidx.compose.foundation.shape.CircleShape
+                    ) {
+                        AnimatedContent(
+                            targetState = uiState.isDarkMode,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.8f))
+                                    .togetherWith(fadeOut(animationSpec = tween(220)) + scaleOut(targetScale = 0.8f))
+                            },
+                            label = "DarkModeToggleAnimation"
+                        ) { isDark ->
+                            if (isDark) {
+                                Icon(
+                                    imageVector = Icons.Default.DarkMode,
+                                    contentDescription = "ライトモードに切り替え"
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.LightMode,
+                                    contentDescription = "ダークモードに切り替え"
+                                )
+                            }
+                        }
                     }
 
                     if (uiState.isCloudLoading) {

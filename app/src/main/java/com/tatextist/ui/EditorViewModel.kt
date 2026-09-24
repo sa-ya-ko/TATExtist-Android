@@ -40,6 +40,11 @@ class EditorViewModel(
         )
     }
 
+    fun toggleDarkMode(enable: Boolean? = null) {
+        val newMode = enable ?: !_uiState.value.isDarkMode
+        _uiState.value = _uiState.value.copy(isDarkMode = newMode)
+    }
+
     fun updateFontFamily(fontFamily: EditorFontFamily) {
         _uiState.value = _uiState.value.copy(
             fontFamily = fontFamily,

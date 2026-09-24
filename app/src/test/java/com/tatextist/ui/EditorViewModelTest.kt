@@ -272,5 +272,19 @@ class EditorViewModelTest {
             assertEquals(EditorFontFamily.SANS_SERIF, state.fontApplyRequest?.fontFamily)
         }
     }
+
+    @Test
+    fun `toggleDarkMode_shouldInvertIsDarkModeState`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(false, initial.isDarkMode)
+
+            viewModel.toggleDarkMode()
+            assertEquals(true, awaitItem().isDarkMode)
+
+            viewModel.toggleDarkMode()
+            assertEquals(false, awaitItem().isDarkMode)
+        }
+    }
 }
 

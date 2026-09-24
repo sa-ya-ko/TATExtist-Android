@@ -31,9 +31,10 @@ fun VerticalEditor(
     onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    // ダークモード判定：端末の設定に合わせてテキスト色を切り替えます
-    val isDarkTheme = isSystemInDarkTheme()
-    val textColorCss = if (isDarkTheme) "#FFFFFF" else "#000000"
+    val surfaceColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
+    val onSurfaceColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+    val surfaceColorCss = String.format("#%06X", 0xFFFFFF and surfaceColor.toArgb())
+    val textColorCss = String.format("#%06X", 0xFFFFFF and onSurfaceColor.toArgb())
     val fontFamilyCss = if (fontFamily == EditorFontFamily.SERIF) "serif, 'Noto Serif JP'" else "sans-serif, 'Noto Sans JP'"
 
     // WebViewとComposeのテキスト状態を同期するための変数（ループ防止用）
@@ -186,8 +187,12 @@ fun VerticalEditor(
             }
         },
         update = { webView ->
-            // テーマ（ダーク/ライト）が切り替わった時に、文字色をリアルタイムに更新する
-            webView.evaluateJavascript("document.getElementById('editor').style.color = '$textColorCss';", null)
+            // テーマ（ダーク/ライト）が切り替わった時に、背景色と文字色をリアルタイムに更新する
+            val themeJs = """
+                document.body.style.backgroundColor = '$surfaceColorCss';
+                document.getElementById('editor').style.color = '$textColorCss';
+            """.trimIndent()
+            webView.evaluateJavascript(themeJs, null)
             
             if (fontApplyRequest != null && fontApplyRequest.id != lastHandledRequestIdRef[0]) {
                 lastHandledRequestIdRef[0] = fontApplyRequest.id
