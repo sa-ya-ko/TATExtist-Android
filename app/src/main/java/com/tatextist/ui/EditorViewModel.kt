@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 import androidx.compose.ui.text.input.TextFieldValue
+import com.tatextist.utils.HtmlTextConverter
 
 import androidx.lifecycle.viewModelScope
 import com.tatextist.data.GoogleDriveRepository
@@ -27,10 +28,10 @@ class EditorViewModel(
     }
 
     fun updateContent(newContent: TextFieldValue) {
-        val text = newContent.text
-        val charCount = text.length
-        val charCountWithoutSpaces = text.replace("\\s+".toRegex(), "").length
-        val lineCount = if (text.isEmpty()) 1 else text.lines().size
+        val plainText = HtmlTextConverter.extractPlainText(newContent.text)
+        val charCount = plainText.length
+        val charCountWithoutSpaces = plainText.replace("\\s+".toRegex(), "").length
+        val lineCount = if (plainText.isEmpty()) 1 else plainText.lines().size
 
         _uiState.value = _uiState.value.copy(
             content = newContent,
@@ -144,9 +145,10 @@ class EditorViewModel(
             
             if (result.isSuccess) {
                 val content = result.getOrNull() ?: ""
-                val charCount = content.length
-                val charCountWithoutSpaces = content.replace("\\s+".toRegex(), "").length
-                val lineCount = if (content.isEmpty()) 1 else content.lines().size
+                val plainText = HtmlTextConverter.extractPlainText(content)
+                val charCount = plainText.length
+                val charCountWithoutSpaces = plainText.replace("\\s+".toRegex(), "").length
+                val lineCount = if (plainText.isEmpty()) 1 else plainText.lines().size
 
                 _uiState.value = _uiState.value.copy(
                     isCloudLoading = false,
@@ -258,9 +260,10 @@ class EditorViewModel(
 
             if (result.isSuccess) {
                 val content = result.getOrNull() ?: ""
-                val charCount = content.length
-                val charCountWithoutSpaces = content.replace("\\s+".toRegex(), "").length
-                val lineCount = if (content.isEmpty()) 1 else content.lines().size
+                val plainText = HtmlTextConverter.extractPlainText(content)
+                val charCount = plainText.length
+                val charCountWithoutSpaces = plainText.replace("\\s+".toRegex(), "").length
+                val lineCount = if (plainText.isEmpty()) 1 else plainText.lines().size
 
                 _uiState.value = _uiState.value.copy(
                     isCloudLoading = false,

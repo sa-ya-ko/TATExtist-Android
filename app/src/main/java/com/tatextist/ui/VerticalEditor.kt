@@ -152,6 +152,18 @@ fun VerticalEditor(
                             window.addEventListener('resize', setHeight);
 
                             editor.addEventListener('input', function() {
+                                // 親文字（漢字部分）が消去されて空になった孤立 ruby タグをクリーンアップ
+                                var rubies = editor.querySelectorAll('ruby');
+                                rubies.forEach(function(rb) {
+                                    var clone = rb.cloneNode(true);
+                                    var rts = clone.querySelectorAll('rt');
+                                    rts.forEach(function(rt) { rt.remove(); });
+                                    var baseText = clone.textContent.replace(/\u200B/g, '').trim();
+                                    if (baseText.length === 0) {
+                                        rb.remove();
+                                    }
+                                });
+
                                 AndroidBridge.onTextChanged(editor.innerHTML);
                             });
                             

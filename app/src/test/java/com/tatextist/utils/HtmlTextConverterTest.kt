@@ -72,5 +72,31 @@ class HtmlTextConverterTest {
         assertEquals("", HtmlTextConverter.convertFromHtml("\u200B")) // ゼロ幅スペースのみ
         assertEquals("", HtmlTextConverter.convertFromHtml("   "))
     }
+
+    @Test
+    fun test_convertFromHtml_purges_orphan_ruby() {
+        // 親文字（漢字）が削除され、フリガナのみ残った残骸ルビタグを安全に除去できることを検証
+        assertEquals("", HtmlTextConverter.convertFromHtml("<ruby><rt>かんじ</rt></ruby>"))
+        assertEquals("", HtmlTextConverter.convertFromHtml("<ruby> <rt>かんじ</rt></ruby>"))
+        assertEquals("", HtmlTextConverter.convertFromHtml("<ruby>\u200B<rt>かんじ</rt></ruby>"))
+        // 正常なルビがある場合は維持されることを再確認
+        assertEquals("|漢字《かんじ》", HtmlTextConverter.convertFromHtml("<ruby>漢字<rt>かんじ</rt></ruby>"))
+    }
+
+    @Test
+    fun test_extractPlainText_strips_tags_and_extracts_clean_chars() {
+        // ユーザーが遭遇したケース: ゴシック体タグが含まれた文字列
+        val rawInput = """今度<font style="font-family: sans-serif, &quot;Noto Sans JP&quot;;">はどうかな</font>？"""
+        val plain = HtmlTextConverter.extractPlainText(rawInput)
+        // タグがすべて除去され、純粋な可視文字「今度はどうかな？」(8文字)になることを検証
+        assertEquals("今度はどうかな？", plain)
+        assertEquals(8, plain.length)
+
+        // ルビ付きテキストの場合: 親文字のみ抽出されて正確な文字数になることを検証
+        val rubyInput = "吾輩は|猫《ねこ》である"
+        val plainRuby = HtmlTextConverter.extractPlainText(rubyInput)
+        assertEquals("吾輩は猫である", plainRuby)
+        assertEquals(7, plainRuby.length) // 「吾輩は猫である」= 7文字 (ルビの「ねこ」や「|《》」はカウントしない)
+    }
 }
 

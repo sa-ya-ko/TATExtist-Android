@@ -25,16 +25,21 @@ object HtmlTextConverter {
         }
 
         // 1. <ruby> を |漢字《かんじ》 に戻す
-        // WebViewが属性や改行を勝手に追加した場合でも確実にパースできるよう強化
+        // 親文字（漢字）が空の残骸ルビタグは完全に破棄する
         val rubyRegex = Regex(
             """<ruby[^>]*>\s*(.*?)\s*<rt[^>]*>\s*(.*?)\s*</rt>\s*</ruby>""", 
             setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         )
         var result = rubyRegex.replace(html) { matchResult ->
-            val base = matchResult.groupValues[1]
-            // フリガナ部分に入り込んだ不要なタグ（<b>や<i>など）を全て剥がす
-            val ruby = matchResult.groupValues[2].replace(Regex("""<[^>]+>"""), "")
-            "|$base《$ruby》"
+            val rawBase = matchResult.groupValues[1]
+            val cleanBase = rawBase.replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
+            val ruby = matchResult.groupValues[2].replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
+            if (cleanBase.isEmpty()) {
+                // 親文字が削除された孤立ルビは残骸なので消去
+                ""
+            } else {
+                "|$cleanBase《$ruby》"
+            }
         }
 
         // 2. 空のブロック <div><br></div> などを1つの改行にまとめる
@@ -52,7 +57,33 @@ object HtmlTextConverter {
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&amp;", "&")
-            .replace("\u200B", "")
+        // 6. 空白や改行のみ残った場合は空文字として返す
+        val finalStripped = result.replace("\n", "").trim()
+        if (finalStripped.isEmpty()) {
+            return ""
+        }
+
+        return result
+    }
+
+    /**
+     * 文字数カウント・行数計算用の純粋な可視プレーンテキストを抽出する。
+     * - ルビ記法 (|漢字《かんじ》) は親文字「漢字」のみを抽出
+     * - 残存しているすべてのHTMLタグ (<font>, <span>, <b>, <i> 等) を完全除去
+     * - ゼロ幅スペース (\u200B) を完全除去
+     */
+    fun extractPlainText(text: String): String {
+        // 1. ルビ記法 |漢字《かんじ》 から親文字のみ抽出
+        val rubyRegex = Regex("""\|(.+?)《.+?》""")
+        var result = rubyRegex.replace(text) { matchResult ->
+            matchResult.groupValues[1]
+        }
+
+        // 2. 残存しているHTMLタグ (<font style="...">, <span>, <b> 等) を完全除去
+        result = result.replace(Regex("""<[^>]+>"""), "")
+
+        // 3. ゼロ幅スペースの除去
+        result = result.replace("\u200B", "")
 
         return result
     }
