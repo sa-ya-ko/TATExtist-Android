@@ -520,7 +520,7 @@ fun EditorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("文字数（スペース無視）")
+                        Text("文字数（スペースを除く）")
                         Text(
                             text = "${uiState.characterCountWithoutSpaces}",
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
@@ -533,7 +533,7 @@ fun EditorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("文字数（スペースあり）")
+                        Text("文字数")
                         Text(
                             text = "${uiState.characterCount}",
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
