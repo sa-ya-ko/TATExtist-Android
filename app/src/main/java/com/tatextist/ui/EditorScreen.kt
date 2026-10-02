@@ -66,7 +66,11 @@ fun EditorScreen(
     onDecreaseFontSize: () -> Unit = {},
     onConsumeFontApplyRequest: () -> Unit = {},
     onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> },
-    onToggleDarkMode: () -> Unit = {}
+    onToggleDarkMode: () -> Unit = {},
+    onRemoveRubyItem: (com.tatextist.utils.RubyItem) -> Unit = {},
+    onSelectRubyItem: (com.tatextist.utils.RubyItem) -> Unit = {},
+    onRubyTabChanged: (Boolean) -> Unit = {},
+    onRubyJumpConsumed: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -82,10 +86,7 @@ fun EditorScreen(
     // ツールボトムシートの開閉状態
     var showToolsBottomSheet by remember { mutableStateOf(false) }
 
-    // 2. ルビの「ふりがな」を入力するための記憶係
-    var rubyReading by remember { mutableStateOf("") }
-    
-    // 3. WebViewにルビ挿入を命令するためのリクエスト用変数
+    // 2. WebViewにルビ挿入を命令するためのリクエスト用変数
     var rubyRequest by remember { mutableStateOf<String?>(null) }
 
     // 4. 太字や斜体、ルビ解除を命令するための変数
@@ -309,87 +310,31 @@ fun EditorScreen(
             fontApplyRequest = uiState.fontApplyRequest,
             onFontApplyConsumed = onConsumeFontApplyRequest,
             onStyleDetected = onStyleDetected,
+            isRubyListActive = uiState.isRubyListActive,
+            targetRubyIndex = uiState.targetRubyIndex,
+            onRubyJumpConsumed = onRubyJumpConsumed,
             modifier = Modifier.padding(innerPadding)
         )
     }
 
-    // 3. ボトムシート（ルビ設定パネル：付与と解除を統合）
+    // 3. ボトムシート（ルビ設定・管理パネル：タブ切り替えで一覧・検索・解除を統合）
     if (showSettingsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { 
-                showSettingsSheet = false 
-                rubyReading = "" // 閉じる時は入力欄を空にする
+        RubyManagementBottomSheet(
+            rubyList = uiState.rubyList,
+            onApplyRuby = { reading ->
+                rubyRequest = reading
             },
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 560.dp)
-                    .fillMaxWidth()
-                    .align(Alignment.CenterHorizontally)
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
-                    .navigationBarsPadding(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "ルビ（ふりがな）設定",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-                
-                OutlinedTextField(
-                    value = rubyReading,
-                    onValueChange = { rubyReading = it },
-                    placeholder = { Text("例: ふりがな") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = {
-                            formatCommand = "removeRuby"
-                            showSettingsSheet = false
-                            rubyReading = ""
-                        },
-                        shape = androidx.compose.foundation.shape.CircleShape
-                    ) {
-                        Text("ルビ解除")
-                    }
-
-                    Row {
-                        TextButton(onClick = { 
-                            showSettingsSheet = false
-                            rubyReading = ""
-                        }) {
-                            Text("キャンセル")
-                        }
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        Button(
-                            onClick = {
-                                rubyRequest = rubyReading
-                                showSettingsSheet = false
-                                rubyReading = ""
-                            },
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        ) {
-                            Text("適用")
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
+            onRemoveRubyCurrentSelection = {
+                formatCommand = "removeRuby"
+            },
+            onRemoveRubyItem = onRemoveRubyItem,
+            onSelectRubyItem = onSelectRubyItem,
+            onTabChanged = onRubyTabChanged,
+            onDismissRequest = {
+                showSettingsSheet = false
+                onRubyTabChanged(false)
             }
-        }
+        )
     }
 
     // 文字・フォント・スタイル設定ボトムシート

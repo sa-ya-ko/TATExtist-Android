@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 import androidx.compose.ui.text.input.TextFieldValue
 import com.tatextist.utils.HtmlTextConverter
+import com.tatextist.utils.RubyItem
+import com.tatextist.utils.RubyManager
 
 import androidx.lifecycle.viewModelScope
 import com.tatextist.data.GoogleDriveRepository
@@ -32,13 +34,44 @@ class EditorViewModel(
         val charCount = plainText.length
         val charCountWithoutSpaces = plainText.replace("\\s+".toRegex(), "").length
         val lineCount = if (plainText.isEmpty()) 1 else plainText.lines().size
+        val rubies = RubyManager.extractRubyList(newContent.text)
 
         _uiState.value = _uiState.value.copy(
             content = newContent,
             characterCount = charCount,
             characterCountWithoutSpaces = charCountWithoutSpaces,
-            lineCount = lineCount
+            lineCount = lineCount,
+            rubyList = rubies
         )
+    }
+
+    fun removeRubyItem(item: RubyItem) {
+        val currentText = _uiState.value.content.text
+        val updatedText = RubyManager.removeRuby(currentText, item)
+        updateContent(_uiState.value.content.copy(text = updatedText))
+    }
+
+    fun openRubyBottomSheet() {
+        _uiState.value = _uiState.value.copy(showRubyBottomSheet = true)
+    }
+
+    fun closeRubyBottomSheet() {
+        _uiState.value = _uiState.value.copy(
+            showRubyBottomSheet = false,
+            isRubyListActive = false
+        )
+    }
+
+    fun setRubyListActive(active: Boolean) {
+        _uiState.value = _uiState.value.copy(isRubyListActive = active)
+    }
+
+    fun jumpToRuby(index: Int) {
+        _uiState.value = _uiState.value.copy(targetRubyIndex = index)
+    }
+
+    fun consumeRubyJump() {
+        _uiState.value = _uiState.value.copy(targetRubyIndex = null)
     }
 
     fun toggleDarkMode(enable: Boolean? = null) {

@@ -286,5 +286,91 @@ class EditorViewModelTest {
             assertEquals(false, awaitItem().isDarkMode)
         }
     }
+
+    @Test
+    fun `updateContent_extractsRubyListAutomatically`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateContent(
+                androidx.compose.ui.text.input.TextFieldValue("吾輩は|猫《ねこ》である")
+            )
+
+            val state = awaitItem()
+            assertEquals(1, state.rubyList.size)
+            assertEquals("猫", state.rubyList[0].parentText)
+            assertEquals("ねこ", state.rubyList[0].rubyText)
+        }
+    }
+
+    @Test
+    fun `removeRubyItem_removesRubyFromContent`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateContent(
+                androidx.compose.ui.text.input.TextFieldValue("吾輩は|猫《ねこ》である")
+            )
+            val stateWithRuby = awaitItem()
+            val targetRuby = stateWithRuby.rubyList[0]
+
+            viewModel.removeRubyItem(targetRuby)
+
+            val updatedState = awaitItem()
+            assertEquals("吾輩は猫である", updatedState.content.text)
+            assertEquals(0, updatedState.rubyList.size)
+        }
+    }
+
+    @Test
+    fun `removeRubyItem_withConsecutiveRubies_doesNotCorruptPrecedingRuby`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateContent(
+                androidx.compose.ui.text.input.TextFieldValue("|検索《けんさく》|機能《きのう》")
+            )
+            val state = awaitItem()
+            assertEquals(2, state.rubyList.size)
+            assertEquals("検索", state.rubyList[0].parentText)
+            assertEquals("機能", state.rubyList[1].parentText)
+
+            viewModel.removeRubyItem(state.rubyList[1])
+
+            val updated = awaitItem()
+            assertEquals("|検索《けんさく》機能", updated.content.text)
+            assertEquals(1, updated.rubyList.size)
+            assertEquals("検索", updated.rubyList[0].parentText)
+            assertEquals("けんさく", updated.rubyList[0].rubyText)
+        }
+    }
+
+    @Test
+    fun `setRubyListActive_updatesIsRubyListActiveState`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(false, initial.isRubyListActive)
+
+            viewModel.setRubyListActive(true)
+            assertEquals(true, awaitItem().isRubyListActive)
+
+            viewModel.setRubyListActive(false)
+            assertEquals(false, awaitItem().isRubyListActive)
+        }
+    }
+
+    @Test
+    fun `jumpToRuby_setsTargetRubyIndexAndConsumesIt`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.jumpToRuby(2)
+            val stateWithJump = awaitItem()
+            assertEquals(2, stateWithJump.targetRubyIndex)
+
+            viewModel.consumeRubyJump()
+            assertEquals(null, awaitItem().targetRubyIndex)
+        }
+    }
 }
 

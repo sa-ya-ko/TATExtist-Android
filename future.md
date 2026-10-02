@@ -22,3 +22,22 @@
   - WebView 側の `selectionchange` リスナーにてキャレット位置の親ノードを判定。
   - 対象ルビノードを `|漢字《かんじ》` に置換し、フォーカス外れ時に正規表現で `<ruby>` に再パースする。
 
+### ルビ付きテキストのクリップボード（コピー＆ペースト）完全保持機能
+- **概要:**
+  - 通常のブラウザ/OS標準のクリップボードでは、`<ruby>` 要素をコピーした際にHTML構造が剥ぎ取られ、プレーンテキストとして親文字とふりがなが連結（例: 「ああいうえお」）されて崩れてしまう。
+  - エディタ内でルビ付き文字をコピー＆ペーストした際にも、ルビ構造を破壊せずそのまま完全に再現できるようにする。
+- **実装方針:**
+  - WebView 側の `copy` イベントをインターセプト（横取り）し、選択範囲内のルビを青空文庫形式（`|親文字《ルビ》`）および完全なリッチHTMLとしてクリップボードの `text/plain` / `text/html` に格納。
+  - `paste` イベント時に、クリップボードから渡された青空文庫形式やHTMLを `HtmlTextConverter.convertToHtml()` を経由して安全に復元・挿入する。
+
+## 3. エディタ・アーキテクチャ刷新 (Editor Architecture Modernization)
+
+### 自前Undo/Redoスタックの構築と非推奨 `document.execCommand` からの完全脱却
+- **概要:**
+  - 現在、ブラウザ（Chromium）の内部Undoスタックを壊さないために非推奨APIである `document.execCommand`（`insertHTML`, `bold`, `italic`, `undo`, `redo`等）を維持している。
+  - アプリの全基本機能が完成した後の刷新タスクとして、Google DocsやNotionのように、エディタの状態変更（青空文庫形式テキストや装飾履歴）をKotlin/Compose側で自前の一元Undo/Redoスタックとして管理するアーキテクチャへ段階的に移行する。
+- **実装方針:**
+  - `EditorViewModel` または専用の `EditorHistoryManager` に Undo/Redo の履歴スナップショット（またはCommandパターン）を構築。
+  - ブラウザ側のブラックボックスな Undo 機構に依存せず、常にKotlin側からクリーンなHTMLをWebViewへ描画するシングルソース・オブ・トゥルース（Single Source of Truth）を確立する。
+  - これにより、`document.execCommand` を完全廃止し、W3C標準のモダンなDOM APIのみで安定動作する強固なエディタ基盤を実現する。
+

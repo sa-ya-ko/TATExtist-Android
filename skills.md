@@ -13,6 +13,7 @@
 -**OAuth 2.0ネイティブアプリ用:** https://developers.google.com/identity/protocols/oauth2/native-app
 - **Androidadaptive-layouts:** https://developer.android.com/design/ui/wear/guides/m2-5/foundations/adaptive-layouts
 
+
 ## 2. Test-Driven Development (TDD) Methodology 【厳守ルール】
 コード実装を行う際は、必ず以下の **TDDサイクル（Red-Green-Refactor）** に従って対話・コード生成を行ってください。
 
@@ -85,3 +86,27 @@ Material 3 Expressive のデザイン思想に加え、様々な画面サイズ�
 3. **段階的適応（Ready → Responsive & Optimized）:**
    - **Step 1 (Ready):** すべてのサポート画面サイズにおいて、余白崩れ（Margins）や見切れ（Clipping）がなく、ユーザーがすべてのタスクを確実に完遂できる品質基準を維持する。
    - **Step 2 (Optimized):** 将来的に大画面の余白を活かし、リストとエディタの2ペイン表示や、サイドナビゲーションレール等のより高度なレイアウト最適化を段階的に導入する。
+
+## 11. エディタの責任境界とアーキテクチャ設計方針 (Editor Responsibility & Architecture Guidelines)
+
+Google公式のアーキテクチャ原則（単一の信頼できる情報源: SSOT、単方向データフロー: UDF、関心の分離: Separation of Concerns）に基づき、WebViewとAndroidネイティブ層（Kotlin/ViewModel）の責任境界を定義する。
+
+1. **責任の明確な分離（Separation of Concerns）:**
+   - **WebView（HTML / JavaScript）の責務:**
+     - 縦書きレイアウトの描画とフォント表示。
+     - ユーザーのキーボード入力と自然なキャレット操作。
+     - 必要最小限かつ標準に準拠したDOM API操作（選択範囲の取得、標準の `Range` 操作、ルビタグの描画）。
+     - ※独自ハックや文字列の加工・合成などのビジネスロジックは一切持たせない。
+   - **Android側（Kotlin / ViewModel / Repository）の責務:**
+     - アプリ全体の「単一の信頼できる情報源（Single Source of Truth / SSOT）」。
+     - 青空文庫形式（`|親文字《ルビ》`）の純粋なテキストデータの保持・管理。
+     - 文字数カウント、ルビの一覧抽出・検索・フィルタリング・削除などのビジネスロジック。
+     - ※WebView側の不完全なDOM構造に依存したロジックを持たせず、Kotlin側で正規化されたデータを管理する。
+
+2. **DOMハックおよび不可視文字の禁止（No Ad-hoc Hacks & No Zero-Width Spaces）:**
+   - 不具合の場当たり的な回避を目的として、ゼロ幅スペース（`\u200B`）等の不可視文字をエディタのDOMツリー内に挿入することを固く禁止する（文字数カウントの不整合やDOM汚染の原因となるため）。
+   - キャレット位置の制御は、ブラウザ標準の `Range` および `Selection` API（例: ルビ挿入後は `range.setStartAfter(rubyElement); range.collapse(true);` で外側に脱出させる）に限定し、選択範囲の強制書き換え等の小手先のハックを行わない。
+
+3. **Chromiumの標準Undo履歴の保護（Preserve Native Undo Stack）:**
+   - アプリ全体の基本実装が完了するまでの間は、Chromium（contenteditable）が提供する標準のUndo/Redoスタックを破壊するような大規模なDOM構造の独自置換を行わない。
+   - `document.execCommand` から完全自作のUndo/Redoエンジンへの刷新は、全機能の実装完了後に計画的に実施する（詳細は `future.md` 参照）。
