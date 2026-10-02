@@ -127,6 +127,21 @@ class MainActivity : ComponentActivity() {
                         },
                         onToggleDarkMode = {
                             viewModel.toggleDarkMode()
+                        },
+                        onRemoveRubyItem = { item ->
+                            viewModel.removeRubyItem(item)
+                        },
+                        onSelectRubyItem = { item ->
+                            val index = uiState.rubyList.indexOf(item)
+                            if (index >= 0) {
+                                viewModel.jumpToRuby(index)
+                            }
+                        },
+                        onRubyTabChanged = { isListTab ->
+                            viewModel.setRubyListActive(isListTab)
+                        },
+                        onRubyJumpConsumed = {
+                            viewModel.consumeRubyJump()
                         }
                     )
                 }

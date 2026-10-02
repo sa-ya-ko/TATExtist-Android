@@ -2,6 +2,7 @@ package com.tatextist.ui
 
 import androidx.compose.ui.text.input.TextFieldValue
 import com.tatextist.data.DriveFileInfo
+import com.tatextist.utils.RubyItem
 
 enum class EditorFontFamily {
     SERIF,
@@ -22,6 +23,10 @@ data class EditorUiState(
     val fontFamily: EditorFontFamily = EditorFontFamily.SERIF,
     val fontApplyRequest: FontApplyRequest? = null,
     val showFontSettingsBottomSheet: Boolean = false,
+    val showRubyBottomSheet: Boolean = false,
+    val rubyList: List<RubyItem> = emptyList(),
+    val isRubyListActive: Boolean = false,
+    val targetRubyIndex: Int? = null,
     val isCloudLoading: Boolean = false,
     val cloudError: String? = null,
     val needsSignIn: Boolean = false,

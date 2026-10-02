@@ -57,6 +57,7 @@ object HtmlTextConverter {
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&amp;", "&")
+            .replace("\u200B", "")
         // 6. 空白や改行のみ残った場合は空文字として返す
         val finalStripped = result.replace("\n", "").trim()
         if (finalStripped.isEmpty()) {

@@ -29,6 +29,9 @@ fun VerticalEditor(
     fontApplyRequest: FontApplyRequest? = null,
     onFontApplyConsumed: () -> Unit = {},
     onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> },
+    isRubyListActive: Boolean = false,
+    targetRubyIndex: Int? = null,
+    onRubyJumpConsumed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val surfaceColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
@@ -133,6 +136,14 @@ fun VerticalEditor(
                                 font-style: normal;
                                 -webkit-user-select: none;
                                 user-select: none;
+                                pointer-events: none;
+                            }
+
+                            /* ルビ一覧タブ表示時、本文中の全ルビを薄い黄色でハイライト */
+                            .highlight-all-rubies ruby {
+                                background-color: rgba(255, 235, 59, 0.45);
+                                border-radius: 4px;
+                                box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.45);
                             }
                         </style>
                     </head>
@@ -211,9 +222,31 @@ fun VerticalEditor(
                 if (ed) {
                     ed.style.backgroundColor = '$surfaceColorCss';
                     ed.style.color = '$textColorCss';
+                    if ($isRubyListActive) {
+                        ed.classList.add('highlight-all-rubies');
+                    } else {
+                        ed.classList.remove('highlight-all-rubies');
+                    }
                 }
             """.trimIndent()
             webView.evaluateJavascript(themeJs, null)
+
+            // ルビ一覧アイテムがタップされた時に、該当の <ruby> までスクロール移動する
+            if (targetRubyIndex != null) {
+                val jumpJs = """
+                    var ed = document.getElementById('editor');
+                    if (ed) {
+                        var rubies = ed.querySelectorAll('ruby');
+                        var idx = $targetRubyIndex;
+                        if (rubies && rubies[idx]) {
+                            rubies[idx].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                        }
+                    }
+                """.trimIndent()
+                webView.evaluateJavascript(jumpJs) {
+                    onRubyJumpConsumed()
+                }
+            }
             
             if (fontApplyRequest != null && fontApplyRequest.id != lastHandledRequestIdRef[0]) {
                 lastHandledRequestIdRef[0] = fontApplyRequest.id
@@ -282,33 +315,45 @@ fun VerticalEditor(
             if (rubyRequest != null) {
                 // ルビリクエストが来た場合、保存しておいた選択範囲を使ってルビを挿入する
                 val js = """
-                    if (window.savedRange && !window.savedRange.collapsed) {
-                        var range = window.savedRange;
-                        var baseText = range.toString();
-                        if (baseText.length > 0) {
-                            var html = "<ruby>" + baseText + "<rt>${rubyRequest}</rt></ruby>";
-                            
-                            window.ignoreSelectionChange = true;
-                            
-                            // 保存された範囲をブラウザのアクティブな選択状態として復元
-                            var sel = window.getSelection();
-                            sel.removeAllRanges();
-                            sel.addRange(range);
-                            
-                            // ブラウザの編集履歴（Undoスタック）に正しく記録させながらルビを挿入
-                            document.execCommand('insertHTML', false, html);
-                            
-                            // 挿入後、選択状態を完全に解除する（二重実行バグ防止）
-                            sel.removeAllRanges();
-                            
-                            // 挿入後、変更されたHTMLをAndroid側に送信
-                            AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
-                            
-                            // 範囲をリセットし、ロックを解除
-                            window.savedRange = null;
-                            setTimeout(function() { window.ignoreSelectionChange = false; }, 100);
+                    (function() {
+                        try {
+                            if (window.savedRange && !window.savedRange.collapsed) {
+                                var range = window.savedRange;
+                                var baseText = range.toString();
+                                if (baseText.length > 0) {
+                                    // ルビタグの直後に確実な踏み台として \u200B を付与
+                                    var html = "<ruby>" + baseText + "<rt>${rubyRequest}</rt></ruby>\u200B";
+                                    
+                                    window.ignoreSelectionChange = true;
+                                    
+                                    // 保存された範囲をブラウザのアクティブな選択状態として復元
+                                    var sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                    
+                                    // ブラウザの編集履歴（Undoスタック）に正しく記録させながらルビを挿入
+                                    document.execCommand('insertHTML', false, html);
+                                    
+                                    // 挿入後、キャレットを \u200B の直後（ルビの外側）に確実に倒す
+                                    if (sel.rangeCount > 0) {
+                                        var curRange = sel.getRangeAt(0);
+                                        curRange.collapse(false);
+                                        sel.removeAllRanges();
+                                        sel.addRange(curRange);
+                                    }
+                                    
+                                    // 挿入後、変更されたHTMLをAndroid側に送信
+                                    AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                                    
+                                    // 範囲をリセットし、ロックを解除
+                                    window.savedRange = null;
+                                    setTimeout(function() { window.ignoreSelectionChange = false; }, 100);
+                                }
+                            }
+                        } catch (e) {
+                            console.error("rubyRequest error:", e);
                         }
-                    }
+                    })();
                 """.trimIndent()
                 
                 webView.evaluateJavascript(js) {
