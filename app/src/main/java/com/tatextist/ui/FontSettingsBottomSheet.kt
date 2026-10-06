@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,12 +38,17 @@ fun StyleSettingsBottomSheet(
     fontFamily: EditorFontFamily,
     isBold: Boolean = false,
     isItalic: Boolean = false,
+    isUnderline: Boolean = false,
+    isBullet: Boolean = false,
+    indentWidth: Float = 0.0f,
     onFontFamilyChange: (EditorFontFamily) -> Unit,
     onIncreaseFontSize: () -> Unit,
     onDecreaseFontSize: () -> Unit,
+    onIndentWidthChange: (Float) -> Unit = {},
     onFormatCommand: (String) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
+
     val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
@@ -68,7 +75,7 @@ fun StyleSettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 1. 装飾セクション（太字・斜体）
+            // 1. 装飾セクション（太字・斜体・傍線・箇条書き）
             Text(
                 text = "装飾",
                 style = MaterialTheme.typography.labelLarge,
@@ -78,13 +85,13 @@ fun StyleSettingsBottomSheet(
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
                     selected = isBold,
                     onClick = { onFormatCommand("bold") },
                     label = { 
-                        Text("太字 (Bold)", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) 
+                        Text("太字", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) 
                     },
                     shape = androidx.compose.foundation.shape.CircleShape,
                     modifier = Modifier.weight(1f)
@@ -94,10 +101,37 @@ fun StyleSettingsBottomSheet(
                     selected = isItalic,
                     onClick = { onFormatCommand("italic") },
                     label = { 
-                        Text("斜体 (Italic)", style = MaterialTheme.typography.labelLarge, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic) 
+                        Text("斜体", style = MaterialTheme.typography.labelMedium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic) 
                     },
                     shape = androidx.compose.foundation.shape.CircleShape,
                     modifier = Modifier.weight(1f)
+                )
+
+                FilterChip(
+                    selected = isUnderline,
+                    onClick = { onFormatCommand("underline") },
+                    label = { 
+                        Text("傍線", style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline) 
+                    },
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    modifier = Modifier.weight(1f)
+                )
+
+                FilterChip(
+                    selected = isBullet,
+                    onClick = { onFormatCommand("bulletList") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    label = { 
+                        Text("箇条書き", style = MaterialTheme.typography.labelMedium) 
+                    },
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    modifier = Modifier.weight(1.3f)
                 )
             }
 
@@ -133,7 +167,7 @@ fun StyleSettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. 文字サイズ調整
+            // 3. 文字サイズ設定セクション
             Text(
                 text = "文字サイズ",
                 style = MaterialTheme.typography.labelLarge,
@@ -179,9 +213,60 @@ fun StyleSettingsBottomSheet(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 4. 字下げ（段落インデント）設定
+            Text(
+                text = "字下げ（段落インデント）",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.FilledTonalIconButton(
+                    onClick = { if (indentWidth > 0.0f) onIndentWidthChange((indentWidth - 0.5f).coerceAtLeast(0.0f)) },
+                    enabled = indentWidth > 0.0f,
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ) {
+                    Icon(imageVector = Icons.Default.Remove, contentDescription = "字下げ幅を減らす")
+                }
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                val formattedWidth = when {
+                    indentWidth <= 0.0f -> "なし"
+                    indentWidth % 1.0f == 0.0f -> "${indentWidth.toInt()} 字"
+                    else -> String.format(java.util.Locale.JAPAN, "%.1f 字", indentWidth)
+                }
+
+                Text(
+                    text = formattedWidth,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                androidx.compose.material3.FilledTonalIconButton(
+                    onClick = { if (indentWidth < 4.0f) onIndentWidthChange((indentWidth + 0.5f).coerceAtMost(4.0f)) },
+                    enabled = indentWidth < 4.0f,
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "字下げ幅を増やす")
+                }
+            }
         }
     }
 }
+
+
 
 // 既存の呼び出しとの互換用
 @Composable

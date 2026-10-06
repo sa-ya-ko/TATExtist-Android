@@ -319,4 +319,12 @@ class EditorViewModel(
     fun closeFilePickerModal() {
         _uiState.value = _uiState.value.copy(showFilePickerModal = false)
     }
+
+    fun updateIndentWidth(width: Float) {
+        if (width in 0.0f..4.0f) {
+            _uiState.value = _uiState.value.copy(indentWidth = width)
+        }
+    }
 }
+
+

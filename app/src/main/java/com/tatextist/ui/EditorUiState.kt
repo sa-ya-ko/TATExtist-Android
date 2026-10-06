@@ -37,5 +37,8 @@ data class EditorUiState(
     val showWordCountWhileTyping: Boolean = false,
     val isDriveSignedIn: Boolean = false,
     val cloudFiles: List<DriveFileInfo> = emptyList(),
-    val showFilePickerModal: Boolean = false
+    val showFilePickerModal: Boolean = false,
+    val indentWidth: Float = 0.0f
 )
+
+

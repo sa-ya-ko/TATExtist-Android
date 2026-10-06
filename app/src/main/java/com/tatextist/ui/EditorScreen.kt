@@ -70,8 +70,10 @@ fun EditorScreen(
     onRemoveRubyItem: (com.tatextist.utils.RubyItem) -> Unit = {},
     onSelectRubyItem: (com.tatextist.utils.RubyItem) -> Unit = {},
     onRubyTabChanged: (Boolean) -> Unit = {},
-    onRubyJumpConsumed: () -> Unit = {}
+    onRubyJumpConsumed: () -> Unit = {},
+    onIndentWidthChange: (Float) -> Unit = {}
 ) {
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     // エラーが出た時はスナックバーで表示する
@@ -93,6 +95,10 @@ fun EditorScreen(
     var formatCommand by remember { mutableStateOf<String?>(null) }
     var isBold by remember { mutableStateOf(false) }
     var isItalic by remember { mutableStateOf(false) }
+    var isUnderline by remember { mutableStateOf(false) }
+    var isBullet by remember { mutableStateOf(false) }
+    var indentRequest by remember { mutableStateOf<Int?>(null) }
+
 
     // 画面全体の骨組み（Scaffold）を作ります
     Scaffold(
@@ -310,9 +316,18 @@ fun EditorScreen(
             fontApplyRequest = uiState.fontApplyRequest,
             onFontApplyConsumed = onConsumeFontApplyRequest,
             onStyleDetected = onStyleDetected,
+            onFormatStateDetected = { bold, italic, underline, bullet ->
+                isBold = bold
+                isItalic = italic
+                isUnderline = underline
+                isBullet = bullet
+            },
             isRubyListActive = uiState.isRubyListActive,
             targetRubyIndex = uiState.targetRubyIndex,
             onRubyJumpConsumed = onRubyJumpConsumed,
+            indentRequest = indentRequest,
+            onIndentConsumed = { indentRequest = null },
+            indentWidth = uiState.indentWidth,
             modifier = Modifier.padding(innerPadding)
         )
     }
@@ -344,17 +359,24 @@ fun EditorScreen(
             fontFamily = uiState.fontFamily,
             isBold = isBold,
             isItalic = isItalic,
+            isUnderline = isUnderline,
+            isBullet = isBullet,
+            indentWidth = uiState.indentWidth,
             onFontFamilyChange = onFontFamilyChange,
             onIncreaseFontSize = onIncreaseFontSize,
             onDecreaseFontSize = onDecreaseFontSize,
+            onIndentWidthChange = onIndentWidthChange,
             onFormatCommand = { cmd ->
                 if (cmd == "bold") isBold = !isBold
                 if (cmd == "italic") isItalic = !isItalic
+                if (cmd == "underline") isUnderline = !isUnderline
+                if (cmd == "bulletList") isBullet = !isBullet
                 formatCommand = cmd
             },
             onDismissRequest = onCloseFontSettings
         )
     }
+
 
     // ツールボトムシート（M3 Expressive 準拠）
     if (showToolsBottomSheet) {

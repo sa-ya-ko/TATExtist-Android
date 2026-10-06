@@ -372,5 +372,30 @@ class EditorViewModelTest {
             assertEquals(null, awaitItem().targetRubyIndex)
         }
     }
+
+    @Test
+    fun `updateIndentWidth_updatesWidthAndGuardsAgainstInvalidValues`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            // デフォルトは「インデントなし（0.0f）」
+            assertEquals(0.0f, initial.indentWidth)
+
+            viewModel.updateIndentWidth(0.5f)
+            assertEquals(0.5f, awaitItem().indentWidth)
+
+            viewModel.updateIndentWidth(1.5f)
+            assertEquals(1.5f, awaitItem().indentWidth)
+
+            viewModel.updateIndentWidth(0.0f)
+            assertEquals(0.0f, awaitItem().indentWidth)
+
+            // 範囲外（負の数や4.5f以上）の不正値は弾かれる
+            viewModel.updateIndentWidth(-0.5f)
+            viewModel.updateIndentWidth(4.5f)
+            expectNoEvents()
+        }
+    }
 }
+
+
 
