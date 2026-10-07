@@ -242,21 +242,29 @@ fun VerticalEditor(
                                 }
                             });
                             
-                            // ユーザーがエディタを手動タップした時に古い選択を安全にリセット
+                            // ユーザーがエディタを手動タップした時：選択範囲が存在しない（完全に1点カーソルの）時のみ静かに解除
                             editor.addEventListener('pointerdown', function() {
+                                // pointerdown直後はブラウザがまだ新しい選択範囲を確定していないため、
+                                // ここで無理に frozenSelection を null にせず、selectionchange に委ねる
+                            });
+
+                            // ユーザーが文字選択を終えて指を離した瞬間に最新の選択範囲を確定・保存
+                            editor.addEventListener('pointerup', function() {
                                 var sel = window.getSelection();
-                                if (!sel || sel.isCollapsed) {
-                                    window.frozenSelection = null;
+                                if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+                                    var r = sel.getRangeAt(0);
+                                    window.frozenSelection = r.cloneRange();
+                                    window.lastSelectionRange = r.cloneRange();
+                                    window.savedRange = r.cloneRange();
                                 }
                             });
 
-                            // Composeのボトムシートが開くとWebViewがフォーカスを失い、
-                            // 選択範囲が消滅してしまうため、常に最新の選択範囲を保存しておく
                             window.savedRange = null;
                             window.lastSelectionRange = null;
                             window.ignoreSelectionChange = false;
+                            window.isFormatting = false;
                             document.addEventListener('selectionchange', function() {
-                                if (window.ignoreSelectionChange) return;
+                                if (window.ignoreSelectionChange || window.isFormatting) return;
                                 var sel = window.getSelection();
                                 if (sel.rangeCount > 0) {
                                     var range = sel.getRangeAt(0);
@@ -352,9 +360,10 @@ fun VerticalEditor(
                                         newDiv.appendChild(document.createElement('br'));
                                     }
 
-                                    // 現在の行の直後に新しい段落を挿入
-                                    if (curLine && curLine.parentNode && curLine !== editor) {
-                                        curLine.parentNode.insertBefore(newDiv, curLine.nextSibling);
+                                    // 現在の行の直後に新しい段落を挿入（必ずeditor直下に限定してHierarchyRequestErrorを防止）
+                                    var targetLine = (curLine && curLine.parentElement === editor) ? curLine : null;
+                                    if (targetLine && targetLine.nextSibling) {
+                                        editor.insertBefore(newDiv, targetLine.nextSibling);
                                     } else {
                                         editor.appendChild(newDiv);
                                     }
@@ -615,36 +624,71 @@ fun VerticalEditor(
                     onRubyApplied()
                 }
             } else if (formatCommand != null) {
+                // コマンド名からタイムスタンプ部分を取り出し、純粋な命令名（"bold", "bulletList" 等）を取得
+                val cmdName = formatCommand.substringBefore("_")
                 // 文字装飾やUndo/Redoのリクエストが来た場合
                 val js = """
                     (function() {
                         var targetEd = document.getElementById('editor');
+
+                        // ブラウザが勝手に選択を解除しないよう、先に作業中フラグを立てる
+                        window.isFormatting = true;
+                        window.ignoreSelectionChange = true;
+
+                        // 今まさに選択されている最新の選択範囲をチェック
+                        var curSel = window.getSelection();
+                        var hasActiveSelection = (curSel && curSel.rangeCount > 0 && !curSel.isCollapsed);
+
+                        // 文字装飾（太字・斜体・傍線）用には、幅のある選択範囲（非collapsed）のみを厳選
+                        var textRange = null;
+                        if (hasActiveSelection) {
+                            textRange = curSel.getRangeAt(0);
+                        } else if (window.frozenSelection && !window.frozenSelection.collapsed) {
+                            textRange = window.frozenSelection;
+                        } else if (window.lastSelectionRange && !window.lastSelectionRange.collapsed) {
+                            textRange = window.lastSelectionRange;
+                        }
+
+                        // 箇条書き用には、文字選択または最新のキャレット位置を使用
+                        var caretRange = textRange || window.lastCaretRange || window.savedRange || ((curSel && curSel.rangeCount > 0) ? curSel.getRangeAt(0) : null);
+
+                        if (textRange) {
+                            var sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(textRange);
+                            // 最新の選択範囲で記憶を更新
+                            window.frozenSelection = textRange.cloneRange();
+                            window.lastSelectionRange = textRange.cloneRange();
+                            window.savedRange = textRange.cloneRange();
+                        }
+
+                        // 選択範囲をセットした後にフォーカスを戻す（選択解除を防ぐ）
                         if (targetEd) {
                             targetEd.focus();
                         }
-                        if ('$formatCommand' === 'undo') {
+
+                        if ('$cmdName' === 'undo') {
                             document.execCommand('undo', false, null);
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
-                        } else if ('$formatCommand' === 'redo') {
+                        } else if ('$cmdName' === 'redo') {
                             document.execCommand('redo', false, null);
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
-                    } else if ('$formatCommand' === 'bulletList') {
+                        } else if ('$cmdName' === 'bulletList') {
                         // 箇条書きは文字範囲選択ではなく、最新のキャレット行を最優先
-                        var range = window.lastCaretRange || window.savedRange || window.frozenSelection || ((window.getSelection().rangeCount > 0) ? window.getSelection().getRangeAt(0) : null);
-                        if (range) {
+                        if (caretRange) {
                             var sel = window.getSelection();
                             sel.removeAllRanges();
-                            sel.addRange(range);
+                            sel.addRange(caretRange);
 
                             var baseIndent = (window.indentWidth !== undefined) ? window.indentWidth : 0;
                             var bulletPrefix = getIndentSpaces(baseIndent + 1.5) + '・';
 
-                            var container = range.startContainer;
+                            var container = caretRange.startContainer;
                             var lineBlock = null;
 
                             // 1. エディタ自身がコンテナの場合（子要素インデックスから特定）
                             if (container === editor) {
-                                var childIdx = Math.min(range.startOffset, editor.childNodes.length - 1);
+                                var childIdx = Math.min(caretRange.startOffset, editor.childNodes.length - 1);
                                 lineBlock = (childIdx >= 0) ? editor.childNodes[childIdx] : editor.lastChild;
                             } else {
                                 // 2. エディタ内部の要素・テキストノードの場合
@@ -696,76 +740,93 @@ fun VerticalEditor(
 
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
                         }
-                    } else if (window.frozenSelection || window.lastSelectionRange || window.lastCaretRange || window.savedRange) {
-                        var range = window.frozenSelection || window.lastSelectionRange || window.lastCaretRange || window.savedRange;
-                        var sel = window.getSelection();
-                        sel.removeAllRanges();
-                        sel.addRange(range);
+                    } else if (textRange) {
+                        try {
+                            var sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(textRange);
 
-                        window.ignoreSelectionChange = true;
+                            var cmd = '$cmdName';
+                            if (cmd === 'italic') {
+                                // 選択範囲の中や親要素に <i> や <em> または font-style: italic があるか探す
+                                var startNode = textRange.startContainer;
+                                var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
+                                var existingItalic = startEl ? startEl.closest('i, em') : null;
 
-                        var cmd = '$formatCommand';
-                        var tagSelector = (cmd === 'bold') ? 'b, strong' : (cmd === 'italic' ? 'i, em' : 'u');
-                        var tagName = (cmd === 'bold') ? 'b' : (cmd === 'italic' ? 'i' : 'u');
-                        var execCmd = (cmd === 'bold') ? 'bold' : (cmd === 'italic' ? 'italic' : 'underline');
-
-                        // 1. すでに適用されている装飾タグがあれば解除（アンラップ）
-                        var existingTags = editor.querySelectorAll(tagSelector);
-                        var unwrappedAny = false;
-                        var currentRange = sel.getRangeAt(0).cloneRange();
-                        existingTags.forEach(function(tag) {
-                            if (sel.containsNode(tag, true) || tag.contains(sel.anchorNode) || tag.contains(sel.focusNode)) {
-                                var frag = document.createDocumentFragment();
-                                while(tag.firstChild) frag.appendChild(tag.firstChild);
-                                tag.replaceWith(frag);
-                                unwrappedAny = true;
-                            }
-                        });
-
-                        if (!unwrappedAny) {
-                            // 2. 選択範囲内に <ruby> が含まれているか検査
-                            var rubies = [];
-                            editor.querySelectorAll('ruby').forEach(function(rb) {
-                                if (sel.containsNode(rb, true) || rb.contains(sel.anchorNode) || rb.contains(sel.focusNode)) {
-                                    rubies.push(rb);
-                                }
-                            });
-
-                            if (rubies.length > 0) {
-                                rubies.forEach(function(rb) {
-                                    var parent = rb.parentElement;
-                                    if (parent && parent.tagName.toLowerCase() !== tagName) {
-                                        var wrap = document.createElement(tagName);
-                                        rb.parentNode.insertBefore(wrap, rb);
-                                        wrap.appendChild(rb);
+                                if (existingItalic) {
+                                    // すでに斜体がある場合は、外側の <b> 等を壊さずに <i> タグのみを解体（解除）
+                                    var parent = existingItalic.parentNode;
+                                    while (existingItalic.firstChild) {
+                                        parent.insertBefore(existingItalic.firstChild, existingItalic);
                                     }
-                                });
-                            } else {
-                                // ルビを含まない通常テキストの場合は標準コマンドを実行
-                                document.execCommand(execCmd, false, null);
+                                    parent.removeChild(existingItalic);
+                                } else {
+                                    // 斜体がない場合は付与
+                                    document.execCommand('italic', false, null);
+                                }
+                            } else if (cmd === 'bold') {
+                                var startNode = textRange.startContainer;
+                                var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
+                                var existingBold = startEl ? startEl.closest('b, strong') : null;
+
+                                if (existingBold) {
+                                    // すでに太字がある場合は、内側の <i> 等を壊さずに <b> タグのみを解体（解除）
+                                    var parent = existingBold.parentNode;
+                                    while (existingBold.firstChild) {
+                                        parent.insertBefore(existingBold.firstChild, existingBold);
+                                    }
+                                    parent.removeChild(existingBold);
+                                } else {
+                                    document.execCommand('bold', false, null);
+                                }
+                            } else if (cmd === 'underline') {
+                                var startNode = textRange.startContainer;
+                                var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
+                                var existingUnderline = startEl ? startEl.closest('u') : null;
+
+                                if (existingUnderline) {
+                                    // すでに下線がある場合は、<u> タグのみを解体（解除）
+                                    var parent = existingUnderline.parentNode;
+                                    while (existingUnderline.firstChild) {
+                                        parent.insertBefore(existingUnderline.firstChild, existingUnderline);
+                                    }
+                                    parent.removeChild(existingUnderline);
+                                } else {
+                                    document.execCommand('underline', false, null);
+                                }
                             }
+
+                            // 連続で装飾を適用できるよう、最新の選択範囲を取得・維持
+                            var afterSel = window.getSelection();
+                            if (afterSel && afterSel.rangeCount > 0 && !afterSel.isCollapsed) {
+                                var newR = afterSel.getRangeAt(0);
+                                window.frozenSelection = newR.cloneRange();
+                                window.lastSelectionRange = newR.cloneRange();
+                                window.lastCaretRange = newR.cloneRange();
+                                window.savedRange = newR.cloneRange();
+                            } else {
+                                // ブラウザが選択を外してしまった場合、直前の有効なtextRangeを強制再設定
+                                window.frozenSelection = textRange.cloneRange();
+                                window.lastSelectionRange = textRange.cloneRange();
+                                window.lastCaretRange = textRange.cloneRange();
+                                window.savedRange = textRange.cloneRange();
+                                if (afterSel) {
+                                    afterSel.removeAllRanges();
+                                    afterSel.addRange(textRange);
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Format command error:', e);
                         }
 
-                        // 3. 連続で装飾を適用できるよう、最新の選択範囲を取得・維持
-                        var afterSel = window.getSelection();
-                        var activeRange = (afterSel && afterSel.rangeCount > 0 && !afterSel.isCollapsed)
-                            ? afterSel.getRangeAt(0)
-                            : currentRange;
-
-                        if (afterSel) {
-                            afterSel.removeAllRanges();
-                            afterSel.addRange(activeRange);
+                        if (window.ignoreSelectionTimer) {
+                            clearTimeout(window.ignoreSelectionTimer);
                         }
-
-                        window.frozenSelection = activeRange.cloneRange();
-                        window.lastSelectionRange = activeRange.cloneRange();
-                        window.lastCaretRange = activeRange.cloneRange();
-                        window.savedRange = activeRange.cloneRange();
-
-                        setTimeout(function() {
+                        window.ignoreSelectionTimer = setTimeout(function() {
+                            window.isFormatting = false;
                             window.ignoreSelectionChange = false;
-                        }, 200);
-                    } else if ('$formatCommand' === 'removeRuby') {
+                        }, 20);
+                    } else if ('$cmdName' === 'removeRuby') {
                         var rubies = document.getElementById('editor').querySelectorAll('ruby');
                         rubies.forEach(function(ruby) {
                             if (sel.containsNode(ruby, true) || ruby.contains(sel.anchorNode) || ruby.contains(sel.focusNode)) {

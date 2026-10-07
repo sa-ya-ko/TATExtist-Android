@@ -183,5 +183,72 @@ class HtmlTextConverterTest {
         assertEquals("あい", plainNext)
         assertEquals(2, plainNext.length)
     }
+
+    @Test
+    fun test_convertFromHtml_preserves_underline_tags() {
+        val input = "吾輩は<u>猫</u>である"
+        val expected = "吾輩は<u>猫</u>である"
+        
+        val actual = HtmlTextConverter.convertFromHtml(input)
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun test_extractPlainText_strips_underline_tags() {
+        val input = "吾輩は<u>猫</u>である"
+        val plain = HtmlTextConverter.extractPlainText(input)
+        assertEquals("吾輩は猫である", plain)
+        assertEquals(7, plain.length)
+    }
+
+    @Test
+    fun test_convertFromHtml_ruby_and_underline_coexist() {
+        // パターンA: <u><ruby>漢字<rt>かんじ</rt></ruby></u>
+        val htmlOuterU = "<u><ruby>漢字<rt>かんじ</rt></ruby></u>"
+        val actualA = HtmlTextConverter.convertFromHtml(htmlOuterU)
+        assertEquals("<u>|漢字《かんじ》</u>", actualA)
+
+        // パターンB: <ruby><u>漢字</u><rt>かんじ</rt></ruby>
+        val htmlInnerU = "<ruby><u>漢字</u><rt>かんじ</rt></ruby>"
+        val actualB = HtmlTextConverter.convertFromHtml(htmlInnerU)
+        // 青空文庫形式への変換後、<u>タグとルビ記法が両立していることを検証
+        assertEquals("<u>|漢字《かんじ》</u>", actualB)
+
+        // 可視プレーンテキスト抽出でも「漢字」(2文字)になることを検証
+        val plainA = HtmlTextConverter.extractPlainText(actualA)
+        assertEquals("漢字", plainA)
+        assertEquals(2, plainA.length)
+    }
+
+    @Test
+    fun test_convertToHtml_ruby_and_underline_coexist() {
+        val aozora = "<u>|漢字《かんじ》</u>"
+        val html = HtmlTextConverter.convertToHtml(aozora)
+        assertEquals("<u><ruby>漢字<rt>かんじ</rt></ruby></u>", html)
+    }
+
+    @Test
+    fun test_convertFromHtml_ruby_followed_by_newline_with_indent() {
+        // ルビ直後に改行とインデントが入るHTMLケース (各<div>の終了は\n)
+        val html = "<div><ruby>あ<rt>あいうえお</rt></ruby></div><div>　　　次の段落</div>"
+        val actual = HtmlTextConverter.convertFromHtml(html)
+        val expected = "|あ《あいうえお》\n　　　次の段落\n"
+        assertEquals(expected, actual)
+
+        val plain = HtmlTextConverter.extractPlainText(actual)
+        assertEquals("あ\n　　　次の段落\n", plain)
+    }
+
+    @Test
+    fun test_convertFromHtml_underline_does_not_corrupt_subsequent_indent() {
+        // 直前の行に傍線があり、次の行がインデントされているHTMLケース
+        val html = "<div><u>傍線テキスト</u></div><div>　　　新しい行</div>"
+        val actual = HtmlTextConverter.convertFromHtml(html)
+        val expected = "<u>傍線テキスト</u>\n　　　新しい行\n"
+        assertEquals(expected, actual)
+
+        val plain = HtmlTextConverter.extractPlainText(actual)
+        assertEquals("傍線テキスト\n　　　新しい行\n", plain)
+    }
 }
 

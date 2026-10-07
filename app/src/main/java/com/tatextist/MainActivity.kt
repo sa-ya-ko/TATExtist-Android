@@ -142,6 +142,9 @@ class MainActivity : ComponentActivity() {
                         },
                         onRubyJumpConsumed = {
                             viewModel.consumeRubyJump()
+                        },
+                        onIndentWidthChange = { width ->
+                            viewModel.updateIndentWidth(width)
                         }
                     )
                 }

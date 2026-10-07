@@ -32,13 +32,27 @@ object HtmlTextConverter {
         )
         var result = rubyRegex.replace(html) { matchResult ->
             val rawBase = matchResult.groupValues[1]
-            val cleanBase = rawBase.replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
             val ruby = matchResult.groupValues[2].replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
-            if (cleanBase.isEmpty()) {
-                // 親文字が削除された孤立ルビは残骸なので消去
-                ""
+
+            // 親文字内の許可タグ（u, b, i, span, font）をチェック
+            val tagMatch = Regex("""^<([a-zA-Z0-9]+)([^>]*)>(.*?)</\1>$""", RegexOption.DOT_MATCHES_ALL).find(rawBase.trim())
+            if (tagMatch != null) {
+                val tag = tagMatch.groupValues[1]
+                val attrs = tagMatch.groupValues[2]
+                val innerBase = tagMatch.groupValues[3].replace("\u200B", "").trim()
+                if (innerBase.isEmpty()) {
+                    ""
+                } else {
+                    "<$tag$attrs>|$innerBase《$ruby》</$tag>"
+                }
             } else {
-                "|$cleanBase《$ruby》"
+                val cleanBase = rawBase.replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
+                if (cleanBase.isEmpty()) {
+                    // 親文字が削除された孤立ルビは残骸なので消去
+                    ""
+                } else {
+                    "|$cleanBase《$ruby》"
+                }
             }
         }
 
@@ -48,9 +62,9 @@ object HtmlTextConverter {
         // 3. ブロック要素の終了タグと改行タグを \n に変換
         result = result.replace(Regex("""</div>|</p>|<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
 
-        // 4. その他のHTMLタグ（太字 <b>, 斜体 <i>, 装飾 <span>, <font> 以外）をすべて削除
+        // 4. その他のHTMLタグ（太字 <b>, 斜体 <i>, 傍線 <u>, 装飾 <span>, <font> 以外）をすべて削除
         // 万が一ルビのパースに失敗しても、<ruby>と<rt>を消してテキストを破壊しないよう保護リストに追加
-        result = result.replace(Regex("""<(?!/?(?:b|i|ruby|rt|span|font)\b)[^>]+>""", RegexOption.IGNORE_CASE), "")
+        result = result.replace(Regex("""<(?!/?(?:b|i|u|ruby|rt|span|font)\b)[^>]+>""", RegexOption.IGNORE_CASE), "")
 
         // 5. 特殊文字のデコードとゼロ幅スペース（スタイルプレースホルダー用）の除去
         result = result.replace("&nbsp;", " ")

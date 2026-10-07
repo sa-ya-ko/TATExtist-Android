@@ -253,3 +253,38 @@
   4. JavaScript文字列末尾の余分な `}` を削除して文法エラーを解消。
   5. `input` イベントリスナーで文字消去により空になった `<u>`, `<b>`, `<i>` 等のインライン装飾タグを自動削除し、文字のない傍線だけが残る不具合を解消。
   6. 箇条書き処理において、1行目のテキストノード（editor直下）と2行目以降の `<div>` 要素を正確に判別して更新し、前後の行破壊や不要な `<div><br></div>` 挿入を防止。
+
+---
+
+## Bug 022: 改行キー押下時に親要素を遡りすぎて発生する HierarchyRequestError
+- **現象 (What):**
+  - エディタ内でEnterキーを押して改行しようとすると、`Uncaught HierarchyRequestError: Failed to execute 'insertBefore' on 'Node': Only one element on document allowed.` が発生し、改行処理が中断して改行できなくなる。
+- **原因 (Why):**
+  - 改行時の行探索で親を遡る際、エディタ（`#editor`）を飛び越えて `document` オブジェクトまで到達し、`document.insertBefore(newDiv, ...)` を実行しようとしていたため（HTML規格上、Document直下には1つのHTML要素しか配置できない）。
+- **対策 (How):**
+  - 新しい行要素（`newDiv`）の挿入先を常に `editor` の直下（`editor.insertBefore` または `editor.appendChild`）に厳密に限定した。
+
+---
+
+## Bug 023: タイムスタンプ付き formatCommand による装飾コマンド不発・複数回タップが必要となる不具合
+- **現象 (What):**
+  - スタイルボトムシートから「太字」「斜体」「傍線」等のボタンをタップした際、1回で装飾がつかず、2〜3回タップしないと装飾がつかなかったり、途中で外れてしまったりする。
+- **原因 (Why):**
+  - Compose 側で連続タップを検知するために `formatCommand = "${cmd}_${System.currentTimeMillis()}"`（例: `"bold_1710000000000"`）というタイムスタンプ付きの文字列を発行していた。
+  - しかし `VerticalEditor.kt` の JavaScript 内では `if ('$formatCommand' === 'undo')` や `var cmd = '$formatCommand'; if (cmd === 'bold')` といった完全一致比較を行っていたため、コマンド名が一致せず、意図した装飾処理がスキップされていた。
+- **対策 (How):**
+  - `VerticalEditor.kt` 側で `val cmdName = formatCommand.substringBefore("_")` を抽出し、JavaScript に渡すコマンド名を純粋な命令名（`'bold'`, `'bulletList'` 等）に正規化した。
+
+---
+
+## Bug 024: 複数テキスト選択時の装飾キャンセル・ボトムシート初期アクティブ不整合
+- **現象 (What):**
+  - 1つ目のテキストに装飾をつけた後、2つ目のテキストを選択してボトムシートを開くと、ボタンが既にアクティブ（点灯）になっており、タップすると装飾がキャンセルされて反映されない。
+- **原因 (Why):**
+  - `EditorScreen.kt` の `onFormatCommand` 内で `isBold = !isBold` と即座にローカルStateを反転させており、次のテキスト選択時に古い状態が残っていた。
+  - `VerticalEditor.kt` の JavaScript 内で装飾範囲の安全化リファクタリング時に、未定義変数 `range` を参照するタイポが存在し、`ReferenceError` によりコマンド実行が中断されていた。
+- **対策 (How):**
+  - `EditorScreen.kt` 側の予測反転を削除し、WebView から返る最新の装飾状態（`onFormatState`）のみでボタンの点灯状態を管理。
+  - `VerticalEditor.kt` 側の装飾実行ブロックを変数 `textRange` に統一し、予期せぬ中断を防ぐ `try-catch` エラーハンドリングを追加した。
+
+

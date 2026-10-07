@@ -367,11 +367,7 @@ fun EditorScreen(
             onDecreaseFontSize = onDecreaseFontSize,
             onIndentWidthChange = onIndentWidthChange,
             onFormatCommand = { cmd ->
-                if (cmd == "bold") isBold = !isBold
-                if (cmd == "italic") isItalic = !isItalic
-                if (cmd == "underline") isUnderline = !isUnderline
-                if (cmd == "bulletList") isBullet = !isBullet
-                formatCommand = cmd
+                formatCommand = "${cmd}_${System.currentTimeMillis()}"
             },
             onDismissRequest = onCloseFontSettings
         )
