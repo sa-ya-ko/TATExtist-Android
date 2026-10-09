@@ -12,10 +12,13 @@ import com.tatextist.utils.RubyManager
 
 import androidx.lifecycle.viewModelScope
 import com.tatextist.data.GoogleDriveRepository
+import com.tatextist.data.LocalFileRepository
+import android.net.Uri
 import kotlinx.coroutines.launch
 
 class EditorViewModel(
-    private val driveRepository: GoogleDriveRepository? = null
+    private val driveRepository: GoogleDriveRepository? = null,
+    private val localFileRepository: LocalFileRepository? = null
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
@@ -324,6 +327,126 @@ class EditorViewModel(
         if (width in 0.0f..4.0f) {
             _uiState.value = _uiState.value.copy(indentWidth = width)
         }
+    }
+
+    /**
+     * 現在のエディタ内容を青空文庫形式テキストに変換し、ローカルファイルURIに保存する
+     */
+    fun saveToLocalFile(uri: Uri) {
+        val repo = localFileRepository ?: return
+        viewModelScope.launch {
+            val aozoraText = HtmlTextConverter.convertFromHtml(_uiState.value.content.text)
+            val state = _uiState.value
+            val metaHeader = "［＃レイアウト設定：paper=${state.paperSize.name},top=${state.margins.top},bottom=${state.margins.bottom},right=${state.margins.right},left=${state.margins.left}］\n"
+            val textToSave = metaHeader + aozoraText
+            val result = repo.saveText(uri, textToSave)
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    localFileMessage = "端末に保存しました",
+                    localFileError = null
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    localFileError = "ファイルの保存に失敗しました: ${result.exceptionOrNull()?.message}",
+                    localFileMessage = null
+                )
+            }
+        }
+    }
+
+    /**
+     * ローカルファイルURIから青空文庫形式テキストを読み込み、HTMLに変換してエディタに反映する
+     */
+    fun loadFromLocalFile(uri: Uri) {
+        val repo = localFileRepository ?: return
+        viewModelScope.launch {
+            val result = repo.readText(uri)
+            if (result.isSuccess) {
+                val rawText = result.getOrNull() ?: ""
+                var aozoraText = rawText
+                var loadedPaperSize: PaperSize? = null
+                var loadedMargins: EditorMargins? = null
+
+                // 先頭の［＃レイアウト設定：...］メタデータを検出・抽出
+                val metaRegex = Regex("""^［＃レイアウト設定：([^］]+)］\r?\n?""")
+                val match = metaRegex.find(rawText)
+                if (match != null) {
+                    val metaParams = match.groupValues[1].split(",")
+                    var top = _uiState.value.margins.top
+                    var bottom = _uiState.value.margins.bottom
+                    var right = _uiState.value.margins.right
+                    var left = _uiState.value.margins.left
+                    for (param in metaParams) {
+                        val kv = param.split("=")
+                        if (kv.size == 2) {
+                            val key = kv[0].trim()
+                            val value = kv[1].trim()
+                            when (key) {
+                                "paper" -> {
+                                    loadedPaperSize = when (value) {
+                                        "A4" -> PaperSize.A4
+                                        "B5" -> PaperSize.B5
+                                        else -> PaperSize.FIT
+                                    }
+                                }
+                                "top" -> value.toIntOrNull()?.let { top = it }
+                                "bottom" -> value.toIntOrNull()?.let { bottom = it }
+                                "right" -> value.toIntOrNull()?.let { right = it }
+                                "left" -> value.toIntOrNull()?.let { left = it }
+                            }
+                        }
+                    }
+                    loadedMargins = EditorMargins(top = top, bottom = bottom, right = right, left = left)
+                    aozoraText = rawText.substring(match.range.last + 1)
+                }
+
+                val htmlContent = HtmlTextConverter.convertToHtml(aozoraText)
+                updateContent(TextFieldValue(text = htmlContent))
+                _uiState.value = _uiState.value.copy(
+                    paperSize = loadedPaperSize ?: _uiState.value.paperSize,
+                    margins = loadedMargins ?: _uiState.value.margins,
+                    localFileMessage = "端末からファイルを読み込みました",
+                    localFileError = null
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    localFileError = "ファイルの読み込みに失敗しました: ${result.exceptionOrNull()?.message}",
+                    localFileMessage = null
+                )
+            }
+        }
+    }
+
+    /**
+     * ローカルファイル操作通知メッセージを消去する
+     */
+    fun clearLocalFileMessage() {
+        _uiState.value = _uiState.value.copy(
+            localFileMessage = null,
+            localFileError = null
+        )
+    }
+
+    /**
+     * 用紙サイズ（FIT, A4, B5）を設定する
+     */
+    fun setPaperSize(paperSize: PaperSize) {
+        _uiState.value = _uiState.value.copy(paperSize = paperSize)
+    }
+
+    /**
+     * 余白（上、下、右、左）を設定する
+     */
+    fun updateMargins(top: Int? = null, bottom: Int? = null, right: Int? = null, left: Int? = null) {
+        val cur = _uiState.value.margins
+        _uiState.value = _uiState.value.copy(
+            margins = cur.copy(
+                top = top ?: cur.top,
+                bottom = bottom ?: cur.bottom,
+                right = right ?: cur.right,
+                left = left ?: cur.left
+            )
+        )
     }
 }
 

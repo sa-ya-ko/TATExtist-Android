@@ -36,6 +36,8 @@ fun VerticalEditor(
     indentRequest: Int? = null,
     onIndentConsumed: () -> Unit = {},
     indentWidth: Float = 0.0f,
+    paperSize: PaperSize = PaperSize.FIT,
+    margins: EditorMargins = EditorMargins(),
     modifier: Modifier = Modifier
 ) {
 
@@ -44,6 +46,11 @@ fun VerticalEditor(
     val surfaceColorCss = String.format("#%06X", 0xFFFFFF and surfaceColor.toArgb())
     val textColorCss = String.format("#%06X", 0xFFFFFF and onSurfaceColor.toArgb())
     val fontFamilyCss = if (fontFamily == EditorFontFamily.SERIF) "serif, 'Noto Serif JP'" else "sans-serif, 'Noto Sans JP'"
+    val paperClass = when (paperSize) {
+        PaperSize.A4 -> "paper-a4"
+        PaperSize.B5 -> "paper-b5"
+        PaperSize.FIT -> "paper-fit"
+    }
 
     // WebViewとComposeのテキスト状態を同期するための変数（ループ防止用）
     // mutableStateOfを使うと不要な再描画が走り、IMEの漢字変換（コンポジション）が強制終了されるため、配列で状態を持たせます
@@ -124,11 +131,16 @@ fun VerticalEditor(
                                 background-color: $surfaceColorCss;
                                 overflow: hidden;
                             }
+                            body {
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                box-sizing: border-box;
+                            }
                             #editor {
                                 writing-mode: vertical-rl;
-                                width: 100vw;
                                 box-sizing: border-box;
-                                padding: 20px;
                                 font-size: ${fontSize}px;
                                 line-height: 2;
                                 font-family: $fontFamilyCss;
@@ -139,6 +151,35 @@ fun VerticalEditor(
                                 white-space: pre-wrap;
                                 background-color: $surfaceColorCss;
                                 color: $textColorCss;
+                                padding: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px;
+                                transition: all 0.25s ease-out;
+                            }
+
+                            /* 用紙サイズ: 画面フィット（通常モード） */
+                            #editor.paper-fit {
+                                width: 100vw;
+                                height: 100vh;
+                                box-shadow: none;
+                                border: none;
+                                border-radius: 0;
+                            }
+
+                            /* 用紙サイズ: A4（横長・縦書き原稿 297mm × 210mm 比率: 1.414 : 1） */
+                            #editor.paper-a4 {
+                                height: calc(100vh - 32px);
+                                aspect-ratio: 297 / 210;
+                                border-radius: 6px;
+                                border: 1px solid rgba(128, 128, 128, 0.25);
+                                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+                            }
+
+                            /* 用紙サイズ: B5（横長・縦書き原稿 257mm × 182mm 比率: 1.412 : 1） */
+                            #editor.paper-b5 {
+                                height: calc(100vh - 32px);
+                                aspect-ratio: 257 / 182;
+                                border-radius: 6px;
+                                border: 1px solid rgba(128, 128, 128, 0.25);
+                                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
                             }
 
                             /* 
@@ -166,15 +207,19 @@ fun VerticalEditor(
                         </style>
                     </head>
                     <body>
-                        <div id="editor" contenteditable="true">${HtmlTextConverter.convertToHtml(value.text)}</div>
+                        <div id="editor" class="$paperClass" contenteditable="true">${HtmlTextConverter.convertToHtml(value.text)}</div>
                         <script>
                             const editor = document.getElementById('editor');
                             
                             // 高さをブラウザの物理ピクセルに合わせて絶対固定する関数（Flexboxバグ回避用）
                             function setHeight() {
-                                const h = window.innerHeight + 'px';
-                                document.body.style.height = h;
-                                editor.style.height = h;
+                                const h = window.innerHeight;
+                                document.body.style.height = h + 'px';
+                                if (editor.classList.contains('paper-a4') || editor.classList.contains('paper-b5')) {
+                                    editor.style.height = Math.max(100, h - 32) + 'px';
+                                } else {
+                                    editor.style.height = h + 'px';
+                                }
                             }
                             // 起動時とリサイズ（キーボード表示等）時に高さを再計算
                             setHeight();
@@ -213,6 +258,46 @@ fun VerticalEditor(
                                 return "　".repeat(full) + (hasHalf ? " " : "");
                             }
 
+                            // キャレットが行（editor直下またはdiv要素内）の先頭にあるかを正確に判定する関数
+                            function isCaretAtLineStart(node, offset) {
+                                if (!node) return false;
+                                if (node === editor) {
+                                    return offset === 0;
+                                }
+                                // 要素ノードの場合（空のdivや改行直後のdiv内など）
+                                if (node.nodeType === 1) {
+                                    if (offset === 0) return true;
+                                    var textBefore = (node.textContent || '').substring(0, offset);
+                                    return textBefore.trim().length === 0;
+                                }
+                                // テキストノードの場合
+                                if (node.nodeType === 3) {
+                                    var textBefore = (node.nodeValue || '').substring(0, offset);
+                                    if (textBefore.trim().length > 0) return false;
+                                    
+                                    // このテキストノードの前に兄弟要素やテキストがないか親行要素まで遡る
+                                    var cur = node;
+                                    while (cur && cur.parentElement !== editor && cur.parentElement) {
+                                        var prev = cur.previousSibling;
+                                        while (prev) {
+                                            if ((prev.textContent || '').trim().length > 0) return false;
+                                            prev = prev.previousSibling;
+                                        }
+                                        cur = cur.parentElement;
+                                    }
+                                    if (cur && cur.parentElement === editor) {
+                                        var prev = cur.previousSibling;
+                                        while (prev) {
+                                            if (prev.nodeName === 'DIV' || prev.nodeName === 'P' || prev.nodeName === 'BR') break;
+                                            if ((prev.textContent || '').trim().length > 0) return false;
+                                            prev = prev.previousSibling;
+                                        }
+                                    }
+                                    return true;
+                                }
+                                return false;
+                            }
+
                             // スマホのIME（ソフトウェアキーボード）でのスペース入力を行頭で捕捉
                             editor.addEventListener('beforeinput', function(e) {
                                 var width = (window.indentWidth !== undefined) ? window.indentWidth : 0;
@@ -220,18 +305,7 @@ fun VerticalEditor(
                                     var sel = window.getSelection();
                                     if (sel.rangeCount > 0 && sel.isCollapsed) {
                                         var range = sel.getRangeAt(0);
-                                        var node = range.startContainer;
-                                        var offset = range.startOffset;
-                                        var isAtLineStart = false;
-
-                                        if (node === editor && offset === 0) {
-                                            isAtLineStart = true;
-                                        } else if (node && node.nodeType === 3) {
-                                            var textBefore = node.nodeValue.substring(0, offset);
-                                            if (textBefore.trim().length === 0) {
-                                                isAtLineStart = true;
-                                            }
-                                        }
+                                        var isAtLineStart = isCaretAtLineStart(range.startContainer, range.startOffset);
                                         if (isAtLineStart) {
                                             e.preventDefault();
                                             var spaces = getIndentSpaces(width);
@@ -379,22 +453,9 @@ fun VerticalEditor(
 
                                     AndroidBridge.onTextChanged(editor.innerHTML);
                                 } else if ((e.key === ' ' || e.key === '　') && width > 0 && sel.isCollapsed) {
-
-
                                     // 物理キーボード等のスペースキー押下時
-                                    var node = sel.anchorNode;
-                                    var offset = sel.anchorOffset;
-                                    var isAtLineStart = false;
-                                    if (node) {
-                                        if (node === editor && offset === 0) {
-                                            isAtLineStart = true;
-                                        } else if (node.nodeType === 3) {
-                                            var textBefore = node.nodeValue.substring(0, offset);
-                                            if (textBefore.trim().length === 0) {
-                                                isAtLineStart = true;
-                                            }
-                                        }
-                                    }
+                                    var range = sel.getRangeAt(0);
+                                    var isAtLineStart = isCaretAtLineStart(range.startContainer, range.startOffset);
                                     if (isAtLineStart) {
                                         e.preventDefault();
                                         var spaces = getIndentSpaces(width);
@@ -483,6 +544,12 @@ fun VerticalEditor(
                 if (ed) {
                     ed.style.backgroundColor = '$surfaceColorCss';
                     ed.style.color = '$textColorCss';
+                    ed.style.padding = '${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px';
+                    ed.classList.remove('paper-fit', 'paper-a4', 'paper-b5');
+                    ed.classList.add('$paperClass');
+                    if (typeof setHeight === 'function') {
+                        setHeight();
+                    }
                     if ($isRubyListActive) {
                         ed.classList.add('highlight-all-rubies');
                     } else {

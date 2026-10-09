@@ -19,6 +19,7 @@ import android.app.Activity
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.tatextist.data.GoogleDriveRepositoryImpl
+import com.tatextist.data.LocalFileRepositoryImpl
 import com.tatextist.ui.EditorScreen
 import com.tatextist.ui.EditorViewModel
 import com.tatextist.ui.theme.TATExtistTheme
@@ -27,15 +28,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // DriveレポジトリをActivityレベルで保持
+            // Driveレポジトリおよびローカルファイルレポジトリを保持
             val driveRepository = remember { GoogleDriveRepositoryImpl(applicationContext) }
+            val localFileRepository = remember { LocalFileRepositoryImpl(contentResolver) }
             
-            // エディタ画面の記憶係（ViewModel）を準備（Driveレポジトリを注入）
+            // エディタ画面の記憶係（ViewModel）を準備（レポジトリを注入）
             val viewModel: EditorViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         @Suppress("UNCHECKED_CAST")
-                        return EditorViewModel(driveRepository) as T
+                        return EditorViewModel(driveRepository, localFileRepository) as T
                     }
                 }
             )
@@ -145,6 +147,21 @@ class MainActivity : ComponentActivity() {
                         },
                         onIndentWidthChange = { width ->
                             viewModel.updateIndentWidth(width)
+                        },
+                        onPaperSizeChange = { size ->
+                            viewModel.setPaperSize(size)
+                        },
+                        onMarginChange = { top, bottom, right, left ->
+                            viewModel.updateMargins(top = top, bottom = bottom, right = right, left = left)
+                        },
+                        onSaveToLocalFile = { uri ->
+                            viewModel.saveToLocalFile(uri)
+                        },
+                        onLoadFromLocalFile = { uri ->
+                            viewModel.loadFromLocalFile(uri)
+                        },
+                        onClearLocalFileMessage = {
+                            viewModel.clearLocalFileMessage()
                         }
                     )
                 }

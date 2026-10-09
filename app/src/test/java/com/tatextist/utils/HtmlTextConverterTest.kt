@@ -34,6 +34,26 @@ class HtmlTextConverterTest {
     }
 
     @Test
+    fun test_convertFromHtml_preserves_multiline_with_div_blocks() {
+        // 1行目がeditor直下、2行目が<div>要素のパターン（Chromiumの典型的な改行構造）
+        val input = "1行目<div>2行目</div>"
+        val expected = "1行目\n2行目\n"
+
+        val actual = HtmlTextConverter.convertFromHtml(input)
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun test_convertFromHtml_preserves_multiline_with_nested_div_br() {
+        // 空行やインデント付きの改行パターン
+        val input = "1行目<div>　2行目</div><div>3行目</div>"
+        val expected = "1行目\n　2行目\n3行目\n"
+
+        val actual = HtmlTextConverter.convertFromHtml(input)
+        assertEquals(expected, actual)
+    }
+
+    @Test
     fun test_convertToHtml_with_decorations() {
         // Compose側のプレーンテキストに太字や斜体のタグが含まれていた場合、
         // WebViewにそのまま渡る（エスケープや破壊をしない）ことを期待

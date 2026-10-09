@@ -71,7 +71,12 @@ fun EditorScreen(
     onSelectRubyItem: (com.tatextist.utils.RubyItem) -> Unit = {},
     onRubyTabChanged: (Boolean) -> Unit = {},
     onRubyJumpConsumed: () -> Unit = {},
-    onIndentWidthChange: (Float) -> Unit = {}
+    onIndentWidthChange: (Float) -> Unit = {},
+    onPaperSizeChange: (PaperSize) -> Unit = {},
+    onMarginChange: (top: Int?, bottom: Int?, right: Int?, left: Int?) -> Unit = { _, _, _, _ -> },
+    onSaveToLocalFile: (android.net.Uri) -> Unit = {},
+    onLoadFromLocalFile: (android.net.Uri) -> Unit = {},
+    onClearLocalFileMessage: () -> Unit = {}
 ) {
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -82,6 +87,42 @@ fun EditorScreen(
             snackbarHostState.showSnackbar(uiState.cloudError)
         }
     }
+
+    // 端末保存・読込メッセージのスナックバー表示
+    LaunchedEffect(uiState.localFileMessage) {
+        val msg = uiState.localFileMessage
+        if (msg != null) {
+            snackbarHostState.showSnackbar(msg)
+            onClearLocalFileMessage()
+        }
+    }
+
+    LaunchedEffect(uiState.localFileError) {
+        val err = uiState.localFileError
+        if (err != null) {
+            snackbarHostState.showSnackbar(err)
+            onClearLocalFileMessage()
+        }
+    }
+
+    // 端末に保存（SAF: CreateDocument）ランチャー
+    val saveLocalFileLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null) {
+            onSaveToLocalFile(uri)
+        }
+    }
+
+    // 端末から開く（SAF: OpenDocument）ランチャー
+    val openLocalFileLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            onLoadFromLocalFile(uri)
+        }
+    }
+
     // 1. 記憶係（設定パネルが開いているかどうかを覚えておくメモ）
     var showSettingsSheet by remember { mutableStateOf(false) }
     
@@ -328,6 +369,8 @@ fun EditorScreen(
             indentRequest = indentRequest,
             onIndentConsumed = { indentRequest = null },
             indentWidth = uiState.indentWidth,
+            paperSize = uiState.paperSize,
+            margins = uiState.margins,
             modifier = Modifier.padding(innerPadding)
         )
     }
@@ -362,10 +405,14 @@ fun EditorScreen(
             isUnderline = isUnderline,
             isBullet = isBullet,
             indentWidth = uiState.indentWidth,
+            paperSize = uiState.paperSize,
+            margins = uiState.margins,
             onFontFamilyChange = onFontFamilyChange,
             onIncreaseFontSize = onIncreaseFontSize,
             onDecreaseFontSize = onDecreaseFontSize,
             onIndentWidthChange = onIndentWidthChange,
+            onPaperSizeChange = onPaperSizeChange,
+            onMarginChange = onMarginChange,
             onFormatCommand = { cmd ->
                 formatCommand = "${cmd}_${System.currentTimeMillis()}"
             },
@@ -399,7 +446,62 @@ fun EditorScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // 1. Google Driveから開く（読込）
+                // 1. 端末から開く (.txt)
+                androidx.compose.material3.Surface(
+                    onClick = {
+                        showToolsBottomSheet = false
+                        openLocalFileLauncher.launch(arrayOf("text/plain", "text/*"))
+                    },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "端末から開く (.txt)",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // 2. 端末に保存 (.txt)
+                androidx.compose.material3.Surface(
+                    onClick = {
+                        showToolsBottomSheet = false
+                        val defaultFileName = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") {
+                            "${uiState.documentTitle}.txt"
+                        } else {
+                            "無題.txt"
+                        }
+                        saveLocalFileLauncher.launch(defaultFileName)
+                    },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "端末に保存 (.txt)",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // 3. Google Driveから開く（読込）
                 androidx.compose.material3.Surface(
                     onClick = {
                         showToolsBottomSheet = false

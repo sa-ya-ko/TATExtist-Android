@@ -56,23 +56,28 @@ object HtmlTextConverter {
             }
         }
 
-        // 2. 空のブロック <div><br></div> などを1つの改行にまとめる
-        result = result.replace(Regex("""<br\s*/?>\s*</div>""", RegexOption.IGNORE_CASE), "\n")
+        // 2. 空のブロック <div><br></div>, <p><br></p> などを1つの改行にまとめる
+        result = result.replace(Regex("""<(?:div|p)[^>]*>\s*<br\s*/?>\s*</(?:div|p)>""", RegexOption.IGNORE_CASE), "\n")
+        result = result.replace(Regex("""<br\s*/?>\s*</(?:div|p)>""", RegexOption.IGNORE_CASE), "\n")
 
-        // 3. ブロック要素の終了タグと改行タグを \n に変換
+        // 3. 1行目がタグなしで2行目から<div>が始まる場合（1行目<div>2行目</div>）の改行補正
+        // 文字列の途中（タグの終了や改行の直後ではない場所）から突然<div>や<p>が始まる直前に \n を挿入
+        result = result.replace(Regex("""(?<=[^>\n\r])\s*<(?:div|p)\b[^>]*>""", RegexOption.IGNORE_CASE), "\n")
+
+        // 4. ブロック要素の終了タグと改行タグを \n に変換
         result = result.replace(Regex("""</div>|</p>|<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
 
-        // 4. その他のHTMLタグ（太字 <b>, 斜体 <i>, 傍線 <u>, 装飾 <span>, <font> 以外）をすべて削除
-        // 万が一ルビのパースに失敗しても、<ruby>と<rt>を消してテキストを破壊しないよう保護リストに追加
+        // 5. その他のHTMLタグ（太字 <b>, 斜体 <i>, 傍線 <u>, 装飾 <span>, <font> 以外）をすべて削除
         result = result.replace(Regex("""<(?!/?(?:b|i|u|ruby|rt|span|font)\b)[^>]+>""", RegexOption.IGNORE_CASE), "")
 
-        // 5. 特殊文字のデコードとゼロ幅スペース（スタイルプレースホルダー用）の除去
+        // 7. 特殊文字のデコードとゼロ幅スペースの除去
         result = result.replace("&nbsp;", " ")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&amp;", "&")
             .replace("\u200B", "")
-        // 6. 空白や改行のみ残った場合は空文字として返す
+
+        // 8. 空白や改行のみ残った場合は空文字として返す
         val finalStripped = result.replace("\n", "").trim()
         if (finalStripped.isEmpty()) {
             return ""

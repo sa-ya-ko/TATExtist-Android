@@ -23,8 +23,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -41,10 +46,14 @@ fun StyleSettingsBottomSheet(
     isUnderline: Boolean = false,
     isBullet: Boolean = false,
     indentWidth: Float = 0.0f,
+    paperSize: PaperSize = PaperSize.FIT,
+    margins: EditorMargins = EditorMargins(),
     onFontFamilyChange: (EditorFontFamily) -> Unit,
     onIncreaseFontSize: () -> Unit,
     onDecreaseFontSize: () -> Unit,
     onIndentWidthChange: (Float) -> Unit = {},
+    onPaperSizeChange: (PaperSize) -> Unit = {},
+    onMarginChange: (top: Int?, bottom: Int?, right: Int?, left: Int?) -> Unit = { _, _, _, _ -> },
     onFormatCommand: (String) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
@@ -216,9 +225,9 @@ fun StyleSettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 4. 字下げ（段落インデント）設定
+            // 4. インデント設定
             Text(
-                text = "字下げ（段落インデント）",
+                text = "インデント",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.Start)
@@ -234,7 +243,7 @@ fun StyleSettingsBottomSheet(
                     enabled = indentWidth > 0.0f,
                     shape = androidx.compose.foundation.shape.CircleShape
                 ) {
-                    Icon(imageVector = Icons.Default.Remove, contentDescription = "字下げ幅を減らす")
+                    Icon(imageVector = Icons.Default.Remove, contentDescription = "インデント幅を減らす")
                 }
 
                 Spacer(modifier = Modifier.width(20.dp))
@@ -259,11 +268,130 @@ fun StyleSettingsBottomSheet(
                     enabled = indentWidth < 4.0f,
                     shape = androidx.compose.foundation.shape.CircleShape
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "字下げ幅を増やす")
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "インデント幅を増やす")
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 5. 用紙サイズ設定
+            Text(
+                text = "用紙サイズ",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = paperSize == PaperSize.FIT,
+                    onClick = { onPaperSizeChange(PaperSize.FIT) },
+                    label = { Text("フィット", style = MaterialTheme.typography.labelMedium) },
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = paperSize == PaperSize.A4,
+                    onClick = { onPaperSizeChange(PaperSize.A4) },
+                    label = { Text("A4 (横長)", style = MaterialTheme.typography.labelMedium) },
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = paperSize == PaperSize.B5,
+                    onClick = { onPaperSizeChange(PaperSize.B5) },
+                    label = { Text("B5 (横長)", style = MaterialTheme.typography.labelMedium) },
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 6. 余白(px) 設定
+            Text(
+                text = "余白(px)",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 1段目: 上()　下()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                MarginInputField(
+                    label = "上",
+                    value = margins.top,
+                    onValueChange = { onMarginChange(it, null, null, null) },
+                    modifier = Modifier.weight(1f)
+                )
+                MarginInputField(
+                    label = "下",
+                    value = margins.bottom,
+                    onValueChange = { onMarginChange(null, it, null, null) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 2段目: 右()　左()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                MarginInputField(
+                    label = "右",
+                    value = margins.right,
+                    onValueChange = { onMarginChange(null, null, it, null) },
+                    modifier = Modifier.weight(1f)
+                )
+                MarginInputField(
+                    label = "左",
+                    value = margins.left,
+                    onValueChange = { onMarginChange(null, null, null, it) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
+}
+
+@Composable
+private fun MarginInputField(
+    label: String,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var textValue by remember(value) {
+        mutableStateOf(value.toString())
+    }
+
+    OutlinedTextField(
+        value = textValue,
+        onValueChange = { newStr: String ->
+            val digits = newStr.filter { ch: Char -> ch.isDigit() }
+            textValue = digits
+            val intVal = digits.toIntOrNull()
+            if (intVal != null) {
+                onValueChange(intVal.coerceIn(0, 120))
+            }
+        },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+        ),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        modifier = modifier
+    )
 }
 
 

@@ -15,19 +15,27 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.slot
 import com.tatextist.data.GoogleDriveRepository
+import com.tatextist.data.LocalFileRepository
+import android.net.Uri
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorViewModelTest {
 
     private lateinit var viewModel: EditorViewModel
     private lateinit var mockDriveRepository: GoogleDriveRepository
+    private lateinit var mockLocalFileRepository: LocalFileRepository
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         mockDriveRepository = mockk(relaxed = true)
-        viewModel = EditorViewModel(driveRepository = mockDriveRepository)
+        mockLocalFileRepository = mockk(relaxed = true)
+        viewModel = EditorViewModel(
+            driveRepository = mockDriveRepository,
+            localFileRepository = mockLocalFileRepository
+        )
     }
 
     @AfterEach
@@ -393,6 +401,125 @@ class EditorViewModelTest {
             viewModel.updateIndentWidth(-0.5f)
             viewModel.updateIndentWidth(4.5f)
             expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `when saveToLocalFile succeeds, localFileMessage should be set`() = runTest {
+        val testUri: Uri = mockk()
+        coEvery { mockLocalFileRepository.saveText(testUri, any()) } returns Result.success(Unit)
+
+        viewModel.saveToLocalFile(testUri)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("端末に保存しました", state.localFileMessage)
+            assertEquals(null, state.localFileError)
+        }
+    }
+
+    @Test
+    fun `when saveToLocalFile fails, localFileError should be set`() = runTest {
+        val testUri: Uri = mockk()
+        coEvery { mockLocalFileRepository.saveText(testUri, any()) } returns Result.failure(Exception("Disk full"))
+
+        viewModel.saveToLocalFile(testUri)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("ファイルの保存に失敗しました: Disk full", state.localFileError)
+            assertEquals(null, state.localFileMessage)
+        }
+    }
+
+    @Test
+    fun `when saveToLocalFile succeeds, metadata header should be included in saved text`() = runTest {
+        val testUri: Uri = mockk()
+        val capturedText = slot<String>()
+        coEvery { mockLocalFileRepository.saveText(testUri, capture(capturedText)) } returns Result.success(Unit)
+
+        viewModel.setPaperSize(PaperSize.A4)
+        viewModel.updateMargins(top = 32, bottom = 28, right = 16, left = 24)
+        viewModel.updateContent(androidx.compose.ui.text.input.TextFieldValue("テスト本文"))
+
+        viewModel.saveToLocalFile(testUri)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("端末に保存しました", state.localFileMessage)
+            assertEquals(null, state.localFileError)
+        }
+
+        val expectedHeader = "［＃レイアウト設定：paper=A4,top=32,bottom=28,right=16,left=24］\n"
+        org.junit.Assert.assertTrue(capturedText.captured.startsWith(expectedHeader))
+        org.junit.Assert.assertTrue(capturedText.captured.endsWith("テスト本文"))
+    }
+
+    @Test
+    fun `when loadFromLocalFile with metadata header succeeds, content and layout settings should be restored`() = runTest {
+        val testUri: Uri = mockk()
+        val fileContentWithMeta = "［＃レイアウト設定：paper=B5,top=40,bottom=35,right=15,left=20］\n|親文字《ルビ》テスト"
+        coEvery { mockLocalFileRepository.readText(testUri) } returns Result.success(fileContentWithMeta)
+
+        viewModel.loadFromLocalFile(testUri)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("端末からファイルを読み込みました", state.localFileMessage)
+            assertEquals(null, state.localFileError)
+            assertEquals("<ruby>親文字<rt>ルビ</rt></ruby>テスト", state.content.text)
+            assertEquals(PaperSize.B5, state.paperSize)
+            assertEquals(EditorMargins(top = 40, bottom = 35, right = 15, left = 20), state.margins)
+        }
+    }
+
+    @Test
+    fun `when loadFromLocalFile fails, localFileError should be set`() = runTest {
+        val testUri: Uri = mockk()
+        coEvery { mockLocalFileRepository.readText(testUri) } returns Result.failure(Exception("File not found"))
+
+        viewModel.loadFromLocalFile(testUri)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("ファイルの読み込みに失敗しました: File not found", state.localFileError)
+            assertEquals(null, state.localFileMessage)
+        }
+    }
+
+    @Test
+    fun `when setPaperSize is called, paperSize in uiState should be updated`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(PaperSize.FIT, initial.paperSize)
+
+            viewModel.setPaperSize(PaperSize.A4)
+            val updatedToA4 = awaitItem()
+            assertEquals(PaperSize.A4, updatedToA4.paperSize)
+
+            viewModel.setPaperSize(PaperSize.B5)
+            val updatedToB5 = awaitItem()
+            assertEquals(PaperSize.B5, updatedToB5.paperSize)
+
+            viewModel.setPaperSize(PaperSize.FIT)
+            val updatedToFit = awaitItem()
+            assertEquals(PaperSize.FIT, updatedToFit.paperSize)
+        }
+    }
+
+    @Test
+    fun `when updateMargins is called, margins in uiState should be updated`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(EditorMargins(top = 20, bottom = 20, right = 20, left = 20), initial.margins)
+
+            viewModel.updateMargins(top = 30, right = 15)
+            val updated1 = awaitItem()
+            assertEquals(EditorMargins(top = 30, bottom = 20, right = 15, left = 20), updated1.margins)
+
+            viewModel.updateMargins(bottom = 40, left = 25)
+            val updated2 = awaitItem()
+            assertEquals(EditorMargins(top = 30, bottom = 40, right = 15, left = 25), updated2.margins)
         }
     }
 }

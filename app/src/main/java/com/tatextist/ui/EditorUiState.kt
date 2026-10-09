@@ -15,6 +15,19 @@ data class FontApplyRequest(
     val id: Long = System.currentTimeMillis()
 )
 
+enum class PaperSize {
+    FIT,
+    A4,
+    B5
+}
+
+data class EditorMargins(
+    val top: Int = 20,
+    val bottom: Int = 20,
+    val right: Int = 20,
+    val left: Int = 20
+)
+
 data class EditorUiState(
     val documentTitle: String = "無題のドキュメント",
     val content: TextFieldValue = TextFieldValue(),
@@ -38,7 +51,11 @@ data class EditorUiState(
     val isDriveSignedIn: Boolean = false,
     val cloudFiles: List<DriveFileInfo> = emptyList(),
     val showFilePickerModal: Boolean = false,
-    val indentWidth: Float = 0.0f
+    val indentWidth: Float = 0.0f,
+    val paperSize: PaperSize = PaperSize.FIT,
+    val margins: EditorMargins = EditorMargins(),
+    val localFileMessage: String? = null,
+    val localFileError: String? = null
 )
 
 
