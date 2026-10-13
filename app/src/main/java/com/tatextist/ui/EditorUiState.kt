@@ -34,6 +34,7 @@ data class EditorUiState(
     val isDarkMode: Boolean = false,
     val fontSize: Int = 20,
     val fontFamily: EditorFontFamily = EditorFontFamily.SERIF,
+    val selectedFontFamily: EditorFontFamily = EditorFontFamily.SERIF,
     val fontApplyRequest: FontApplyRequest? = null,
     val showFontSettingsBottomSheet: Boolean = false,
     val showRubyBottomSheet: Boolean = false,
@@ -54,6 +55,7 @@ data class EditorUiState(
     val indentWidth: Float = 0.0f,
     val paperSize: PaperSize = PaperSize.FIT,
     val margins: EditorMargins = EditorMargins(),
+    val printRequestId: Long? = null,
     val localFileMessage: String? = null,
     val localFileError: String? = null
 )

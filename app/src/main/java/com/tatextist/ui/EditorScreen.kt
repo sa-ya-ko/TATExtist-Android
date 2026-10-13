@@ -76,7 +76,9 @@ fun EditorScreen(
     onMarginChange: (top: Int?, bottom: Int?, right: Int?, left: Int?) -> Unit = { _, _, _, _ -> },
     onSaveToLocalFile: (android.net.Uri) -> Unit = {},
     onLoadFromLocalFile: (android.net.Uri) -> Unit = {},
-    onClearLocalFileMessage: () -> Unit = {}
+    onClearLocalFileMessage: () -> Unit = {},
+    onPrintRequest: () -> Unit = {},
+    onPrintConsumed: () -> Unit = {}
 ) {
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -371,6 +373,10 @@ fun EditorScreen(
             indentWidth = uiState.indentWidth,
             paperSize = uiState.paperSize,
             margins = uiState.margins,
+            documentTitle = uiState.documentTitle,
+            printRequest = uiState.printRequestId,
+            onPrintConsumed = onPrintConsumed,
+            showFontSettingsBottomSheet = uiState.showFontSettingsBottomSheet,
             modifier = Modifier.padding(innerPadding)
         )
     }
@@ -399,7 +405,7 @@ fun EditorScreen(
     if (uiState.showFontSettingsBottomSheet) {
         StyleSettingsBottomSheet(
             fontSize = uiState.fontSize,
-            fontFamily = uiState.fontFamily,
+            fontFamily = uiState.selectedFontFamily,
             isBold = isBold,
             isItalic = isItalic,
             isUnderline = isUnderline,
@@ -493,6 +499,30 @@ fun EditorScreen(
                     ) {
                         Text(
                             text = "端末に保存 (.txt)",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // 3. PDF出力 / 印刷
+                androidx.compose.material3.Surface(
+                    onClick = {
+                        showToolsBottomSheet = false
+                        onPrintRequest()
+                    },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "PDF出力 / 印刷",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )

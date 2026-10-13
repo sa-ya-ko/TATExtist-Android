@@ -522,6 +522,37 @@ class EditorViewModelTest {
             assertEquals(EditorMargins(top = 30, bottom = 40, right = 15, left = 25), updated2.margins)
         }
     }
+
+    @Test
+    fun `when requestPrint called with content, printRequestId should be set`() = runTest {
+        viewModel.updateContent(androidx.compose.ui.text.input.TextFieldValue("印刷テスト"))
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(null, initial.printRequestId)
+
+            viewModel.requestPrint()
+            val stateWithPrint = awaitItem()
+            org.junit.jupiter.api.Assertions.assertNotNull(stateWithPrint.printRequestId)
+
+            viewModel.consumePrintRequest()
+            val stateConsumed = awaitItem()
+            assertEquals(null, stateConsumed.printRequestId)
+        }
+    }
+
+    @Test
+    fun `when requestPrint called with empty content, error message should be set`() = runTest {
+        viewModel.updateContent(androidx.compose.ui.text.input.TextFieldValue(""))
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(null, initial.printRequestId)
+
+            viewModel.requestPrint()
+            val stateError = awaitItem()
+            assertEquals("印刷するテキストがありません", stateError.localFileError)
+            assertEquals(null, stateError.printRequestId)
+        }
+    }
 }
 
 

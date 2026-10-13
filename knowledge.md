@@ -57,3 +57,26 @@ Android Native（Jetpack Compose）と WebView（Chromium）を組み合わせ�
 3. **キーボード削除（Backspace/Delete）による自然な解除:**
    - 行頭の中点を削除した場合は、`selectionchange` および `input` イベントによるテキスト解析で自動的に非箇条書き行として再判定され、Compose側のUI状態と自然に同期する。
 
+---
+
+## 4. WebViewとNative UIの非同期スタイル同期とライフサイクル保護 (Asynchronous Style Sync & Lifecycle Protection)
+
+### 背景と課題
+- Native側でボトムシートを展開した際、WebViewが `blur`（フォーカス喪失）を起こし、`window.getSelection().rangeCount === 0` になる。
+- この状態でスタイル判定を行うと選択範囲が存在しないため処理が中断され、Compose側に最新のフォントスタイルや装飾状態が通知されず、前の選択状態が固着する。
+- また、装飾コマンド（`bulletList` や `fontApplyRequest`）実行中にイベント連鎖を防ぐための作業中フラグ（`window.isFormatting`, `window.ignoreSelectionChange`）が解除されずに残存すると、その後のユーザー操作（カーソル移動・中黒削除）に対するすべての状態判定が永久に遮断される。
+- さらに、エディタ全体のベースフォント（`#editor { font-family: ... }`）と、選択されたテキストへの部分装飾（`<font style="...">`）を混同すると、一度ゴシック体を選択しただけでエディタ全体のベースが上書きされ、明朝体の地の文までゴシック体として判定されてしまう。
+
+### 実装パターンと知見
+1. **フォーカス喪失時のフォールバック範囲の活用:**
+   - `checkAndReportFormatState(force)` において、`sel.rangeCount === 0` の場合は直前のキャレット位置（`window.savedRange || window.lastCaretRange`）を自動的にフォールバックとして採用。
+   - ボトムシート展開時に `force = true` を指定して即時実行することで、Native UIへのフォーカス移動に影響されることなく100%正確な最新スタイルを同期。
+2. **コマンド完了時のフラグリセット保証:**
+   - すべての編集コマンド（`bulletList`、太字・斜体・傍線、フォント変更等）の完了処理において、必ず `window.isFormatting = false; window.ignoreSelectionChange = false;` をリセット。
+   - コマンド完了直後にも即座に `checkAndReportFormatState(true)` を発火させ、UI側のボトムシートボタン状態を即座に更新。
+3. **明示的タグによるインライン装飾の判定とベースフォントの保護:**
+   - 選択された要素またはカーソル位置の親要素ツリーを検査する際、`el.closest('[style*="sans-serif"], [face*="sans-serif"]')` のように明示的なゴシック体装飾タグが存在する場合のみ `SANS_SERIF` と判定。
+   - 装飾タグを持たない通常の地の文は、確実にデフォルトの `SERIF`（明朝体）として判定。
+   - Compose側でも `selectedFontFamily` を独立して管理し、エディタ全体のベースフォントを破壊することなく安全に部分装飾の選択状態を同期。
+
+

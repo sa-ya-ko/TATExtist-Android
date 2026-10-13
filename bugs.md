@@ -322,4 +322,94 @@
 - **対策 (How):**
   - 保存時: ファイル先頭に青空文庫注記形式のメタデータヘッダー `［＃レイアウト設定：paper=...,top=...,bottom=...,right=...,left=...］` を付与して保存。
   - 読み込み時: ファイル先頭の正規表現 `^［＃レイアウト設定：([^］]+)］` でメタデータを抽出・パースし、ViewModelの `paperSize` と `margins` を復元。本文からはメタデータヘッダーを除去してエディタに展開する処理を実装。メタデータが存在しない既存テキストファイルの場合も安全に読み込める後方互換性を担保。
+---
+
+## Bug 028: PDF出力時の不要な2ページ生成・左寄せ・用紙サイズおよび余白スタイルの未反映
+- **現象 (What):**
+  1. PDF保存（印刷ダイアログ）を開いた際、1ページで収まる短い文章であってもデフォルトで2ページ生成されてしまう。
+  2. 印刷プレビューでテキストが用紙の左端に寄って表示される（縦書きの通常開始位置である右端から始まらない）。
+  3. エディタ上で設定した用紙サイズ（A4/B5/FIT）や余白（上・下・右・左）がPDFプレビューに反映されない。
+- **原因 (Why):**
+  1. 画面用のスタイル（`body { display: flex; height: 100vh; }` 等）を `!important` で無理やり上書きしており、さらに `#editor` に `width: 100%` と要素自身の `padding` を付与していたため、1行しかない文章でも用紙の左端境界に接触して不要な改ページ（2ページ目）が自動生成されていた。
+  2. 親要素（`html, body`）の `writing-mode` がデフォルト（横書き `horizontal-tb`）のままだったため、内部の子要素 `#editor`（`width: auto`）が親コンテナの左上（通常ブロック開始位置）に配置され、左寄せになっていた。
+  3. W3C CSS Paged Media Module 仕様上、`@page` 内では CSS変数（`var(--margin-top)` 等）がサポートされておらず無視される。また、用紙サイズや余白の変更時に印刷用の `<style>` タグが初期生成時のまま静的に残存し、最新の設定値が印刷アダプタに渡っていなかった。
+- **対策 (How):**
+  1. `skills.md` のCSSルールに基づき `!important` を完全撤廃。画面用スタイル（`@media screen`）と印刷用スタイル（`@media print`）を分離。
+  2. 印刷時（`@media print`）において、親要素 `html, body` に明示的に `writing-mode: vertical-rl; direction: ltr;` を指定し、縦書き本文が右端（開始位置）から自然に配置されるよう修正。
+  3. 印刷用 `<style id="print-style">` タグを独立させ、用紙サイズ（`A4 landscape` / `B5 landscape` / `landscape`）および余白の具体的数値（`${margins.top}px` 等）を直接埋め込む形式に刷新。
+---
+
+## Bug 029: エディタ上の余白設定変更が画面にリアルタイム反映されない不具合
+- **現象 (What):**
+  - スタイル設定画面で上下左右の余白（マージン）数値を変更しても、エディタ画面上の余白（パディング）が変化せず反映されない。
+- **原因 (Why):**
+  - `update` ブロックの JavaScript（`themeJs`）内で、印刷用CSSを更新する際に文字列結合 `'... font-family: ' + fontFamilyCss + ...'` を行っていた。
+  - `fontFamilyCss` にシングルクォートを含むフォント名（`'Noto Serif JP'`）が設定されていたため、JavaScript の文字列リテラルが途中で閉じられて `SyntaxError: Unexpected identifier` が発生。
+  - この構文エラーにより `themeJs` のスクリプト実行全体が途中でクラッシュ・停止し、エディタの余白更新（および用紙切り替え・高さ再計算）が実行されていなかった。
+- **対策 (How):**
+  - 画面用（`@media screen`）と印刷用（`@media print`）のCSS全体を Kotlin 側で完全な文字列として組み立て、`android.util.Base64` で安全にエンコードした上で WebView に渡す方式に変更。
+  - JavaScript 側で `atob('$base64Css')` をデコードして `<style id="dynamic-editor-style">` に一括代入することで、クォートやエスケープによる構文エラーの可能性を根本から排除。
+---
+
+## Bug 030: PDF出力時のエディタ背景色漏れおよびA4枠線との不整合によるテキスト飛び出し感
+- **現象 (What):**
+  1. エディタ上でA4サイズ設定にしてPDF出力した際、またはインデントを多く取った際、テキストが用紙の枠外に飛び出しているように見える。
+  2. エディタ上の背景色（ダークモード色やA4用紙色）がPDF出力時にもそのまま反映されてしまう。
+- **原因 (Why):**
+  - JavaScript 内で `ed.style.backgroundColor` や `ed.style.padding` をインラインスタイルとして代入していたため、印刷時（`@media print`）にもインラインスタイルが優先され、画面用の背景色やA4枠線・余白がPDFに漏れ出ていた。
+  - 本物のA4用紙キャンバスの中に、画面用のA4枠（影・ボーダー付きの小枠）が二重描画され、インデントされた行がその小枠を突き破って飛び出して見えていた。
+- **対策 (How):**
+  - `skills.md` の「!importantは使わない」ルールを徹底遵守。
+  - JavaScript による `ed.style.xxx` への直接インラインスタイル書き込みを完全撤廃。
+  - 画面用の背景色・余白・A4枠線・影はすべて `<style id="dynamic-editor-style">` 内の `@media screen` に限定し、印刷用の `@media print` には白背景・黒文字・枠線なし・影なし・padding: 0 を配置。
+  - 印刷時（PDF出力時）には画面用A4枠が最初から存在しなくなり、本物の用紙サイズと物理マージン（`@page`）に従って純粋な文字のみが描画されるようにして飛び出し感を根絶。
+---
+
+## Bug 031: 箇条書きの過去選択行誤爆・キャレット移動および装飾ボタン選択状態固着
+- **現象 (What):**
+  1. ボトムシートの文字装飾ボタン（太字・斜体・傍線）を一度タップすると、選択状態（ON）のまま解除されなくなる。
+  2. 改行した後に箇条書きボタンをタップすると、現在行ではなく以前作業・装飾していた古い行が箇条書きになってしまう。
+  3. 箇条書きボタンをタップした際に、キャレットが1行離れた場所へ勝手に移動（ワープ）してしまう。
+- **原因 (Why):**
+  1. 以前にテキスト選択した際の `window.frozenSelection` および `window.lastSelectionRange` が、Enterキーでの改行時やエディタ内タップ（collapsed なキャレット移動時）に破棄されず残り続けていた。
+  2. `formatCommand` の `bulletList` 処理において、`caretRange = textRange || window.lastCaretRange ...` となっており、過去の文字列選択 `textRange` が最優先されていたため、改行後の新規行にカーソルがあっても古い過去行が箇条書き対象に選定され、その行末にキャレットがワープしていた。
+  3. 装飾コマンド実行後にブラウザが選択を外した場合に直前の `textRange` を強制再設定していたため、装飾タグ（`<b>` や `<i>`）を解体（トグルOFF）した後でも `document.queryCommandState` や `closest` による判定で `true` が返ってしまい、`AndroidBridge.onFormatState` に常に `true` が通知されていた。
+- **対策 (How):**
+  1. `selectionchange` イベントで選択が collapsed（キャレットのみ）になった際、および Enterキー押下時に、`window.frozenSelection = null; window.lastSelectionRange = null;` を明示的に実行し、古い選択記憶を確実に破棄。
+  2. `bulletList` 判定において、現在アクティブなキャレット（`curSel`）および最新のキャレット行（`window.lastCaretRange`）を最優先とし、過去の文字列選択範囲を箇条書き対象に巻き込まないよう修正。
+  3. 装飾解除（解体）実行時はフラグ（`formatToggledOff`）を立て、解除されたコマンドの `onFormatState` を確実に `false` で通知するようガードを追加。
+---
+
+## Bug 032: 中黒削除後の箇条書きボトムシート誤認およびフォントファミリー選択状態固着・過去選択範囲誤爆
+- **現象 (What):**
+  1. 箇条書きの中黒「・」をDeleteキー等で削除して箇条書きをキャンセルした行にカーソルを置いても、ボトムシートを開くと「箇条書き」ボタンがアクティブ（ON）になってしまう。
+  2. ある箇所をゴシック体にした後、別の明朝体の場所を選択してボトムシートを開いても、明朝体ではなくゴシック体がアクティブのまま固着する。
+  3. その状態でボトムシートの「明朝体」を選択すると、現在選択しているテキストではなく、以前ゴシック体を適用した過去のテキストが明朝体に変換されてしまう。
+- **原因 (Why):**
+  1. `selectionchange` 内で箇条書きを判定する際、カーソルのある行（`curLine`）の特定に失敗したフォールバックとして `editor.textContent`（エディタ内の全行のテキスト全体）を検査していた。エディタ内のどこかの行に中黒が残っていると、中黒を消した行であっても `isBullet = true` と誤判定されていた。
+  2. フォント情報（`onSelectionStyle`）の通知が `!sel.isCollapsed`（文字選択時）に限定されていたため、カーソルを置いただけ（非選択時）では現在地のフォントファミリーがボトムシートに通知されず、ViewModelに過去のフォント状態（ゴシック体）が残り続けていた。
+  3. `fontApplyRequest` でフォントを適用する際、現在アクティブな選択範囲よりも過去の `window.savedRange` が優先され、かつ適用後に `savedRange` が安全にリセットされていなかったため、過去の編集範囲へスタイルが誤爆していた。
+- **対策 (How):**
+  1. 行が見つからない場合でも絶対に `editor.textContent` 全体を参照せず空文字 `""` とし、カーソルがある行のテキストのみを厳密に判定。エディタ直下にカーソルがある場合は子要素インデックスから行を正確に特定。
+  2. カーソル位置（非選択時）でも現在要素の `getComputedStyle(el)` からフォントファミリーとサイズを取得し、`AndroidBridge.onSelectionStyle` に常時通知。
+  3. `fontApplyRequest` において現在アクティブな選択範囲を最優先とし、適用完了後は `window.savedRange` / `frozenSelection` / `lastSelectionRange` をクリアして過去の記憶を破棄。
+---
+
+## Bug 033: 装飾処理中フラグ（isFormatting / ignoreSelectionChange）の未解除によるボトムシート状態更新の永久ブロック
+- **現象 (What):**
+  1. 一度でもボトムシートで箇条書きボタンをタップすると、その後中黒を削除しても、別の行に移動しても、ボトムシートの箇条書きボタンがずっとアクティブ（ON）のまま固着する。
+  2. 一度でもフォントをゴシック体に変えると、別の明朝体の場所を選択してボトムシートを開いても、ずっとゴシック体のボタンがアクティブのまま固着する。
+  3. 全消し後に先頭行で箇条書きを付与しようとすると、カーソルが1行目と2行目を行き来したり、勝手に改行される。
+- **原因 (Why):**
+  1. `formatCommand` 実行時に立てられる `window.isFormatting = true` および `window.ignoreSelectionChange = true` フラグが、`bulletList` や `fontApplyRequest` の完了処理で解除（`false`）されていなかった。そのため、その後のすべての `selectionchange` や `checkAndReportFormatState` が冒頭のガードで即座に `return` され、AndroidBridgeへの通知が永久に停止していた。
+  2. `checkAndReportFormatState` において、ボトムシートを開いてWebViewからフォーカスが外れた瞬間（`sel.rangeCount === 0`）に即座に `return` していたため、開いた瞬間の同期が実行されていなかった。
+  3. `formatCommand` の末尾にも `(editor.textContent || '')` のフォールバックコードが残存しており、装飾実行時にエディタ内の別行の中黒を拾って箇条書き状態を `true` に誤判定していた。
+  4. 空行で箇条書きボタンを押した際、`lineBlock` が `editor` そのものになっていたため、エディタ直下のDOMが破壊され、ブラウザが新しいブロック（段落）を作ろうとしてカーソルの迷走や不要な改行を引き起こしていた。
+- **対策 (How):**
+  1. `bulletList`、`fontApplyRequest` を含む全コマンド完了時、確実に `window.isFormatting = false; window.ignoreSelectionChange = false;` をリセット。
+  2. `window.checkAndReportFormatState(force)` に `force` 引数を追加し、ボトムシート展開時はフラグに阻害されず強制的に最新状態を判定・送信するよう修正。またフォーカス外れ時も `savedRange` / `lastCaretRange` をフォールバックとして使用。
+  3. `formatCommand` 末尾での `editor.textContent` 全体参照を完全撤廃。
+  4. 空行や `editor` 直下での箇条書き実行時、必ず安全に新しい `<div>` 要素を生成して中黒を代入し、DOM構造の破壊を根絶。
+
+
 

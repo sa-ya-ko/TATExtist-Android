@@ -162,6 +162,12 @@ class MainActivity : ComponentActivity() {
                         },
                         onClearLocalFileMessage = {
                             viewModel.clearLocalFileMessage()
+                        },
+                        onPrintRequest = {
+                            viewModel.requestPrint()
+                        },
+                        onPrintConsumed = {
+                            viewModel.consumePrintRequest()
                         }
                     )
                 }

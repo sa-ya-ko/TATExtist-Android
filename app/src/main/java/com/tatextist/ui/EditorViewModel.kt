@@ -85,6 +85,7 @@ class EditorViewModel(
     fun updateFontFamily(fontFamily: EditorFontFamily) {
         _uiState.value = _uiState.value.copy(
             fontFamily = fontFamily,
+            selectedFontFamily = fontFamily,
             fontApplyRequest = FontApplyRequest(fontFamily = fontFamily)
         )
     }
@@ -114,6 +115,7 @@ class EditorViewModel(
     fun updateDetectedStyle(fontFamily: EditorFontFamily, fontSize: Int) {
         _uiState.value = _uiState.value.copy(
             fontFamily = fontFamily,
+            selectedFontFamily = fontFamily,
             fontSize = fontSize.coerceIn(12, 36)
         )
     }
@@ -447,6 +449,27 @@ class EditorViewModel(
                 left = left ?: cur.left
             )
         )
+    }
+
+    /**
+     * PDFエクスポート・印刷リクエストを発行する
+     */
+    fun requestPrint() {
+        if (_uiState.value.content.text.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                localFileError = "印刷するテキストがありません",
+                localFileMessage = null
+            )
+            return
+        }
+        _uiState.value = _uiState.value.copy(printRequestId = System.currentTimeMillis())
+    }
+
+    /**
+     * PDFエクスポート・印刷リクエストを消費する
+     */
+    fun consumePrintRequest() {
+        _uiState.value = _uiState.value.copy(printRequestId = null)
     }
 }
 
