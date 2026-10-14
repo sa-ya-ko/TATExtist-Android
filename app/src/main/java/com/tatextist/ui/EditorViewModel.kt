@@ -120,6 +120,32 @@ class EditorViewModel(
         )
     }
 
+    fun updateTextColor(hexColor: String) {
+        val updatedCustom = if (hexColor !in _uiState.value.customColors) {
+            (_uiState.value.customColors + hexColor).takeLast(8)
+        } else {
+            _uiState.value.customColors
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedTextColor = hexColor,
+            customColors = updatedCustom,
+            fontApplyRequest = FontApplyRequest(textColor = hexColor)
+        )
+    }
+
+    fun resetTextColor() {
+        _uiState.value = _uiState.value.copy(
+            selectedTextColor = null,
+            fontApplyRequest = FontApplyRequest(textColor = "")
+        )
+    }
+
+    fun updateDetectedColor(hexColor: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedTextColor = hexColor
+        )
+    }
+
     fun consumeFontApplyRequest() {
         _uiState.value = _uiState.value.copy(fontApplyRequest = null)
     }

@@ -127,6 +127,15 @@ class MainActivity : ComponentActivity() {
                         onStyleDetected = { family, size ->
                             viewModel.updateDetectedStyle(family, size)
                         },
+                        onColorDetected = { hexColor ->
+                            viewModel.updateDetectedColor(hexColor)
+                        },
+                        onTextColorChange = { hexColor ->
+                            viewModel.updateTextColor(hexColor)
+                        },
+                        onResetTextColor = {
+                            viewModel.resetTextColor()
+                        },
                         onToggleDarkMode = {
                             viewModel.toggleDarkMode()
                         },

@@ -30,6 +30,7 @@ fun VerticalEditor(
     onFontApplyConsumed: () -> Unit = {},
     onStyleDetected: (EditorFontFamily, Int) -> Unit = { _, _ -> },
     onFormatStateDetected: (Boolean, Boolean, Boolean, Boolean) -> Unit = { _, _, _, _ -> },
+    onColorDetected: (String?) -> Unit = {},
     isRubyListActive: Boolean = false,
     targetRubyIndex: Int? = null,
     onRubyJumpConsumed: () -> Unit = {},
@@ -72,7 +73,7 @@ fun VerticalEditor(
     val isInternalUpdateRef = remember { arrayOf(false) }
 
     // 3. ComposeとWebViewの通信（ブリッジ）
-    val jsBridge = remember(onValueChange, onStyleDetected, onFormatStateDetected) {
+    val jsBridge = remember(onValueChange, onStyleDetected, onFormatStateDetected, onColorDetected) {
         object {
             // メインスレッド（UI操作担当）に処理を委譲するためのハンドラー
             private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -100,6 +101,14 @@ fun VerticalEditor(
             fun onFormatState(isBold: Boolean, isItalic: Boolean, isUnderline: Boolean, isBullet: Boolean) {
                 handler.post {
                     onFormatStateDetected(isBold, isItalic, isUnderline, isBullet)
+                }
+            }
+
+            @JavascriptInterface
+            fun onSelectionColor(hexColor: String?) {
+                handler.post {
+                    val color = if (hexColor.isNullOrEmpty() || hexColor == "null") null else hexColor
+                    onColorDetected(color)
                 }
             }
         }
@@ -200,6 +209,16 @@ fun VerticalEditor(
                                     background-color: rgba(255, 235, 59, 0.45);
                                     border-radius: 4px;
                                     box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.45);
+                                }
+                                #editor ruby rt {
+                                    color: $textColorCss;
+                                }
+                                #editor u {
+                                    text-decoration-color: $textColorCss;
+                                }
+                                #editor .bullet-line {
+                                    padding-top: 2.5em;
+                                    text-indent: -1em;
                                 }
                             }
                         </style>
@@ -446,6 +465,25 @@ fun VerticalEditor(
                                     var comp = window.getComputedStyle(el);
                                     var size = parseInt(comp.fontSize, 10) || 20;
                                     AndroidBridge.onSelectionStyle(family, size);
+
+                                    // 文字色判定: 親要素に明示的な color 指定があるかチェック
+                                    var colorEl = el.closest('[style*="color"], font[color]');
+                                    var detectedHex = null;
+                                    if (colorEl && colorEl !== editor) {
+                                        var rawCol = colorEl.style.color || (colorEl.tagName.toLowerCase() === 'font' ? colorEl.getAttribute('color') : null);
+                                        if (rawCol) {
+                                            var match = rawCol.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
+                                            if (match) {
+                                                var r = parseInt(match[1], 10).toString(16).padStart(2, '0');
+                                                var g = parseInt(match[2], 10).toString(16).padStart(2, '0');
+                                                var b = parseInt(match[3], 10).toString(16).padStart(2, '0');
+                                                detectedHex = ('#' + r + g + b).toUpperCase();
+                                            } else if (rawCol.startsWith('#')) {
+                                                detectedHex = rawCol.toUpperCase();
+                                            }
+                                        }
+                                    }
+                                    AndroidBridge.onSelectionColor(detectedHex);
                                 }
                             };
 
@@ -494,6 +532,7 @@ fun VerticalEditor(
                                     // 箇条書き記号「・」だけで中身が空の場合、箇条書きを終了して通常の空行に戻す
                                     if (isCurrentBullet && (trimmedLine === '・' || trimmedLine.length === 0)) {
                                         if (curLine && curLine !== editor) {
+                                            curLine.classList.remove('bullet-line');
                                             curLine.textContent = '';
                                             curLine.appendChild(document.createElement('br'));
                                         } else {
@@ -509,8 +548,17 @@ fun VerticalEditor(
                                     var width = (window.indentWidth !== undefined) ? window.indentWidth : 0;
 
                                     if (isCurrentBullet) {
-                                        var totalBulletIndent = width + 1.5;
-                                        newDiv.textContent = getIndentSpaces(totalBulletIndent) + '・';
+                                        newDiv.classList.add('bullet-line');
+                                        var bulletPrefixStr = '・';
+                                        
+                                        // 前の行の文字色スタイルがあれば継承
+                                        var curColorEl = curLine.closest('[style*="color"], font[color]') || curLine.querySelector('[style*="color"], font[color]');
+                                        var curColor = curColorEl ? (curColorEl.style.color || curColorEl.getAttribute('color')) : null;
+                                        if (curColor) {
+                                            newDiv.innerHTML = '<span style="color: ' + curColor + '">' + bulletPrefixStr + '</span>';
+                                        } else {
+                                            newDiv.textContent = bulletPrefixStr;
+                                        }
                                     } else if (width > 0) {
                                         newDiv.textContent = getIndentSpaces(width);
                                     } else {
@@ -621,8 +669,8 @@ fun VerticalEditor(
             // AndroidネイティブのWebView背景色を即座に更新
             webView.setBackgroundColor(surfaceColor.toArgb())
 
-            // 余白・用紙・テーマ色・フォント設定のシグネチャを生成
-            val themeSignature = "$surfaceColorCss-$textColorCss-${margins.top}-${margins.right}-${margins.bottom}-${margins.left}-$paperClass-$printPageSizeCss-$fontFamilyCss-$fontSize-$isRubyListActive"
+            // 余白・用紙・テーマ色・フォント設定・インデント幅のシグネチャを生成
+            val themeSignature = "$surfaceColorCss-$textColorCss-${margins.top}-${margins.right}-${margins.bottom}-${margins.left}-$paperClass-$printPageSizeCss-$fontFamilyCss-$fontSize-$isRubyListActive-$indentWidth"
             if (themeSignature != lastThemeSignatureRef[0]) {
                 lastThemeSignatureRef[0] = themeSignature
 
@@ -648,12 +696,18 @@ fun VerticalEditor(
                             '@media screen { ' +
                                 'html, body { background-color: $surfaceColorCss; } ' +
                                 '#editor { background-color: $surfaceColorCss; color: $textColorCss; padding: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px; } ' +
+                                '#editor ruby rt { color: $textColorCss; } ' +
+                                '#editor u { text-decoration-color: $textColorCss; } ' +
+                                '#editor .bullet-line { padding-top: 2.5em; text-indent: -1em; } ' +
                             '} ' +
                             '@media print { ' +
                                 '@page { size: $printPageSizeCss; margin: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px; } ' +
                                 'html, body { display: block; writing-mode: vertical-rl; direction: ltr; margin: 0; padding: 0; width: 100%; height: 100%; background-color: #ffffff; overflow: visible; } ' +
                                 '#editor { display: block; writing-mode: vertical-rl; direction: ltr; box-sizing: border-box; margin: 0; padding: 0; width: auto; height: 100%; background-color: #ffffff; color: #000000; font-family: ' + fontFam + '; font-size: ${fontSize}px; line-height: 2; outline: none; border: none; border-radius: 0; box-shadow: none; overflow: visible; word-break: break-all; white-space: pre-wrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; } ' +
                                 '.highlight-all-rubies ruby { background-color: transparent; box-shadow: none; } ' +
+                                '#editor ruby rt { color: #000000; } ' +
+                                '#editor u { text-decoration-color: #000000; } ' +
+                                '#editor .bullet-line { padding-top: 2.5em; text-indent: -1em; } ' +
                             '}';
                     }
                 """.trimIndent()
@@ -694,6 +748,8 @@ fun VerticalEditor(
                 val targetSize = fontApplyRequest.fontSize ?: fontSize
                 val applyFamily = fontApplyRequest.fontFamily != null
                 val applySize = fontApplyRequest.fontSize != null
+                val targetColor = fontApplyRequest.textColor
+                val applyColor = targetColor != null
                 
                 val js = """
                     (function() {
@@ -724,6 +780,32 @@ fun VerticalEditor(
                             });
                             """ else ""}
                             
+                            ${if (applyColor) """
+                            if ('$targetColor'.length > 0) {
+                                document.execCommand('foreColor', false, '$targetColor');
+                                var colorFonts = document.querySelectorAll('font[color]');
+                                colorFonts.forEach(function(el) {
+                                    var col = el.getAttribute('color');
+                                    el.removeAttribute('color');
+                                    el.style.color = col;
+                                });
+                            } else {
+                                // 文字色リセット: 選択範囲内の明示的な color 指定を除去
+                                var colorSpans = document.querySelectorAll('#editor span[style*="color"], #editor font[color], #editor font[style*="color"]');
+                                colorSpans.forEach(function(el) {
+                                    if (sel.containsNode(el, true)) {
+                                        el.style.color = '';
+                                        el.removeAttribute('color');
+                                        if (el.tagName.toLowerCase() === 'font' && !el.getAttribute('style') && !el.getAttribute('face') && !el.getAttribute('size')) {
+                                            var p = el.parentNode;
+                                            while (el.firstChild) { p.insertBefore(el.firstChild, el); }
+                                            p.removeChild(el);
+                                        }
+                                    }
+                                });
+                            }
+                            """ else ""}
+                            
                             var rts = document.querySelectorAll('rt');
                             rts.forEach(function(rt) {
                                 rt.style.fontSize = '';
@@ -737,6 +819,34 @@ fun VerticalEditor(
                             window.isFormatting = false;
                             window.ignoreSelectionChange = false;
                             window.checkAndReportFormatState && window.checkAndReportFormatState(true);
+                        } else {
+                            // 範囲選択がない場合（キャレットのみ、またはエディタが空の場合）
+                            var ed = document.getElementById('editor');
+                            if (ed) {
+                                ed.focus();
+                                ${if (applyColor) """
+                                if ('$targetColor'.length > 0) {
+                                    document.execCommand('foreColor', false, '$targetColor');
+                                }
+                                """ else ""}
+                                ${if (applyFamily) """
+                                document.execCommand('fontName', false, '__CUSTOM_FONT_FAMILY__');
+                                var fList = ed.querySelectorAll('font[face="__CUSTOM_FONT_FAMILY__"]');
+                                fList.forEach(function(el) {
+                                    el.removeAttribute('face');
+                                    el.style.fontFamily = "$targetFamilyCss";
+                                });
+                                """ else ""}
+                                ${if (applySize) """
+                                document.execCommand('fontSize', false, '7');
+                                var sList = ed.querySelectorAll('font[size="7"], [style*="xxx-large"]');
+                                sList.forEach(function(el) {
+                                    el.removeAttribute('size');
+                                    el.style.fontSize = '${targetSize}px';
+                                });
+                                """ else ""}
+                                AndroidBridge.onTextChanged(ed.innerHTML);
+                            }
                         }
                     })();
                 """.trimIndent()
@@ -755,8 +865,28 @@ fun VerticalEditor(
                                 if (baseText.length > 0) {
                                     // ルビタグの直後に確実な踏み台として \u200B を付与
                                     // 選択範囲が <u> 内にある場合、ルビの外側（または内側）にも <u> を維持する
-                                    var parentU = (range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer).closest('u');
-                                    var rubyHtml = "<ruby>" + baseText + "<rt>${rubyRequest}</rt></ruby>";
+                                    var startNode = range.startContainer;
+                                    var startEl = (startNode.nodeType === 3 ? startNode.parentElement : startNode);
+                                    var parentU = startEl ? startEl.closest('u') : null;
+                                    
+                                    // 選択テキストに適用されていた文字色を抽出して親文字に引き継ぐ
+                                    var parentColor = startEl ? startEl.closest('[style*="color"], font[color]') : null;
+                                    var colorVal = parentColor ? (parentColor.style.color || parentColor.getAttribute('color')) : null;
+                                    
+                                    // 選択テキストに適用されていたフォント指定を抽出して親文字に引き継ぐ
+                                    var parentFont = startEl ? startEl.closest('[style*="font-family"], font[face]') : null;
+                                    var fontVal = parentFont ? (parentFont.style.fontFamily || parentFont.getAttribute('face')) : null;
+
+                                    var styledBase = baseText;
+                                    var innerStyle = '';
+                                    if (colorVal) innerStyle += 'color: ' + colorVal + ';';
+                                    if (fontVal) innerStyle += 'font-family: ' + fontVal + ';';
+                                    
+                                    if (innerStyle.length > 0) {
+                                        styledBase = '<span style="' + innerStyle + '">' + baseText + '</span>';
+                                    }
+
+                                    var rubyHtml = "<ruby>" + styledBase + "<rt>${rubyRequest}</rt></ruby>";
                                     var html = (parentU ? "<u>" + rubyHtml + "</u>" : rubyHtml) + "\u200B";
                                     
                                     window.ignoreSelectionChange = true;
@@ -855,7 +985,7 @@ fun VerticalEditor(
                                 sel.addRange(caretRange);
 
                                 var baseIndent = (window.indentWidth !== undefined) ? window.indentWidth : 0;
-                                var bulletPrefix = getIndentSpaces(baseIndent + 1.5) + '・';
+                                var bulletPrefix = '・';
 
                                 var container = caretRange.startContainer;
                                 var lineBlock = null;
@@ -891,17 +1021,31 @@ fun VerticalEditor(
                                     var rawText = (lineBlock.textContent || '').replace(/\u200B/g, '');
                                     var textWithoutIndent = rawText.replace(/^[ 　]*/, '');
 
+                                    // 現在の行またはコンテナ内の文字色（color）を取得
+                                    var existingColorEl = lineBlock.closest('[style*="color"], font[color]') || lineBlock.querySelector('[style*="color"], font[color]');
+                                    var currentColor = existingColorEl ? (existingColorEl.style.color || existingColorEl.getAttribute('color')) : null;
+
                                     if (/^・/.test(textWithoutIndent)) {
                                         // 箇条書き解除: 基本インデント + 中点を除いたテキスト
+                                        lineBlock.classList.remove('bullet-line');
                                         var newText = getIndentSpaces(baseIndent) + textWithoutIndent.replace(/^・/, '');
-                                        lineBlock.textContent = newText.length > 0 ? newText : '';
-                                        if (lineBlock.textContent === '') {
-                                            lineBlock.appendChild(document.createElement('br'));
+                                        if (currentColor) {
+                                            lineBlock.innerHTML = '<span style="color: ' + currentColor + '">' + (newText.length > 0 ? newText : '<br>') + '</span>';
+                                        } else {
+                                            lineBlock.textContent = newText.length > 0 ? newText : '';
+                                            if (lineBlock.textContent === '') {
+                                                lineBlock.appendChild(document.createElement('br'));
+                                            }
                                         }
                                     } else {
-                                        // 箇条書き付与: 箇条書きインデント + 中点 + テキスト
+                                        // 箇条書き付与: 箇条書きインデント + 中点 + テキスト（中点も含めて文字色を適用）
+                                        lineBlock.classList.add('bullet-line');
                                         var newText = bulletPrefix + textWithoutIndent;
-                                        lineBlock.textContent = newText;
+                                        if (currentColor) {
+                                            lineBlock.innerHTML = '<span style="color: ' + currentColor + '">' + newText + '</span>';
+                                        } else {
+                                            lineBlock.textContent = newText;
+                                        }
                                     }
 
                                     // キャレットを行末（テキストの直後）に配置
@@ -1046,6 +1190,24 @@ fun VerticalEditor(
                                 var comp = window.getComputedStyle(checkEl);
                                 var size = parseInt(comp.fontSize, 10) || 20;
                                 AndroidBridge.onSelectionStyle(family, size);
+
+                                var colorEl = checkEl.closest('[style*="color"], font[color]');
+                                var detectedHex = null;
+                                if (colorEl && colorEl !== editor) {
+                                    var rawCol = colorEl.style.color || (colorEl.tagName.toLowerCase() === 'font' ? colorEl.getAttribute('color') : null);
+                                    if (rawCol) {
+                                        var match = rawCol.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
+                                        if (match) {
+                                            var r = parseInt(match[1], 10).toString(16).padStart(2, '0');
+                                            var g = parseInt(match[2], 10).toString(16).padStart(2, '0');
+                                            var b = parseInt(match[3], 10).toString(16).padStart(2, '0');
+                                            detectedHex = ('#' + r + g + b).toUpperCase();
+                                        } else if (rawCol.startsWith('#')) {
+                                            detectedHex = rawCol.toUpperCase();
+                                        }
+                                    }
+                                }
+                                AndroidBridge.onSelectionColor(detectedHex);
                             }
                         }
 

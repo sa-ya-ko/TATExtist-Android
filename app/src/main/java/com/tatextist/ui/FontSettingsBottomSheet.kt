@@ -36,6 +36,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StyleSettingsBottomSheet(
@@ -45,12 +61,16 @@ fun StyleSettingsBottomSheet(
     isItalic: Boolean = false,
     isUnderline: Boolean = false,
     isBullet: Boolean = false,
+    selectedTextColor: String? = null,
+    customColors: List<String> = emptyList(),
     indentWidth: Float = 0.0f,
     paperSize: PaperSize = PaperSize.FIT,
     margins: EditorMargins = EditorMargins(),
     onFontFamilyChange: (EditorFontFamily) -> Unit,
     onIncreaseFontSize: () -> Unit,
     onDecreaseFontSize: () -> Unit,
+    onTextColorChange: (String) -> Unit = {},
+    onResetTextColor: () -> Unit = {},
     onIndentWidthChange: (Float) -> Unit = {},
     onPaperSizeChange: (PaperSize) -> Unit = {},
     onMarginChange: (top: Int?, bottom: Int?, right: Int?, left: Int?) -> Unit = { _, _, _, _ -> },
@@ -171,6 +191,139 @@ fun StyleSettingsBottomSheet(
                     label = { Text("ゴシック体 (Sans)", style = MaterialTheme.typography.labelLarge) },
                     shape = androidx.compose.foundation.shape.CircleShape,
                     modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 2.5 文字色（カラーパレット & カスタム色）
+            var showColorPickerDialog by remember { mutableStateOf(false) }
+
+            Text(
+                text = "文字色",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // プリセット色リスト
+            val presetColors = listOf(
+                "#000000", // 黒
+                "#FFFFFF", // 白
+                "#E53935", // 赤
+                "#E91E63", // ピンク
+                "#1E88E5", // 青
+                "#43A047", // 緑
+                "#FB8C00"  // オレンジ
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // プリセット色
+                presetColors.forEach { hex ->
+                    val isSelected = selectedTextColor.equals(hex, ignoreCase = true)
+                    val parsedColor = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(Color.Black)
+                    val isWhite = hex.equals("#FFFFFF", ignoreCase = true)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(parsedColor)
+                            .border(
+                                width = if (isSelected) 3.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else (if (isWhite) MaterialTheme.colorScheme.outline else Color.LightGray.copy(alpha = 0.5f)),
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                if (isSelected) {
+                                    onResetTextColor()
+                                } else {
+                                    onTextColorChange(hex)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "選択中",
+                                tint = if (hex == "#000000" || hex == "#1E88E5" || hex == "#8E24AA") Color.White else Color.Black,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                // ユーザー作成カスタム色の履歴（プリセットにないもの）
+                customColors.filter { customHex ->
+                    presetColors.none { it.equals(customHex, ignoreCase = true) }
+                }.forEach { customHex ->
+                    val isSelected = selectedTextColor.equals(customHex, ignoreCase = true)
+                    val parsedColor = runCatching { Color(android.graphics.Color.parseColor(customHex)) }.getOrDefault(Color.Black)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(parsedColor)
+                            .border(
+                                width = if (isSelected) 3.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                if (isSelected) {
+                                    // すでに選択されているカスタム色をタップした場合はカラーピッカーを再起動
+                                    showColorPickerDialog = true
+                                } else {
+                                    onTextColorChange(customHex)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "選択中",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                // 自由色ピッカー起動ボタン（＋）
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        .clickable { showColorPickerDialog = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "カスタムカラーを選択",
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            if (showColorPickerDialog) {
+                CustomColorPickerDialog(
+                    initialColorHex = selectedTextColor ?: "#000000",
+                    onDismissRequest = { showColorPickerDialog = false },
+                    onColorConfirmed = { hex ->
+                        onTextColorChange(hex)
+                        showColorPickerDialog = false
+                    }
                 )
             }
 
@@ -414,5 +567,124 @@ fun FontSettingsBottomSheet(
         onDecreaseFontSize = onDecreaseFontSize,
         onFormatCommand = {},
         onDismissRequest = onDismissRequest
+    )
+}
+
+/**
+ * ユーザーが自由に色を選択できるカラーピッカーダイアログ
+ * 色相（Hue: 0~360）、彩度（Saturation: 0~1）、明度（Value: 0~1）のスライダーで直感的に色を調合可能
+ */
+@Composable
+fun CustomColorPickerDialog(
+    initialColorHex: String,
+    onDismissRequest: () -> Unit,
+    onColorConfirmed: (String) -> Unit
+) {
+    val initialHsv = remember(initialColorHex) {
+        val hsv = FloatArray(3)
+        val parsed = runCatching { android.graphics.Color.parseColor(initialColorHex) }.getOrDefault(android.graphics.Color.BLACK)
+        android.graphics.Color.colorToHSV(parsed, hsv)
+        hsv
+    }
+
+    var hue by remember { mutableStateOf(initialHsv[0]) }
+    var saturation by remember { mutableStateOf(if (initialHsv[1] == 0f && initialHsv[2] == 0f) 1f else initialHsv[1]) }
+    var value by remember { mutableStateOf(initialHsv[2]) }
+
+    val currentColorArgb = remember(hue, saturation, value) {
+        android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
+    }
+    val currentHex = remember(currentColorArgb) {
+        String.format("#%06X", 0xFFFFFF and currentColorArgb)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(text = "カスタムカラーを選択", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // プレビュー表示
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color(currentColorArgb))
+                            .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = currentHex,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 色相 (H)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "色相 (H)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
+                    Slider(
+                        value = hue,
+                        onValueChange = { hue = it },
+                        valueRange = 0f..360f,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // 彩度 (S)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "彩度 (S)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
+                    Slider(
+                        value = saturation,
+                        onValueChange = { saturation = it },
+                        valueRange = 0f..1f,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // 明度 (V)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "明度 (V)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
+                    Slider(
+                        value = value,
+                        onValueChange = { value = it },
+                        valueRange = 0f..1f,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onColorConfirmed(currentHex) }) {
+                Text("適用")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("キャンセル")
+            }
+        }
     )
 }

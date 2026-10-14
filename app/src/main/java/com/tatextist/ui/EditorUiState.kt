@@ -12,6 +12,7 @@ enum class EditorFontFamily {
 data class FontApplyRequest(
     val fontFamily: EditorFontFamily? = null,
     val fontSize: Int? = null,
+    val textColor: String? = null,
     val id: Long = System.currentTimeMillis()
 )
 
@@ -35,6 +36,8 @@ data class EditorUiState(
     val fontSize: Int = 20,
     val fontFamily: EditorFontFamily = EditorFontFamily.SERIF,
     val selectedFontFamily: EditorFontFamily = EditorFontFamily.SERIF,
+    val selectedTextColor: String? = null,
+    val customColors: List<String> = emptyList(),
     val fontApplyRequest: FontApplyRequest? = null,
     val showFontSettingsBottomSheet: Boolean = false,
     val showRubyBottomSheet: Boolean = false,

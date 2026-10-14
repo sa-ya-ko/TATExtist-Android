@@ -553,6 +553,45 @@ class EditorViewModelTest {
             assertEquals(null, stateError.printRequestId)
         }
     }
+
+    @Test
+    fun `when textColor is updated with hex, state and fontApplyRequest should reflect the new color`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(null, initial.selectedTextColor)
+
+            viewModel.updateTextColor("#E53935")
+            val updated = awaitItem()
+            assertEquals("#E53935", updated.selectedTextColor)
+            assertEquals("#E53935", updated.fontApplyRequest?.textColor)
+        }
+    }
+
+    @Test
+    fun `when textColor is reset, fontApplyRequest should request color reset`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateTextColor("#E53935")
+            assertEquals("#E53935", awaitItem().selectedTextColor)
+
+            viewModel.resetTextColor()
+            val resetState = awaitItem()
+            assertEquals(null, resetState.selectedTextColor)
+            assertEquals("", resetState.fontApplyRequest?.textColor) // 空文字でリセットを表現
+        }
+    }
+
+    @Test
+    fun `updateDetectedColor_synchronizesDetectedTextColor`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.updateDetectedColor("#1E88E5")
+            val detected = awaitItem()
+            assertEquals("#1E88E5", detected.selectedTextColor)
+        }
+    }
 }
 
 
