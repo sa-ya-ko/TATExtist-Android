@@ -42,6 +42,9 @@ fun VerticalEditor(
     documentTitle: String = "無題のドキュメント",
     printRequest: Long? = null,
     onPrintConsumed: () -> Unit = {},
+    paragraphStyleRequest: ParagraphStyle? = null,
+    onParagraphStyleConsumed: () -> Unit = {},
+    onParagraphStyleDetected: (String?) -> Unit = {},
     showFontSettingsBottomSheet: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -70,6 +73,7 @@ fun VerticalEditor(
     // mutableStateOfを使うと不要な再描画が走り、IMEの漢字変換（コンポジション）が強制終了されるため、配列で状態を持たせます
     val lastKnownTextRef = remember { arrayOf(value.text) }
     val lastHandledRequestIdRef = remember { arrayOf<Long?>(null) }
+    val lastHandledRubyRequestRef = remember { arrayOf<String?>(null) }
     val isInternalUpdateRef = remember { arrayOf(false) }
 
     // 3. ComposeとWebViewの通信（ブリッジ）
@@ -109,6 +113,13 @@ fun VerticalEditor(
                 handler.post {
                     val color = if (hexColor.isNullOrEmpty() || hexColor == "null") null else hexColor
                     onColorDetected(color)
+                }
+            }
+
+            @JavascriptInterface
+            fun onParagraphStyle(tagName: String?) {
+                handler.post {
+                    onParagraphStyleDetected(tagName)
                 }
             }
         }
@@ -220,6 +231,19 @@ fun VerticalEditor(
                                     padding-top: 2.5em;
                                     text-indent: -1em;
                                 }
+                                #editor h1, #editor h2, #editor h3, #editor h4 {
+                                    margin: 0;
+                                    padding: 0;
+                                    font-weight: bold;
+                                    display: block;
+                                }
+                                #editor h1 { font-size: 1.75em; line-height: 1.6; }
+                                #editor h2 { font-size: 1.4em; line-height: 1.6; }
+                                #editor h3 { font-size: 1.2em; line-height: 1.7; }
+                                #editor h4 { font-size: 1.1em; line-height: 1.8; }
+                                #editor h1 ruby, #editor h2 ruby, #editor h3 ruby, #editor h4 ruby {
+                                    font-size: inherit;
+                                }
                             }
                         </style>
                         <style id="dynamic-editor-style">
@@ -273,9 +297,22 @@ fun VerticalEditor(
                                     -webkit-print-color-adjust: exact;
                                     print-color-adjust: exact;
                                 }
-                                .highlight-all-rubies ruby {
-                                    background-color: transparent;
-                                    box-shadow: none;
+                                #editor .bullet-line {
+                                    padding-top: 2.5em;
+                                    text-indent: -1em;
+                                }
+                                #editor h1, #editor h2, #editor h3, #editor h4 {
+                                    margin: 0;
+                                    padding: 0;
+                                    font-weight: bold;
+                                    display: block;
+                                }
+                                #editor h1 { font-size: 1.75em; line-height: 1.6; }
+                                #editor h2 { font-size: 1.4em; line-height: 1.6; }
+                                #editor h3 { font-size: 1.2em; line-height: 1.7; }
+                                #editor h4 { font-size: 1.1em; line-height: 1.8; }
+                                #editor h1 ruby, #editor h2 ruby, #editor h3 ruby, #editor h4 ruby {
+                                    font-size: inherit;
                                 }
                             }
                         </style>
@@ -443,6 +480,9 @@ fun VerticalEditor(
 
                                     var lineText = curLine ? (curLine.textContent || '') : '';
                                     isBullet = /^[ 　]*・/.test(lineText);
+
+                                    var curTag = (curLine && curLine.tagName) ? curLine.tagName.toLowerCase() : 'p';
+                                    AndroidBridge.onParagraphStyle(curTag);
                                 }
                                 AndroidBridge.onFormatState(isBold, isItalic, isUnderline, isBullet);
 
@@ -854,7 +894,8 @@ fun VerticalEditor(
                 onFontApplyConsumed()
             }
             
-            if (rubyRequest != null) {
+            if (rubyRequest != null && rubyRequest != lastHandledRubyRequestRef[0]) {
+                lastHandledRubyRequestRef[0] = rubyRequest
                 // ルビリクエストが来た場合、保存しておいた選択範囲を使ってルビを挿入する
                 val js = """
                     (function() {
@@ -869,12 +910,16 @@ fun VerticalEditor(
                                     var startEl = (startNode.nodeType === 3 ? startNode.parentElement : startNode);
                                     var parentU = startEl ? startEl.closest('u') : null;
                                     
-                                    // 選択テキストに適用されていた文字色を抽出して親文字に引き継ぐ
+                                    var editorEl = document.getElementById('editor');
+
+                                    // 選択テキストに適用されていた文字色を抽出して親文字に引き継ぐ（#editor枠は除外）
                                     var parentColor = startEl ? startEl.closest('[style*="color"], font[color]') : null;
+                                    if (parentColor === editorEl) parentColor = null;
                                     var colorVal = parentColor ? (parentColor.style.color || parentColor.getAttribute('color')) : null;
                                     
-                                    // 選択テキストに適用されていたフォント指定を抽出して親文字に引き継ぐ
+                                    // 選択テキストに適用されていたフォント指定を抽出して親文字に引き継ぐ（#editor枠は除外）
                                     var parentFont = startEl ? startEl.closest('[style*="font-family"], font[face]') : null;
+                                    if (parentFont === editorEl) parentFont = null;
                                     var fontVal = parentFont ? (parentFont.style.fontFamily || parentFont.getAttribute('face')) : null;
 
                                     var styledBase = baseText;
@@ -886,8 +931,8 @@ fun VerticalEditor(
                                         styledBase = '<span style="' + innerStyle + '">' + baseText + '</span>';
                                     }
 
-                                    var rubyHtml = "<ruby>" + styledBase + "<rt>${rubyRequest}</rt></ruby>";
-                                    var html = (parentU ? "<u>" + rubyHtml + "</u>" : rubyHtml) + "\u200B";
+                                    var rubyHtml = '<ruby>' + styledBase + '<rt>${rubyRequest}</rt></ruby>\u200B';
+                                    var html = parentU ? "<u>" + rubyHtml + "</u>" : rubyHtml;
                                     
                                     window.ignoreSelectionChange = true;
                                     
@@ -895,11 +940,22 @@ fun VerticalEditor(
                                     var sel = window.getSelection();
                                     sel.removeAllRanges();
                                     sel.addRange(range);
-                                    
+
                                     // ブラウザの編集履歴（Undoスタック）に正しく記録させながらルビを挿入
                                     document.execCommand('insertHTML', false, html);
                                     
-                                    // 挿入後、キャレットを \u200B の直後（ルビの外側）に確実に倒す
+                                    // 挿入後、キャレットをルビの外側に確実に倒す
+                                    var edEl = document.getElementById('editor');
+
+                                    // 見出し要素（h1〜h4）の中で挿入された場合、ブラウザが勝手に付けたインラインの font-size をリセット
+                                    var headingParent = range.startContainer.parentElement ? range.startContainer.parentElement.closest('h1, h2, h3, h4') : null;
+                                    if (headingParent) {
+                                        var rubies = headingParent.querySelectorAll('ruby');
+                                        rubies.forEach(function(rb) {
+                                            rb.style.removeProperty('font-size');
+                                        });
+                                    }
+
                                     if (sel.rangeCount > 0) {
                                         var curRange = sel.getRangeAt(0);
                                         curRange.collapse(false);
@@ -907,8 +963,9 @@ fun VerticalEditor(
                                         sel.addRange(curRange);
                                     }
                                     
-                                    // 挿入後、変更されたHTMLをAndroid側に送信
-                                    AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                                    // 挿入後、変更されたHTMLからゼロ幅スペース（\u200B）を除去してAndroid側に送信
+                                    // （エディタDOMの直接改変を避けてUndoスタックを保護しつつ、保存データと文字数カウントへの混入を完全防止）
+                                    AndroidBridge.onTextChanged(edEl.innerHTML.replace(/\u200B/g, ''));
                                     
                                     // 範囲をリセットし、ロックを解除
                                     window.savedRange = null;
@@ -924,7 +981,11 @@ fun VerticalEditor(
                 webView.evaluateJavascript(js) {
                     onRubyApplied()
                 }
-            } else if (formatCommand != null) {
+            } else if (rubyRequest == null) {
+                lastHandledRubyRequestRef[0] = null
+            }
+            
+            if (formatCommand != null) {
                 // コマンド名からタイムスタンプ部分を取り出し、純粋な命令名（"bold", "bulletList" 等）を取得
                 val cmdName = formatCommand.substringBefore("_")
                 // 文字装飾やUndo/Redoのリクエストが来た場合
@@ -954,7 +1015,7 @@ fun VerticalEditor(
                         var activeCaret = (curSel && curSel.rangeCount > 0) ? curSel.getRangeAt(0) : null;
                         var caretRange = activeCaret || window.lastCaretRange || window.savedRange || textRange;
 
-                        if (textRange && '$cmdName' !== 'bulletList') {
+                        if (textRange && '$cmdName' !== 'bulletList' && '$cmdName' !== 'undo' && '$cmdName' !== 'redo') {
                             var sel = window.getSelection();
                             sel.removeAllRanges();
                             sel.addRange(textRange);
@@ -973,9 +1034,15 @@ fun VerticalEditor(
 
                         if ('$cmdName' === 'undo') {
                             document.execCommand('undo', false, null);
+                            window.frozenSelection = null;
+                            window.lastSelectionRange = null;
+                            window.savedRange = null;
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
                         } else if ('$cmdName' === 'redo') {
                             document.execCommand('redo', false, null);
+                            window.frozenSelection = null;
+                            window.lastSelectionRange = null;
+                            window.savedRange = null;
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
                         } else if ('$cmdName' === 'bulletList') {
                             // 箇条書きは文字範囲選択ではなく、最新のキャレット行を最優先
@@ -1249,6 +1316,78 @@ fun VerticalEditor(
                 """.trimIndent()
                 webView.evaluateJavascript(js) {
                     onIndentConsumed()
+                }
+            } else if (paragraphStyleRequest != null) {
+                // 段落スタイル適用リクエストの処理（標準DOM APIによる安全な置換）
+                val targetTag = paragraphStyleRequest.tag
+                val js = """
+                    (function() {
+                        var editor = document.getElementById('editor');
+                        var targetTag = '$targetTag';
+                        if (targetTag === 'p') targetTag = 'div';
+
+                        var sel = window.getSelection();
+                        var range = (sel.rangeCount > 0 && !sel.isCollapsed) ? sel.getRangeAt(0) : window.savedRange;
+                        if (!range && window.lastCaretRange) range = window.lastCaretRange;
+                        if (!range) return;
+
+                        var container = range.startContainer;
+                        var targetNode = container;
+                        while (targetNode && targetNode.parentElement !== editor && targetNode !== editor) {
+                            targetNode = targetNode.parentElement;
+                        }
+
+                        if (!targetNode || targetNode === editor) {
+                            var childIdx = Math.min(range.startOffset, Math.max(0, editor.childNodes.length - 1));
+                            targetNode = (childIdx >= 0 && editor.childNodes.length > 0) ? editor.childNodes[childIdx] : null;
+                        }
+
+                        var newTagName = (targetTag === 'p') ? 'div' : targetTag;
+                        var newElement = document.createElement(newTagName);
+
+                        if (targetNode && targetNode !== editor) {
+                            if (targetNode.nodeType === 1) { // 既存の要素 (div, h1 等)
+                                var currentTag = targetNode.tagName ? targetNode.tagName.toLowerCase() : 'div';
+                                if (currentTag === targetTag || (targetTag === 'p' && currentTag === 'div')) {
+                                    newElement = document.createElement('div');
+                                }
+                                if (targetNode.className) {
+                                    newElement.className = targetNode.className;
+                                }
+                                while (targetNode.firstChild) {
+                                    newElement.appendChild(targetNode.firstChild);
+                                }
+                                if (!newElement.firstChild) {
+                                    newElement.appendChild(document.createElement('br'));
+                                }
+                                targetNode.replaceWith(newElement);
+                            } else { // 裸のテキストノード
+                                newElement.appendChild(targetNode.cloneNode(true));
+                                targetNode.replaceWith(newElement);
+                            }
+                        } else {
+                            newElement.appendChild(document.createElement('br'));
+                            editor.appendChild(newElement);
+                        }
+
+                        var newRange = document.createRange();
+                        newRange.selectNodeContents(newElement);
+                        newRange.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(newRange);
+                        window.lastCaretRange = newRange.cloneRange();
+                        window.savedRange = newRange.cloneRange();
+                        window.frozenSelection = null;
+                        window.lastSelectionRange = null;
+
+                        AndroidBridge.onTextChanged(editor.innerHTML);
+                        if (window.checkAndReportFormatState) {
+                            window.checkAndReportFormatState(true);
+                        }
+                    })();
+                """.trimIndent()
+                webView.evaluateJavascript(js) {
+                    onParagraphStyleConsumed()
                 }
             } else {
                 // Compose側から（ファイル読み込み等で）全体のテキストが変更された場合のみ反映

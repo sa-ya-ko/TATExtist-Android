@@ -60,7 +60,29 @@ data class EditorUiState(
     val margins: EditorMargins = EditorMargins(),
     val printRequestId: Long? = null,
     val localFileMessage: String? = null,
-    val localFileError: String? = null
+    val localFileError: String? = null,
+    val currentParagraphStyle: ParagraphStyle = ParagraphStyle.NORMAL,
+    val paragraphStyleRequest: ParagraphStyle? = null
 )
+
+enum class ParagraphStyle(val label: String, val tag: String) {
+    NORMAL("標準テキスト", "p"),
+    TITLE("タイトル", "h1"),
+    HEADING_1("見出し1", "h2"),
+    HEADING_2("見出し2", "h3"),
+    HEADING_3("見出し3", "h4");
+
+    companion object {
+        fun fromTag(tag: String?): ParagraphStyle {
+            return when (tag?.lowercase()) {
+                "h1" -> TITLE
+                "h2" -> HEADING_1
+                "h3" -> HEADING_2
+                "h4" -> HEADING_3
+                else -> NORMAL
+            }
+        }
+    }
+}
 
 

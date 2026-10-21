@@ -592,6 +592,65 @@ class EditorViewModelTest {
             assertEquals("#1E88E5", detected.selectedTextColor)
         }
     }
+
+    @Test
+    fun `when paragraph style is applied, state and paragraphStyleRequest should reflect the new style`() = runTest {
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(ParagraphStyle.NORMAL, initial.currentParagraphStyle)
+            assertEquals(null, initial.paragraphStyleRequest)
+
+            viewModel.applyParagraphStyle(ParagraphStyle.TITLE)
+            val updated = awaitItem()
+            assertEquals(ParagraphStyle.TITLE, updated.currentParagraphStyle)
+            assertEquals(ParagraphStyle.TITLE, updated.paragraphStyleRequest)
+        }
+    }
+
+    @Test
+    fun `when same paragraph style is applied again, it should reset to NORMAL`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.applyParagraphStyle(ParagraphStyle.HEADING_1)
+            assertEquals(ParagraphStyle.HEADING_1, awaitItem().currentParagraphStyle)
+
+            viewModel.applyParagraphStyle(ParagraphStyle.HEADING_1)
+            val resetState = awaitItem()
+            assertEquals(ParagraphStyle.NORMAL, resetState.currentParagraphStyle)
+            assertEquals(ParagraphStyle.NORMAL, resetState.paragraphStyleRequest)
+        }
+    }
+
+    @Test
+    fun `when onParagraphStyleConsumed is called, paragraphStyleRequest should become null`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.applyParagraphStyle(ParagraphStyle.HEADING_2)
+            awaitItem()
+
+            viewModel.onParagraphStyleConsumed()
+            val consumedState = awaitItem()
+            assertEquals(null, consumedState.paragraphStyleRequest)
+            assertEquals(ParagraphStyle.HEADING_2, consumedState.currentParagraphStyle)
+        }
+    }
+
+    @Test
+    fun `when onParagraphStyleDetected is called with tag, currentParagraphStyle should synchronize`() = runTest {
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.onParagraphStyleDetected("h3")
+            val detected = awaitItem()
+            assertEquals(ParagraphStyle.HEADING_2, detected.currentParagraphStyle)
+
+            viewModel.onParagraphStyleDetected("p")
+            val reset = awaitItem()
+            assertEquals(ParagraphStyle.NORMAL, reset.currentParagraphStyle)
+        }
+    }
 }
 
 

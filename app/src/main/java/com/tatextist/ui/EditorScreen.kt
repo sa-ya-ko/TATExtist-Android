@@ -81,7 +81,10 @@ fun EditorScreen(
     onLoadFromLocalFile: (android.net.Uri) -> Unit = {},
     onClearLocalFileMessage: () -> Unit = {},
     onPrintRequest: () -> Unit = {},
-    onPrintConsumed: () -> Unit = {}
+    onPrintConsumed: () -> Unit = {},
+    onParagraphStyleChange: (ParagraphStyle) -> Unit = {},
+    onParagraphStyleDetected: (String?) -> Unit = {},
+    onParagraphStyleConsumed: () -> Unit = {}
 ) {
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -380,6 +383,9 @@ fun EditorScreen(
             documentTitle = uiState.documentTitle,
             printRequest = uiState.printRequestId,
             onPrintConsumed = onPrintConsumed,
+            paragraphStyleRequest = uiState.paragraphStyleRequest,
+            onParagraphStyleConsumed = onParagraphStyleConsumed,
+            onParagraphStyleDetected = onParagraphStyleDetected,
             showFontSettingsBottomSheet = uiState.showFontSettingsBottomSheet,
             modifier = Modifier.padding(innerPadding)
         )
@@ -419,6 +425,8 @@ fun EditorScreen(
             indentWidth = uiState.indentWidth,
             paperSize = uiState.paperSize,
             margins = uiState.margins,
+            currentParagraphStyle = uiState.currentParagraphStyle,
+            onParagraphStyleChange = onParagraphStyleChange,
             onFontFamilyChange = onFontFamilyChange,
             onIncreaseFontSize = onIncreaseFontSize,
             onDecreaseFontSize = onDecreaseFontSize,

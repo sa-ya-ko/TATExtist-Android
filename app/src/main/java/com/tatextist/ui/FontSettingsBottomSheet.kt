@@ -66,7 +66,9 @@ fun StyleSettingsBottomSheet(
     indentWidth: Float = 0.0f,
     paperSize: PaperSize = PaperSize.FIT,
     margins: EditorMargins = EditorMargins(),
+    currentParagraphStyle: ParagraphStyle = ParagraphStyle.NORMAL,
     onFontFamilyChange: (EditorFontFamily) -> Unit,
+    onParagraphStyleChange: (ParagraphStyle) -> Unit = {},
     onIncreaseFontSize: () -> Unit,
     onDecreaseFontSize: () -> Unit,
     onTextColorChange: (String) -> Unit = {},
@@ -162,6 +164,49 @@ fun StyleSettingsBottomSheet(
                     shape = androidx.compose.foundation.shape.CircleShape,
                     modifier = Modifier.weight(1.3f)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 1.5. 段落スタイルセクション（タイトル、見出し1〜3、標準テキスト）
+            Text(
+                text = "段落スタイル",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ParagraphStyle.values().forEach { style ->
+                    val isSelected = currentParagraphStyle == style
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onParagraphStyleChange(style) },
+                        label = {
+                            Text(
+                                text = style.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (style != ParagraphStyle.NORMAL) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        leadingIcon = if (isSelected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else null,
+                        shape = androidx.compose.foundation.shape.CircleShape
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

@@ -177,6 +177,15 @@ class MainActivity : ComponentActivity() {
                         },
                         onPrintConsumed = {
                             viewModel.consumePrintRequest()
+                        },
+                        onParagraphStyleChange = { style ->
+                            viewModel.applyParagraphStyle(style)
+                        },
+                        onParagraphStyleDetected = { tag ->
+                            viewModel.onParagraphStyleDetected(tag)
+                        },
+                        onParagraphStyleConsumed = {
+                            viewModel.onParagraphStyleConsumed()
                         }
                     )
                 }

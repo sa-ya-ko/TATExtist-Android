@@ -497,6 +497,37 @@ class EditorViewModel(
     fun consumePrintRequest() {
         _uiState.value = _uiState.value.copy(printRequestId = null)
     }
+
+    /**
+     * 段落スタイル（タイトル、見出し1〜3、標準テキスト）を適用する
+     * すでに同じスタイルが選択されている場合は NORMAL にリセットする
+     */
+    fun applyParagraphStyle(style: ParagraphStyle) {
+        val targetStyle = if (_uiState.value.currentParagraphStyle == style) {
+            ParagraphStyle.NORMAL
+        } else {
+            style
+        }
+        _uiState.value = _uiState.value.copy(
+            currentParagraphStyle = targetStyle,
+            paragraphStyleRequest = targetStyle
+        )
+    }
+
+    /**
+     * WebViewへの段落スタイル適用リクエストを消費する
+     */
+    fun onParagraphStyleConsumed() {
+        _uiState.value = _uiState.value.copy(paragraphStyleRequest = null)
+    }
+
+    /**
+     * WebViewから検出された段落スタイル（h1〜h4, p 等）をUiStateに同期する
+     */
+    fun onParagraphStyleDetected(tag: String?) {
+        val detected = ParagraphStyle.fromTag(tag)
+        _uiState.value = _uiState.value.copy(currentParagraphStyle = detected)
+    }
 }
 
 
