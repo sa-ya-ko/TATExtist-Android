@@ -493,3 +493,16 @@
   2. `rubyRequest` の処理開始時に `lastHandledRubyRequestRef` を用いて同一リクエストの多重実行を完全にブロック。
   3. `insertHTML` 呼び出し時のみ末尾に安全ピンとして `\u200B` を添えて `<ruby>` の解体を防ぎつつ、エディタのDOMツリー直接改変（`TreeWalker` 等）はUndoスタック破損を招くため行わず、Androidへのテキスト通知時（`onTextChanged`）に `replace(/\u200B/g, '')` で完全に除去。これによりChromiumのUndo履歴整合性を保ちながら、アプリ本体・文字数カウント・保存データへの混入を根絶した。
   4. 挿入直後に見出し内の `<ruby>` に対し `ruby.style.removeProperty('font-size')` を実行し、ブラウザ付与のインラインスタイルのみを安全にリセット（ノード自体の削除を行わないため、Undoスタックを100%保護）。
+
+---
+
+## Bug 041: Android標準 `org.json` クラスがJVM単体テスト（testDebugUnitTest）環境でデフォルト値を返し `AssertionFailedError` となる不具合
+- **現象 (What):**
+  - メモ管理用の `LocalJsonNoteRepositoryTest` をJVM上のローカル単体テストで実行した際、`saveNote` や `deleteNote` で `toString(...) must not be null` などの例外が発生しテストが失敗する。
+- **原因 (Why):**
+  - Android SDKに含まれる `org.json.JSONObject` や `JSONArray` は Android OS ランタイム上で動作する実装であり、PC（JVM）上の単体テスト実行時は Android Gradle プラグインが提供するスタブ（空実装）が参照される。
+  - `testOptions { unitTests.isReturnDefaultValues = true }` が有効になっている場合、スタブメソッド（例: `jsonArray.toString()`）が常にデフォルト値である `null` や空値を返すため、正常なJSON文字列への変換ができず失敗していた。
+- **対策 (How):**
+  - `app/build.gradle.kts` の `dependencies` 内の `testImplementation` に、純正の純Java版ライブラリ `org.json:json:20231013` を追加。
+  - これにより、実機やエミュレータを用いずともPC上のJVM単体テストで `org.json` の完全なシリアライズ・デシリアライズ処理が高速かつ正確に動作するようになった。
+
