@@ -19,7 +19,8 @@ import com.tatextist.utils.HtmlTextConverter
 @Composable
 fun VerticalEditor(
     value: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit,
+    initialHtml: String = "",
+    onValueChange: (TextFieldValue, String) -> Unit,
     rubyRequest: String? = null,
     onRubyApplied: () -> Unit = {},
     formatCommand: String? = null,
@@ -89,7 +90,7 @@ fun VerticalEditor(
                     val plainText = HtmlTextConverter.convertFromHtml(newHtml)
                     lastKnownTextRef[0] = plainText // WebViewからの更新を記録（再描画はトリガーしない）
                     isInternalUpdateRef[0] = true
-                    onValueChange(TextFieldValue(text = plainText))
+                    onValueChange(TextFieldValue(text = plainText), newHtml)
                 }
             }
 
@@ -318,7 +319,7 @@ fun VerticalEditor(
                         </style>
                     </head>
                     <body>
-                        <div id="editor" class="$paperClass" contenteditable="true">${HtmlTextConverter.convertToHtml(value.text)}</div>
+                        <div id="editor" class="$paperClass" contenteditable="true">${if (initialHtml.isNotBlank()) initialHtml else HtmlTextConverter.convertToHtml(value.text)}</div>
                         <script>
                             const editor = document.getElementById('editor');
                             
@@ -369,7 +370,7 @@ fun VerticalEditor(
                                 return "　".repeat(full) + (hasHalf ? " " : "");
                             }
 
-                            // キャレットが行（editor直下またはdiv要素内）の先頭にあるかを正確に判定する関数
+                            // キャレットが行（editor直下のブロック要素またはdiv要素内）の先頭にあるかを正確に判定する関数
                             function isCaretAtLineStart(node, offset) {
                                 if (!node) return false;
                                 if (node === editor) {
@@ -397,9 +398,18 @@ fun VerticalEditor(
                                         cur = cur.parentElement;
                                     }
                                     if (cur && cur.parentElement === editor) {
+                                        // cur自体がeditor直下のブロック要素（DIV, P, H1, H2, H3, H4等）の場合、
+                                        // その内部で先頭までテキストがなければ、このブロック行の先頭と判定
+                                        var tag = cur.nodeName.toUpperCase();
+                                        if (tag === 'DIV' || tag === 'P' || tag.startsWith('H')) {
+                                            return true;
+                                        }
+
+                                        // editor直下の裸テキストノード等の場合、前のブロック要素まで遡る
                                         var prev = cur.previousSibling;
                                         while (prev) {
-                                            if (prev.nodeName === 'DIV' || prev.nodeName === 'P' || prev.nodeName === 'BR') break;
+                                            var prevTag = prev.nodeName.toUpperCase();
+                                            if (prevTag === 'DIV' || prevTag === 'P' || prevTag === 'BR' || prevTag.startsWith('H')) break;
                                             if ((prev.textContent || '').trim().length > 0) return false;
                                             prev = prev.previousSibling;
                                         }
@@ -569,6 +579,11 @@ fun VerticalEditor(
                                     var isCurrentBullet = /^[ 　]*・/.test(lineText);
                                     var trimmedLine = lineText.trim();
 
+                                    // 現在行の先頭の空白（全角スペースまたは半角スペース）を検出
+                                    var leadingSpacesMatch = lineText.match(/^[ 　]+/);
+                                    var curLineSpaces = leadingSpacesMatch ? leadingSpacesMatch[0] : '';
+                                    var hasIndent = curLineSpaces.length > 0;
+
                                     // 箇条書き記号「・」だけで中身が空の場合、箇条書きを終了して通常の空行に戻す
                                     if (isCurrentBullet && (trimmedLine === '・' || trimmedLine.length === 0)) {
                                         if (curLine && curLine !== editor) {
@@ -583,9 +598,21 @@ fun VerticalEditor(
                                         return;
                                     }
 
+                                    // インデントスペースのみで文字が空の場合、インデントを解除して通常の空行に戻す
+                                    if (!isCurrentBullet && hasIndent && trimmedLine.length === 0) {
+                                        if (curLine && curLine !== editor) {
+                                            curLine.textContent = '';
+                                            curLine.appendChild(document.createElement('br'));
+                                        } else {
+                                            document.execCommand('delete', false, null);
+                                        }
+                                        AndroidBridge.onTextChanged(editor.innerHTML);
+                                        window.checkAndReportFormatState();
+                                        return;
+                                    }
+
                                     // 新しい段落DIV要素を作成
                                     var newDiv = document.createElement('div');
-                                    var width = (window.indentWidth !== undefined) ? window.indentWidth : 0;
 
                                     if (isCurrentBullet) {
                                         newDiv.classList.add('bullet-line');
@@ -599,6 +626,9 @@ fun VerticalEditor(
                                         } else {
                                             newDiv.textContent = bulletPrefixStr;
                                         }
+                                    } else if (hasIndent) {
+                                        // 前の行にインデント（全角・半角スペース）が存在する場合、そのまま引き継ぐ
+                                        newDiv.textContent = curLineSpaces;
                                     } else if (width > 0) {
                                         newDiv.textContent = getIndentSpaces(width);
                                     } else {
@@ -1395,7 +1425,12 @@ fun VerticalEditor(
                     isInternalUpdateRef[0] = false
                 } else if (value.text != lastKnownTextRef[0]) {
                     lastKnownTextRef[0] = value.text
-                    val escapedHtml = HtmlTextConverter.convertToHtml(value.text)
+                    val htmlToLoad = if (initialHtml.isNotBlank() && HtmlTextConverter.convertFromHtml(initialHtml) == value.text) {
+                        initialHtml
+                    } else {
+                        HtmlTextConverter.convertToHtml(value.text)
+                    }
+                    val escapedHtml = htmlToLoad
                         .replace("\\", "\\\\")
                         .replace("'", "\\'")
                         .replace("\n", "\\n")
@@ -1410,6 +1445,13 @@ fun VerticalEditor(
                         range.collapse(false);
                         sel.removeAllRanges();
                         sel.addRange(range);
+                        window.savedRange = range.cloneRange();
+                        window.lastCaretRange = range.cloneRange();
+                        window.frozenSelection = null;
+                        window.lastSelectionRange = null;
+                        if (window.checkAndReportFormatState) {
+                            window.checkAndReportFormatState(true);
+                        }
                     """.trimIndent()
                     
                     webView.evaluateJavascript(js, null)

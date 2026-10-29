@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.filled.FormatSize
@@ -50,7 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 fun EditorScreen(
     uiState: EditorUiState,
     onTitleChange: (String) -> Unit = {},
-    onValueChange: (TextFieldValue) -> Unit = {},
+    onValueChange: (TextFieldValue, String?) -> Unit = { _, _ -> },
     onSaveToCloud: () -> Unit = {},
     onLoadFromCloud: () -> Unit = {},
     onSelectDriveFile: (com.tatextist.data.DriveFileInfo) -> Unit = {},
@@ -84,7 +85,8 @@ fun EditorScreen(
     onPrintConsumed: () -> Unit = {},
     onParagraphStyleChange: (ParagraphStyle) -> Unit = {},
     onParagraphStyleDetected: (String?) -> Unit = {},
-    onParagraphStyleConsumed: () -> Unit = {}
+    onParagraphStyleConsumed: () -> Unit = {},
+    onNavigateBack: () -> Unit = {}
 ) {
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -161,6 +163,15 @@ fun EditorScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                     actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 ),
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "メモ一覧に戻る",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
                 title = {
                     androidx.compose.foundation.text.BasicTextField(
                         value = uiState.documentTitle,
@@ -355,6 +366,7 @@ fun EditorScreen(
         // 画面の真ん中（本文を書く場所）に縦書きエディタを配置
         VerticalEditor(
             value = uiState.content,
+            initialHtml = uiState.currentHtmlContent,
             onValueChange = onValueChange,
             rubyRequest = rubyRequest,
             onRubyApplied = { rubyRequest = null },

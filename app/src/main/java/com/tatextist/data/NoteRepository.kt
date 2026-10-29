@@ -161,6 +161,8 @@ class LocalJsonNoteRepository(
                 put("htmlContent", note.htmlContent)
                 put("isPinned", note.isPinned)
                 put("isArchived", note.isArchived)
+                put("fontFamily", note.fontFamily)
+                put("indentWidth", note.indentWidth.toDouble())
                 put("updatedAt", note.updatedAt)
             }
             jsonArray.put(obj)
@@ -191,6 +193,8 @@ class LocalJsonNoteRepository(
                         htmlContent = obj.optString("htmlContent", ""),
                         isPinned = obj.optBoolean("isPinned", false),
                         isArchived = obj.optBoolean("isArchived", false),
+                        fontFamily = obj.optString("fontFamily", "SERIF"),
+                        indentWidth = obj.optDouble("indentWidth", 0.0).toFloat(),
                         updatedAt = obj.optLong("updatedAt", 0L)
                     )
                 )

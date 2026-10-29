@@ -13,12 +13,16 @@ import com.tatextist.utils.RubyManager
 import androidx.lifecycle.viewModelScope
 import com.tatextist.data.GoogleDriveRepository
 import com.tatextist.data.LocalFileRepository
+import com.tatextist.data.NoteItem
+import com.tatextist.data.NoteRepository
 import android.net.Uri
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class EditorViewModel(
     private val driveRepository: GoogleDriveRepository? = null,
-    private val localFileRepository: LocalFileRepository? = null
+    private val localFileRepository: LocalFileRepository? = null,
+    private val noteRepository: NoteRepository? = null
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
@@ -26,13 +30,22 @@ class EditorViewModel(
     init {
         val initialSignedIn = driveRepository?.isSignedIn() ?: false
         _uiState.value = _uiState.value.copy(isDriveSignedIn = initialSignedIn)
+
+        // メモ一覧を監視してUiStateに反映
+        noteRepository?.let { repo ->
+            viewModelScope.launch {
+                repo.getAllNotes().collect { list ->
+                    _uiState.value = _uiState.value.copy(notes = list)
+                }
+            }
+        }
     }
 
     fun updateTitle(newTitle: String) {
         _uiState.value = _uiState.value.copy(documentTitle = newTitle)
     }
 
-    fun updateContent(newContent: TextFieldValue) {
+    fun updateContent(newContent: TextFieldValue, rawHtml: String? = null) {
         val plainText = HtmlTextConverter.extractPlainText(newContent.text)
         val charCount = plainText.length
         val charCountWithoutSpaces = plainText.replace("\\s+".toRegex(), "").length
@@ -41,6 +54,7 @@ class EditorViewModel(
 
         _uiState.value = _uiState.value.copy(
             content = newContent,
+            currentHtmlContent = rawHtml ?: _uiState.value.currentHtmlContent,
             characterCount = charCount,
             characterCountWithoutSpaces = charCountWithoutSpaces,
             lineCount = lineCount,
@@ -363,9 +377,10 @@ class EditorViewModel(
     fun saveToLocalFile(uri: Uri) {
         val repo = localFileRepository ?: return
         viewModelScope.launch {
-            val aozoraText = HtmlTextConverter.convertFromHtml(_uiState.value.content.text)
             val state = _uiState.value
-            val metaHeader = "［＃レイアウト設定：paper=${state.paperSize.name},top=${state.margins.top},bottom=${state.margins.bottom},right=${state.margins.right},left=${state.margins.left}］\n"
+            val rawSource = if (state.currentHtmlContent.isNotBlank()) state.currentHtmlContent else state.content.text
+            val aozoraText = HtmlTextConverter.convertFromHtml(rawSource)
+            val metaHeader = "［＃レイアウト設定：title=${state.documentTitle},paper=${state.paperSize.name},top=${state.margins.top},bottom=${state.margins.bottom},right=${state.margins.right},left=${state.margins.left}］\n"
             val textToSave = metaHeader + aozoraText
             val result = repo.saveText(uri, textToSave)
             if (result.isSuccess) {
@@ -392,6 +407,7 @@ class EditorViewModel(
             if (result.isSuccess) {
                 val rawText = result.getOrNull() ?: ""
                 var aozoraText = rawText
+                var loadedTitle: String? = null
                 var loadedPaperSize: PaperSize? = null
                 var loadedMargins: EditorMargins? = null
 
@@ -410,6 +426,9 @@ class EditorViewModel(
                             val key = kv[0].trim()
                             val value = kv[1].trim()
                             when (key) {
+                                "title" -> {
+                                    if (value.isNotBlank()) loadedTitle = value
+                                }
                                 "paper" -> {
                                     loadedPaperSize = when (value) {
                                         "A4" -> PaperSize.A4
@@ -429,8 +448,9 @@ class EditorViewModel(
                 }
 
                 val htmlContent = HtmlTextConverter.convertToHtml(aozoraText)
-                updateContent(TextFieldValue(text = htmlContent))
+                updateContent(TextFieldValue(text = htmlContent), rawHtml = htmlContent)
                 _uiState.value = _uiState.value.copy(
+                    documentTitle = loadedTitle ?: _uiState.value.documentTitle,
                     paperSize = loadedPaperSize ?: _uiState.value.paperSize,
                     margins = loadedMargins ?: _uiState.value.margins,
                     localFileMessage = "端末からファイルを読み込みました",
@@ -527,6 +547,129 @@ class EditorViewModel(
     fun onParagraphStyleDetected(tag: String?) {
         val detected = ParagraphStyle.fromTag(tag)
         _uiState.value = _uiState.value.copy(currentParagraphStyle = detected)
+    }
+
+    /**
+     * 新規メモを作成してエディタ画面に遷移する
+     */
+    fun createNewNote() {
+        val newId = UUID.randomUUID().toString()
+        _uiState.value = _uiState.value.copy(
+            screenMode = ScreenMode.EDITOR,
+            currentNoteId = newId,
+            documentTitle = "",
+            content = TextFieldValue(""),
+            currentHtmlContent = "",
+            characterCount = 0,
+            characterCountWithoutSpaces = 0,
+            lineCount = 1,
+            rubyList = emptyList(),
+            currentParagraphStyle = ParagraphStyle.NORMAL,
+            paragraphStyleRequest = null,
+            fontFamily = EditorFontFamily.SERIF,
+            selectedFontFamily = EditorFontFamily.SERIF,
+            fontSize = 20,
+            selectedTextColor = null,
+            fontApplyRequest = null,
+            indentWidth = 0.0f
+        )
+    }
+
+    /**
+     * 既存のメモを開いてエディタ画面に遷移する
+     */
+    fun openNote(noteId: String) {
+        viewModelScope.launch {
+            val note = noteRepository?.getNoteById(noteId)
+            val title = note?.title ?: ""
+            val contentText = note?.content ?: ""
+            val htmlText = note?.htmlContent ?: ""
+            val rubies = RubyManager.extractRubyList(contentText)
+            val plainText = HtmlTextConverter.extractPlainText(contentText)
+            val noteFontFamily = if (note?.fontFamily == "SANS_SERIF") EditorFontFamily.SANS_SERIF else EditorFontFamily.SERIF
+            val noteIndentWidth = note?.indentWidth ?: 0.0f
+
+            _uiState.value = _uiState.value.copy(
+                screenMode = ScreenMode.EDITOR,
+                currentNoteId = noteId,
+                documentTitle = title,
+                content = TextFieldValue(contentText),
+                currentHtmlContent = htmlText,
+                characterCount = plainText.length,
+                characterCountWithoutSpaces = plainText.replace("\\s+".toRegex(), "").length,
+                lineCount = if (plainText.isEmpty()) 1 else plainText.lines().size,
+                rubyList = rubies,
+                currentParagraphStyle = ParagraphStyle.NORMAL,
+                paragraphStyleRequest = null,
+                fontFamily = noteFontFamily,
+                selectedFontFamily = noteFontFamily,
+                fontSize = 20,
+                selectedTextColor = null,
+                fontApplyRequest = null,
+                indentWidth = noteIndentWidth
+            )
+        }
+    }
+
+    /**
+     * エディタからメモ一覧画面に戻る（編集中メモの自動保存を実施）
+     */
+    fun navigateToList() {
+        val currentId = _uiState.value.currentNoteId
+        val currentTitle = _uiState.value.documentTitle
+        val currentContent = _uiState.value.content.text
+        val currentHtml = _uiState.value.currentHtmlContent
+        val currentFontFamilyStr = if (_uiState.value.fontFamily == EditorFontFamily.SANS_SERIF) "SANS_SERIF" else "SERIF"
+
+        if (currentId != null && noteRepository != null) {
+            viewModelScope.launch {
+                val existingNote = noteRepository.getNoteById(currentId)
+                val noteToSave = NoteItem(
+                    id = currentId,
+                    title = currentTitle,
+                    content = currentContent,
+                    htmlContent = if (currentHtml.isNotBlank()) currentHtml else (existingNote?.htmlContent ?: ""),
+                    isPinned = existingNote?.isPinned ?: false,
+                    isArchived = existingNote?.isArchived ?: false,
+                    fontFamily = currentFontFamilyStr,
+                    indentWidth = _uiState.value.indentWidth,
+                    updatedAt = System.currentTimeMillis()
+                )
+                noteRepository.saveNote(noteToSave)
+            }
+        }
+
+        _uiState.value = _uiState.value.copy(
+            screenMode = ScreenMode.LIST,
+            currentNoteId = null
+        )
+    }
+
+    /**
+     * メモのピン留め状態を反転する
+     */
+    fun togglePin(noteId: String) {
+        viewModelScope.launch {
+            noteRepository?.togglePin(noteId)
+        }
+    }
+
+    /**
+     * メモのアーカイブ状態を反転する
+     */
+    fun toggleArchive(noteId: String) {
+        viewModelScope.launch {
+            noteRepository?.toggleArchive(noteId)
+        }
+    }
+
+    /**
+     * メモを削除する
+     */
+    fun deleteNote(noteId: String) {
+        viewModelScope.launch {
+            noteRepository?.deleteNote(noteId)
+        }
     }
 }
 

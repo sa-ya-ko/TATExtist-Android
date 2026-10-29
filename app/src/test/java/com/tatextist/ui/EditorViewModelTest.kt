@@ -18,7 +18,10 @@ import io.mockk.mockk
 import io.mockk.slot
 import com.tatextist.data.GoogleDriveRepository
 import com.tatextist.data.LocalFileRepository
+import com.tatextist.data.NoteItem
+import com.tatextist.data.NoteRepository
 import android.net.Uri
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorViewModelTest {
@@ -26,15 +29,21 @@ class EditorViewModelTest {
     private lateinit var viewModel: EditorViewModel
     private lateinit var mockDriveRepository: GoogleDriveRepository
     private lateinit var mockLocalFileRepository: LocalFileRepository
+    private lateinit var mockNoteRepository: NoteRepository
+    private val notesFlow = MutableStateFlow<List<NoteItem>>(emptyList())
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         mockDriveRepository = mockk(relaxed = true)
         mockLocalFileRepository = mockk(relaxed = true)
+        mockNoteRepository = mockk(relaxed = true) {
+            coEvery { getAllNotes() } returns notesFlow
+        }
         viewModel = EditorViewModel(
             driveRepository = mockDriveRepository,
-            localFileRepository = mockLocalFileRepository
+            localFileRepository = mockLocalFileRepository,
+            noteRepository = mockNoteRepository
         )
     }
 
@@ -450,9 +459,35 @@ class EditorViewModelTest {
             assertEquals(null, state.localFileError)
         }
 
-        val expectedHeader = "［＃レイアウト設定：paper=A4,top=32,bottom=28,right=16,left=24］\n"
+        val expectedHeader = "［＃レイアウト設定：title=無題のドキュメント,paper=A4,top=32,bottom=28,right=16,left=24］\n"
         org.junit.Assert.assertTrue(capturedText.captured.startsWith(expectedHeader))
         org.junit.Assert.assertTrue(capturedText.captured.endsWith("テスト本文"))
+    }
+
+    @Test
+    fun `when saveToLocalFile is called, title should be included in metadata header`() = runTest {
+        val testUri: Uri = mockk()
+        val capturedText = slot<String>()
+        coEvery { mockLocalFileRepository.saveText(testUri, capture(capturedText)) } returns Result.success(Unit)
+
+        viewModel.updateTitle("さんぷるに")
+        viewModel.saveToLocalFile(testUri)
+
+        org.junit.Assert.assertTrue(capturedText.captured.contains("title=さんぷるに"))
+    }
+
+    @Test
+    fun `when loadFromLocalFile has title in metadata header, documentTitle should be restored`() = runTest {
+        val testUri: Uri = mockk()
+        val fileContentWithTitle = "［＃レイアウト設定：title=さんぷるに,paper=A4,top=32,bottom=28,right=16,left=24］\nテスト本文"
+        coEvery { mockLocalFileRepository.readText(testUri) } returns Result.success(fileContentWithTitle)
+
+        viewModel.loadFromLocalFile(testUri)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("さんぷるに", state.documentTitle)
+        }
     }
 
     @Test
@@ -649,6 +684,134 @@ class EditorViewModelTest {
             viewModel.onParagraphStyleDetected("p")
             val reset = awaitItem()
             assertEquals(ParagraphStyle.NORMAL, reset.currentParagraphStyle)
+        }
+    }
+
+    @Test
+    fun `initial screenMode is LIST and observes notes from repository`() = runTest {
+        val sampleNotes = listOf(
+            NoteItem(id = "1", title = "メモ1", isPinned = true),
+            NoteItem(id = "2", title = "メモ2", isPinned = false)
+        )
+        notesFlow.value = sampleNotes
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(ScreenMode.LIST, state.screenMode)
+            assertEquals(2, state.notes.size)
+            assertEquals("メモ1", state.notes[0].title)
+            assertEquals("メモ2", state.notes[1].title)
+        }
+    }
+
+    @Test
+    fun `createNewNote switches screenMode to EDITOR with blank content and resets styles`() = runTest {
+        // 事前に段落スタイルや文字サイズ、インデントを設定しておく
+        viewModel.applyParagraphStyle(ParagraphStyle.TITLE)
+        viewModel.increaseFontSize()
+        viewModel.updateIndentWidth(2.0f)
+        viewModel.updateTextColor("#FF0000")
+
+        viewModel.createNewNote()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(ScreenMode.EDITOR, state.screenMode)
+            assertEquals("", state.documentTitle)
+            assertEquals("", state.content.text)
+            assertNotNull(state.currentNoteId)
+            // スタイルが標準値に完全リセットされていることを検証
+            assertEquals(ParagraphStyle.NORMAL, state.currentParagraphStyle)
+            assertEquals(20, state.fontSize)
+            assertEquals(0.0f, state.indentWidth)
+            assertEquals(null, state.selectedTextColor)
+            assertEquals(null, state.paragraphStyleRequest)
+            assertEquals(null, state.fontApplyRequest)
+        }
+    }
+
+    @Test
+    fun `openNote loads note content and font family and switches to EDITOR`() = runTest {
+        val sampleNote = NoteItem(
+            id = "note-123",
+            title = "吾輩は猫である",
+            content = "名前はまだ無い。",
+            htmlContent = "<h1>吾輩は猫である</h1><p>名前はまだ無い。</p>",
+            fontFamily = "SANS_SERIF"
+        )
+        coEvery { mockNoteRepository.getNoteById("note-123") } returns sampleNote
+
+        viewModel.openNote("note-123")
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(ScreenMode.EDITOR, state.screenMode)
+            assertEquals("note-123", state.currentNoteId)
+            assertEquals("吾輩は猫である", state.documentTitle)
+            assertEquals("名前はまだ無い。", state.content.text)
+            assertEquals("<h1>吾輩は猫である</h1><p>名前はまだ無い。</p>", state.currentHtmlContent)
+            assertEquals(EditorFontFamily.SANS_SERIF, state.fontFamily)
+        }
+    }
+
+    @Test
+    fun `navigateToList saves current note with raw HTML and font family and switches to LIST`() = runTest {
+        // メモ編集中にする
+        viewModel.openNote("note-123")
+        viewModel.updateTitle("編集後のタイトル")
+        viewModel.updateFontFamily(EditorFontFamily.SANS_SERIF)
+        viewModel.updateContent(
+            androidx.compose.ui.text.input.TextFieldValue("編集後の本文"),
+            "<h1>編集後のタイトル</h1><div class=\"bullet-line\">・編集後の本文</div>"
+        )
+
+        viewModel.navigateToList()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(ScreenMode.LIST, state.screenMode)
+            io.mockk.coVerify {
+                mockNoteRepository.saveNote(match {
+                    it.id == "note-123" &&
+                            it.title == "編集後のタイトル" &&
+                            it.content == "編集後の本文" &&
+                            it.htmlContent == "<h1>編集後のタイトル</h1><div class=\"bullet-line\">・編集後の本文</div>" &&
+                            it.fontFamily == "SANS_SERIF" &&
+                            it.indentWidth == 0.0f
+                })
+            }
+        }
+    }
+
+    @Test
+    fun `togglePin, toggleArchive, deleteNote delegates to NoteRepository`() = runTest {
+        viewModel.togglePin("note-1")
+        io.mockk.coVerify { mockNoteRepository.togglePin("note-1") }
+
+        viewModel.toggleArchive("note-1")
+        io.mockk.coVerify { mockNoteRepository.toggleArchive("note-1") }
+
+        viewModel.deleteNote("note-1")
+        io.mockk.coVerify { mockNoteRepository.deleteNote("note-1") }
+    }
+
+    @Test
+    fun `when opening a note with indentWidth, indentWidth should be restored`() = runTest {
+        val testNote = NoteItem(
+            id = "note-indent-1",
+            title = "インデントメモ",
+            content = "テスト内容",
+            htmlContent = "<div>テスト内容</div>",
+            indentWidth = 0.5f
+        )
+
+        coEvery { mockNoteRepository.getNoteById("note-indent-1") } returns testNote
+
+        viewModel.openNote("note-indent-1")
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(0.5f, state.indentWidth)
         }
     }
 }

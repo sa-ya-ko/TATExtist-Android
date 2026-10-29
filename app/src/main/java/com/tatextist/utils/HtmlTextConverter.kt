@@ -2,9 +2,21 @@ package com.tatextist.utils
 
 object HtmlTextConverter {
     fun convertToHtml(text: String): String {
+        var result = text
+
+        // 0. 見出し注記の復元 (［＃大見出し］...［＃大見出し終わり］ -> <h1>...</h1> 等)
+        val h1Regex = Regex("""［＃大見出し］(.*?)［＃大見出し終わり］\r?\n?""")
+        result = h1Regex.replace(result) { "<h1>${it.groupValues[1]}</h1>" }
+
+        val h2Regex = Regex("""［＃中見出し］(.*?)［＃中見出し終わり］\r?\n?""")
+        result = h2Regex.replace(result) { "<h2>${it.groupValues[1]}</h2>" }
+
+        val h3Regex = Regex("""［＃小見出し］(.*?)［＃小見出し終わり］\r?\n?""")
+        result = h3Regex.replace(result) { "<h3>${it.groupValues[1]}</h3>" }
+
         // 1. ルビの変換 (|漢字《かんじ》 -> <ruby>漢字<rt>かんじ</rt></ruby>)
         val rubyRegex = Regex("""\|(.+?)《(.+?)》""")
-        var result = rubyRegex.replace(text) { matchResult ->
+        result = rubyRegex.replace(result) { matchResult ->
             val base = matchResult.groupValues[1]
             val ruby = matchResult.groupValues[2]
             "<ruby>$base<rt>$ruby</rt></ruby>"
@@ -24,13 +36,28 @@ object HtmlTextConverter {
             return ""
         }
 
+        var result = html
+
+        // 0.1. 見出しタグ (h1, h2, h3, h4) を青空文庫の見出し注記に変換
+        val h1Pattern = Regex("""<h1[^>]*>\s*(.*?)\s*</h1>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        result = h1Pattern.replace(result) { "［＃大見出し］${it.groupValues[1]}［＃大見出し終わり］\n" }
+
+        val h2Pattern = Regex("""<h2[^>]*>\s*(.*?)\s*</h2>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        result = h2Pattern.replace(result) { "［＃中見出し］${it.groupValues[1]}［＃中見出し終わり］\n" }
+
+        val h3Pattern = Regex("""<h3[^>]*>\s*(.*?)\s*</h3>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        result = h3Pattern.replace(result) { "［＃小見出し］${it.groupValues[1]}［＃小見出し終わり］\n" }
+
+        val h4Pattern = Regex("""<h4[^>]*>\s*(.*?)\s*</h4>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        result = h4Pattern.replace(result) { "［＃小見出し］${it.groupValues[1]}［＃小見出し終わり］\n" }
+
         // 1. <ruby> を |漢字《かんじ》 に戻す
         // 親文字（漢字）が空の残骸ルビタグは完全に破棄する
         val rubyRegex = Regex(
             """<ruby[^>]*>\s*(.*?)\s*<rt[^>]*>\s*(.*?)\s*</rt>\s*</ruby>""", 
             setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         )
-        var result = rubyRegex.replace(html) { matchResult ->
+        result = rubyRegex.replace(result) { matchResult ->
             val rawBase = matchResult.groupValues[1]
             val ruby = matchResult.groupValues[2].replace(Regex("""<[^>]+>"""), "").replace("\u200B", "").trim()
 
@@ -93,9 +120,15 @@ object HtmlTextConverter {
      * - ゼロ幅スペース (\u200B) を完全除去
      */
     fun extractPlainText(text: String): String {
+        var result = text
+
+        // 0. 青空文庫の見出し注記を除去して中身のテキストのみを残す
+        val headingRegex = Regex("""［＃(?:大見出し|中見出し|小見出し)］(.*?)［＃(?:大見出し|中見出し|小見出し)終わり］""", RegexOption.DOT_MATCHES_ALL)
+        result = headingRegex.replace(result) { it.groupValues[1] }
+
         // 1. ルビ記法 |漢字《かんじ》 から親文字のみ抽出
         val rubyRegex = Regex("""\|(.+?)《.+?》""")
-        var result = rubyRegex.replace(text) { matchResult ->
+        result = rubyRegex.replace(result) { matchResult ->
             matchResult.groupValues[1]
         }
 

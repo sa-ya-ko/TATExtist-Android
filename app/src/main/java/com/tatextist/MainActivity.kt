@@ -28,16 +28,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Driveレポジトリおよびローカルファイルレポジトリを保持
+            // Driveレポジトリおよびローカルファイルレポジトリ、メモ保管庫を準備
             val driveRepository = remember { GoogleDriveRepositoryImpl(applicationContext) }
             val localFileRepository = remember { LocalFileRepositoryImpl(contentResolver) }
+            val noteRepository = remember {
+                val storageFile = java.io.File(filesDir, "notes.json")
+                com.tatextist.data.LocalJsonNoteRepository(storageFile)
+            }
             
             // エディタ画面の記憶係（ViewModel）を準備（レポジトリを注入）
             val viewModel: EditorViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         @Suppress("UNCHECKED_CAST")
-                        return EditorViewModel(driveRepository, localFileRepository) as T
+                        return EditorViewModel(
+                            driveRepository = driveRepository,
+                            localFileRepository = localFileRepository,
+                            noteRepository = noteRepository
+                        ) as T
                     }
                 }
             )
@@ -73,121 +81,148 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 私たちが作ったエディタ画面を表示！
-                    EditorScreen(
-                        uiState = uiState,
-                        onTitleChange = { newTitle ->
-                            viewModel.updateTitle(newTitle)
-                        },
-                        onValueChange = { newValue ->
-                            viewModel.updateContent(newValue)
-                        },
-                        onSaveToCloud = {
-                            viewModel.saveToCloud()
-                        },
-                        onLoadFromCloud = {
-                            viewModel.fetchDriveFiles()
-                        },
-                        onSelectDriveFile = { file ->
-                            viewModel.loadDriveFile(file)
-                        },
-                        onCloseFilePickerModal = {
-                            viewModel.closeFilePickerModal()
-                        },
-                        onSignOutFromCloud = {
-                            viewModel.signOutFromCloud()
-                        },
-                        onOpenWordCountModal = {
-                            viewModel.openWordCountModal()
-                        },
-                        onCloseWordCountModal = {
-                            viewModel.closeWordCountModal()
-                        },
-                        onToggleShowWordCountWhileTyping = { enabled ->
-                            viewModel.toggleShowWordCountWhileTyping(enabled)
-                        },
-                        onOpenFontSettings = {
-                            viewModel.openFontSettingsBottomSheet()
-                        },
-                        onCloseFontSettings = {
-                            viewModel.closeFontSettingsBottomSheet()
-                        },
-                        onFontFamilyChange = { fontFamily ->
-                            viewModel.updateFontFamily(fontFamily)
-                        },
-                        onIncreaseFontSize = {
-                            viewModel.increaseFontSize()
-                        },
-                        onDecreaseFontSize = {
-                            viewModel.decreaseFontSize()
-                        },
-                        onConsumeFontApplyRequest = {
-                            viewModel.consumeFontApplyRequest()
-                        },
-                        onStyleDetected = { family, size ->
-                            viewModel.updateDetectedStyle(family, size)
-                        },
-                        onColorDetected = { hexColor ->
-                            viewModel.updateDetectedColor(hexColor)
-                        },
-                        onTextColorChange = { hexColor ->
-                            viewModel.updateTextColor(hexColor)
-                        },
-                        onResetTextColor = {
-                            viewModel.resetTextColor()
-                        },
-                        onToggleDarkMode = {
-                            viewModel.toggleDarkMode()
-                        },
-                        onRemoveRubyItem = { item ->
-                            viewModel.removeRubyItem(item)
-                        },
-                        onSelectRubyItem = { item ->
-                            val index = uiState.rubyList.indexOf(item)
-                            if (index >= 0) {
-                                viewModel.jumpToRuby(index)
-                            }
-                        },
-                        onRubyTabChanged = { isListTab ->
-                            viewModel.setRubyListActive(isListTab)
-                        },
-                        onRubyJumpConsumed = {
-                            viewModel.consumeRubyJump()
-                        },
-                        onIndentWidthChange = { width ->
-                            viewModel.updateIndentWidth(width)
-                        },
-                        onPaperSizeChange = { size ->
-                            viewModel.setPaperSize(size)
-                        },
-                        onMarginChange = { top, bottom, right, left ->
-                            viewModel.updateMargins(top = top, bottom = bottom, right = right, left = left)
-                        },
-                        onSaveToLocalFile = { uri ->
-                            viewModel.saveToLocalFile(uri)
-                        },
-                        onLoadFromLocalFile = { uri ->
-                            viewModel.loadFromLocalFile(uri)
-                        },
-                        onClearLocalFileMessage = {
-                            viewModel.clearLocalFileMessage()
-                        },
-                        onPrintRequest = {
-                            viewModel.requestPrint()
-                        },
-                        onPrintConsumed = {
-                            viewModel.consumePrintRequest()
-                        },
-                        onParagraphStyleChange = { style ->
-                            viewModel.applyParagraphStyle(style)
-                        },
-                        onParagraphStyleDetected = { tag ->
-                            viewModel.onParagraphStyleDetected(tag)
-                        },
-                        onParagraphStyleConsumed = {
-                            viewModel.onParagraphStyleConsumed()
+                    // 画面モードに応じて「メモ一覧画面」または「エディタ画面」を表示
+                    when (uiState.screenMode) {
+                        com.tatextist.ui.ScreenMode.LIST -> {
+                            com.tatextist.ui.NoteListScreen(
+                                notes = uiState.notes,
+                                onNoteClick = { noteId ->
+                                    viewModel.openNote(noteId)
+                                },
+                                onCreateNewNote = {
+                                    viewModel.createNewNote()
+                                },
+                                onTogglePin = { noteId ->
+                                    viewModel.togglePin(noteId)
+                                },
+                                onToggleArchive = { noteId ->
+                                    viewModel.toggleArchive(noteId)
+                                },
+                                onDeleteNote = { noteId ->
+                                    viewModel.deleteNote(noteId)
+                                }
+                            )
                         }
-                    )
+                        com.tatextist.ui.ScreenMode.EDITOR -> {
+                            EditorScreen(
+                                uiState = uiState,
+                                onTitleChange = { newTitle ->
+                                    viewModel.updateTitle(newTitle)
+                                },
+                                onValueChange = { newValue, rawHtml ->
+                                    viewModel.updateContent(newValue, rawHtml)
+                                },
+                                onSaveToCloud = {
+                                    viewModel.saveToCloud()
+                                },
+                                onLoadFromCloud = {
+                                    viewModel.fetchDriveFiles()
+                                },
+                                onSelectDriveFile = { file ->
+                                    viewModel.loadDriveFile(file)
+                                },
+                                onCloseFilePickerModal = {
+                                    viewModel.closeFilePickerModal()
+                                },
+                                onSignOutFromCloud = {
+                                    viewModel.signOutFromCloud()
+                                },
+                                onOpenWordCountModal = {
+                                    viewModel.openWordCountModal()
+                                },
+                                onCloseWordCountModal = {
+                                    viewModel.closeWordCountModal()
+                                },
+                                onToggleShowWordCountWhileTyping = { enabled ->
+                                    viewModel.toggleShowWordCountWhileTyping(enabled)
+                                },
+                                onOpenFontSettings = {
+                                    viewModel.openFontSettingsBottomSheet()
+                                },
+                                onCloseFontSettings = {
+                                    viewModel.closeFontSettingsBottomSheet()
+                                },
+                                onFontFamilyChange = { fontFamily ->
+                                    viewModel.updateFontFamily(fontFamily)
+                                },
+                                onIncreaseFontSize = {
+                                    viewModel.increaseFontSize()
+                                },
+                                onDecreaseFontSize = {
+                                    viewModel.decreaseFontSize()
+                                },
+                                onConsumeFontApplyRequest = {
+                                    viewModel.consumeFontApplyRequest()
+                                },
+                                onStyleDetected = { family, size ->
+                                    viewModel.updateDetectedStyle(family, size)
+                                },
+                                onColorDetected = { hexColor ->
+                                    viewModel.updateDetectedColor(hexColor)
+                                },
+                                onTextColorChange = { hexColor ->
+                                    viewModel.updateTextColor(hexColor)
+                                },
+                                onResetTextColor = {
+                                    viewModel.resetTextColor()
+                                },
+                                onToggleDarkMode = {
+                                    viewModel.toggleDarkMode()
+                                },
+                                onRemoveRubyItem = { item ->
+                                    viewModel.removeRubyItem(item)
+                                },
+                                onSelectRubyItem = { item ->
+                                    val index = uiState.rubyList.indexOf(item)
+                                    if (index >= 0) {
+                                        viewModel.jumpToRuby(index)
+                                    }
+                                },
+                                onRubyTabChanged = { isListTab ->
+                                    viewModel.setRubyListActive(isListTab)
+                                },
+                                onRubyJumpConsumed = {
+                                    viewModel.consumeRubyJump()
+                                },
+                                onIndentWidthChange = { width ->
+                                    viewModel.updateIndentWidth(width)
+                                },
+                                onPaperSizeChange = { size ->
+                                    viewModel.setPaperSize(size)
+                                },
+                                onMarginChange = { top, bottom, right, left ->
+                                    viewModel.updateMargins(top = top, bottom = bottom, right = right, left = left)
+                                },
+                                onSaveToLocalFile = { uri ->
+                                    viewModel.saveToLocalFile(uri)
+                                },
+                                onLoadFromLocalFile = { uri ->
+                                    viewModel.loadFromLocalFile(uri)
+                                },
+                                onClearLocalFileMessage = {
+                                    viewModel.clearLocalFileMessage()
+                                },
+                                onPrintRequest = {
+                                    viewModel.requestPrint()
+                                },
+                                onPrintConsumed = {
+                                    viewModel.consumePrintRequest()
+                                },
+                                onParagraphStyleChange = { style ->
+                                    viewModel.applyParagraphStyle(style)
+                                },
+                                onParagraphStyleDetected = { tag ->
+                                    viewModel.onParagraphStyleDetected(tag)
+                                },
+                                onParagraphStyleConsumed = {
+                                    viewModel.onParagraphStyleConsumed()
+                                },
+                                onNavigateBack = {
+                                    viewModel.navigateToList()
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

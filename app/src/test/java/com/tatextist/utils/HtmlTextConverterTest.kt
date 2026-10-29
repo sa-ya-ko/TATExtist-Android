@@ -270,5 +270,29 @@ class HtmlTextConverterTest {
         val plain = HtmlTextConverter.extractPlainText(actual)
         assertEquals("傍線テキスト\n　　　新しい行\n", plain)
     }
+
+    @Test
+    fun test_convertFromHtml_preserves_heading_tags_as_aozora_notes() {
+        val html = "<h1>これはタイトル</h1><h2>　これは見出し一です。</h2>"
+        val actual = HtmlTextConverter.convertFromHtml(html)
+        val expected = "［＃大見出し］これはタイトル［＃大見出し終わり］\n［＃中見出し］　これは見出し一です。［＃中見出し終わり］\n"
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun test_convertToHtml_restores_heading_tags_from_aozora_notes() {
+        val aozora = "［＃大見出し］これはタイトル［＃大見出し終わり］\n［＃中見出し］　これは見出し一です。［＃中見出し終わり］"
+        val html = HtmlTextConverter.convertToHtml(aozora)
+        val expected = "<h1>これはタイトル</h1><h2>　これは見出し一です。</h2>"
+        assertEquals(expected, html)
+    }
+
+    @Test
+    fun test_extractPlainText_strips_aozora_heading_notes() {
+        val aozora = "［＃大見出し］これはタイトル［＃大見出し終わり］\n［＃中見出し］　これは見出し一です。［＃中見出し終わり］"
+        val plain = HtmlTextConverter.extractPlainText(aozora)
+        val expected = "これはタイトル\n　これは見出し一です。"
+        assertEquals(expected, plain)
+    }
 }
 
