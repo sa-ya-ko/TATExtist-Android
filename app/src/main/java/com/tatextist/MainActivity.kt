@@ -193,8 +193,8 @@ class MainActivity : ComponentActivity() {
                                 onMarginChange = { top, bottom, right, left ->
                                     viewModel.updateMargins(top = top, bottom = bottom, right = right, left = left)
                                 },
-                                onSaveToLocalFile = { uri ->
-                                    viewModel.saveToLocalFile(uri)
+                                onSaveToLocalFile = { uri, format ->
+                                    viewModel.saveToLocalFile(uri, format)
                                 },
                                 onLoadFromLocalFile = { uri ->
                                     viewModel.loadFromLocalFile(uri)

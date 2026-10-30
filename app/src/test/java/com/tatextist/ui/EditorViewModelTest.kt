@@ -422,7 +422,7 @@ class EditorViewModelTest {
 
         viewModel.uiState.test {
             val state = awaitItem()
-            assertEquals("端末に保存しました", state.localFileMessage)
+            assertEquals("テキスト (.txt) を保存しました", state.localFileMessage)
             assertEquals(null, state.localFileError)
         }
     }
@@ -455,7 +455,7 @@ class EditorViewModelTest {
 
         viewModel.uiState.test {
             val state = awaitItem()
-            assertEquals("端末に保存しました", state.localFileMessage)
+            assertEquals("テキスト (.txt) を保存しました", state.localFileMessage)
             assertEquals(null, state.localFileError)
         }
 
@@ -474,6 +474,43 @@ class EditorViewModelTest {
         viewModel.saveToLocalFile(testUri)
 
         org.junit.Assert.assertTrue(capturedText.captured.contains("title=さんぷるに"))
+    }
+
+    @Test
+    fun `when saveToLocalFile with HTML format is called, standalone HTML should be saved`() = runTest {
+        val testUri: Uri = mockk()
+        val capturedText = slot<String>()
+        coEvery { mockLocalFileRepository.saveText(testUri, capture(capturedText)) } returns Result.success(Unit)
+
+        viewModel.updateTitle("HTMLテスト小説")
+        viewModel.updateContent(
+            androidx.compose.ui.text.input.TextFieldValue("これは本文です"),
+            rawHtml = "<h1>HTMLテスト小説</h1><div>これは本文です</div>"
+        )
+        viewModel.saveToLocalFile(testUri, com.tatextist.utils.ExportFormat.HTML)
+
+        val saved = capturedText.captured
+        org.junit.Assert.assertTrue(saved.contains("<!DOCTYPE html>"))
+        org.junit.Assert.assertTrue(saved.contains("writing-mode: vertical-rl;"))
+        org.junit.Assert.assertTrue(saved.contains("HTMLテスト小説"))
+    }
+
+    @Test
+    fun `when saveToLocalFile with MARKDOWN format is called, markdown should be saved`() = runTest {
+        val testUri: Uri = mockk()
+        val capturedText = slot<String>()
+        coEvery { mockLocalFileRepository.saveText(testUri, capture(capturedText)) } returns Result.success(Unit)
+
+        viewModel.updateTitle("MDテスト小説")
+        viewModel.updateContent(
+            androidx.compose.ui.text.input.TextFieldValue("これは本文です"),
+            rawHtml = "<h1>MDテスト小説</h1><div class=\"bullet-line\">・箇条書き項目</div>"
+        )
+        viewModel.saveToLocalFile(testUri, com.tatextist.utils.ExportFormat.MARKDOWN)
+
+        val saved = capturedText.captured
+        org.junit.Assert.assertTrue(saved.contains("# MDテスト小説"))
+        org.junit.Assert.assertTrue(saved.contains("- 箇条書き項目"))
     }
 
     @Test

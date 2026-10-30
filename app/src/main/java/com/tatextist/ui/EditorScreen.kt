@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -78,7 +79,7 @@ fun EditorScreen(
     onIndentWidthChange: (Float) -> Unit = {},
     onPaperSizeChange: (PaperSize) -> Unit = {},
     onMarginChange: (top: Int?, bottom: Int?, right: Int?, left: Int?) -> Unit = { _, _, _, _ -> },
-    onSaveToLocalFile: (android.net.Uri) -> Unit = {},
+    onSaveToLocalFile: (android.net.Uri, com.tatextist.utils.ExportFormat) -> Unit = { _, _ -> },
     onLoadFromLocalFile: (android.net.Uri) -> Unit = {},
     onClearLocalFileMessage: () -> Unit = {},
     onPrintRequest: () -> Unit = {},
@@ -115,12 +116,15 @@ fun EditorScreen(
         }
     }
 
+    // 保存するファイル形式の保持
+    var pendingExportFormat by remember { mutableStateOf(com.tatextist.utils.ExportFormat.TXT) }
+
     // 端末に保存（SAF: CreateDocument）ランチャー
     val saveLocalFileLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain")
     ) { uri ->
         if (uri != null) {
-            onSaveToLocalFile(uri)
+            onSaveToLocalFile(uri, pendingExportFormat)
         }
     }
 
@@ -480,11 +484,11 @@ fun EditorScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // 1. 端末から開く (.txt)
+                // 1. 端末から開く
                 androidx.compose.material3.Surface(
                     onClick = {
                         showToolsBottomSheet = false
-                        openLocalFileLauncher.launch(arrayOf("text/plain", "text/*"))
+                        openLocalFileLauncher.launch(arrayOf("text/plain", "text/html", "text/markdown", "text/*"))
                     },
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -504,16 +508,13 @@ fun EditorScreen(
                     }
                 }
 
-                // 2. 端末に保存 (.txt)
+                // 2. 端末に保存 (テキスト .txt)
                 androidx.compose.material3.Surface(
                     onClick = {
                         showToolsBottomSheet = false
-                        val defaultFileName = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") {
-                            "${uiState.documentTitle}.txt"
-                        } else {
-                            "無題.txt"
-                        }
-                        saveLocalFileLauncher.launch(defaultFileName)
+                        pendingExportFormat = com.tatextist.utils.ExportFormat.TXT
+                        val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") uiState.documentTitle else "無題"
+                        saveLocalFileLauncher.launch("$title.txt")
                     },
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -533,26 +534,66 @@ fun EditorScreen(
                     }
                 }
 
-                // 3. PDF出力 / 印刷
-                androidx.compose.material3.Surface(
-                    onClick = {
-                        showToolsBottomSheet = false
-                        onPrintRequest()
-                    },
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // 3. ダウンロード（形式選択ドロップダウン）
+                var showDownloadMenu by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    androidx.compose.material3.Surface(
+                        onClick = { showDownloadMenu = true },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "PDF出力 / 印刷",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "ダウンロード",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "ダウンロード形式を選択",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = showDownloadMenu,
+                        onDismissRequest = { showDownloadMenu = false }
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Webページ (.html)") },
+                            onClick = {
+                                showDownloadMenu = false
+                                showToolsBottomSheet = false
+                                pendingExportFormat = com.tatextist.utils.ExportFormat.HTML
+                                val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") uiState.documentTitle else "無題"
+                                saveLocalFileLauncher.launch("$title.html")
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("マークダウン (.md)") },
+                            onClick = {
+                                showDownloadMenu = false
+                                showToolsBottomSheet = false
+                                pendingExportFormat = com.tatextist.utils.ExportFormat.MARKDOWN
+                                val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") uiState.documentTitle else "無題"
+                                saveLocalFileLauncher.launch("$title.md")
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("PDFドキュメント (.pdf)") },
+                            onClick = {
+                                showDownloadMenu = false
+                                showToolsBottomSheet = false
+                                onPrintRequest()
+                            }
                         )
                     }
                 }

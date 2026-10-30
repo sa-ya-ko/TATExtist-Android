@@ -372,20 +372,38 @@ class EditorViewModel(
     }
 
     /**
-     * 現在のエディタ内容を青空文庫形式テキストに変換し、ローカルファイルURIに保存する
+     * 現在のエディタ内容を指定されたフォーマット（TXT / HTML / MARKDOWN）に変換し、ローカルファイルURIに保存する
      */
-    fun saveToLocalFile(uri: Uri) {
+    fun saveToLocalFile(uri: Uri, format: com.tatextist.utils.ExportFormat = com.tatextist.utils.ExportFormat.TXT) {
         val repo = localFileRepository ?: return
         viewModelScope.launch {
             val state = _uiState.value
             val rawSource = if (state.currentHtmlContent.isNotBlank()) state.currentHtmlContent else state.content.text
-            val aozoraText = HtmlTextConverter.convertFromHtml(rawSource)
-            val metaHeader = "［＃レイアウト設定：title=${state.documentTitle},paper=${state.paperSize.name},top=${state.margins.top},bottom=${state.margins.bottom},right=${state.margins.right},left=${state.margins.left}］\n"
-            val textToSave = metaHeader + aozoraText
+
+            val textToSave = when (format) {
+                com.tatextist.utils.ExportFormat.TXT -> {
+                    val aozoraText = HtmlTextConverter.convertFromHtml(rawSource)
+                    val metaHeader = "［＃レイアウト設定：title=${state.documentTitle},paper=${state.paperSize.name},top=${state.margins.top},bottom=${state.margins.bottom},right=${state.margins.right},left=${state.margins.left}］\n"
+                    metaHeader + aozoraText
+                }
+                com.tatextist.utils.ExportFormat.HTML -> {
+                    val fontFam = if (state.fontFamily == EditorFontFamily.SANS_SERIF) "sans-serif" else "serif"
+                    com.tatextist.utils.ExportConverter.exportToStandaloneHtml(
+                        title = state.documentTitle,
+                        bodyHtml = rawSource,
+                        fontFamily = fontFam,
+                        fontSize = state.fontSize
+                    )
+                }
+                com.tatextist.utils.ExportFormat.MARKDOWN -> {
+                    com.tatextist.utils.ExportConverter.convertToMarkdown(rawSource)
+                }
+            }
+
             val result = repo.saveText(uri, textToSave)
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(
-                    localFileMessage = "端末に保存しました",
+                    localFileMessage = "${format.label} を保存しました",
                     localFileError = null
                 )
             } else {
