@@ -50,8 +50,23 @@ fun VerticalEditor(
     modifier: Modifier = Modifier
 ) {
 
-    val surfaceColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
-    val onSurfaceColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+    val defaultSurface = androidx.compose.material3.MaterialTheme.colorScheme.surface
+    val defaultOnSurface = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+
+    // Android 14+ コントラスト設定に応じたエディタ色の動的調整
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val contrastLevel = remember { com.tatextist.utils.ContrastHelper.getContrastLevel(context) }
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+
+    val surfaceColor = when (contrastLevel) {
+        com.tatextist.utils.ContrastLevel.HIGH -> if (isDark) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
+        else -> defaultSurface
+    }
+    val onSurfaceColor = when (contrastLevel) {
+        com.tatextist.utils.ContrastLevel.HIGH -> if (isDark) androidx.compose.ui.graphics.Color.White else androidx.compose.ui.graphics.Color.Black
+        else -> defaultOnSurface
+    }
+
     val surfaceColorCss = String.format("#%06X", 0xFFFFFF and surfaceColor.toArgb())
     val textColorCss = String.format("#%06X", 0xFFFFFF and onSurfaceColor.toArgb())
     val fontFamilyCss = if (fontFamily == EditorFontFamily.SERIF) "serif, 'Noto Serif JP'" else "sans-serif, 'Noto Sans JP'"

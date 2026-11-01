@@ -275,12 +275,28 @@ private fun NoteCard(
         dateFormatter.format(Date(note.updatedAt))
     }
 
+    // Android 14+ OS標準コントラスト設定に応じたカード枠線（境界線）の動的調整
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val contrastLevel = remember { com.tatextist.utils.ContrastHelper.getContrastLevel(context) }
+    val cardBorder = when (contrastLevel) {
+        com.tatextist.utils.ContrastLevel.HIGH -> androidx.compose.foundation.BorderStroke(
+            width = 2.dp,
+            color = MaterialTheme.colorScheme.outline
+        )
+        com.tatextist.utils.ContrastLevel.MEDIUM -> androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        com.tatextist.utils.ContrastLevel.STANDARD -> null
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
+        border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
