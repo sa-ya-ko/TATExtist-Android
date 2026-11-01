@@ -37,6 +37,7 @@ enum class ScreenMode {
 data class EditorUiState(
     val screenMode: ScreenMode = ScreenMode.LIST,
     val notes: List<com.tatextist.data.NoteItem> = emptyList(),
+    val noteSearchQuery: String = "",
     val currentNoteId: String? = null,
     val documentTitle: String = "無題のドキュメント",
     val content: TextFieldValue = TextFieldValue(),

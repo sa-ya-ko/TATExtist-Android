@@ -851,6 +851,16 @@ class EditorViewModelTest {
             assertEquals(0.5f, state.indentWidth)
         }
     }
+
+    @Test
+    fun `when updateNoteSearchQuery is called, search query is updated in uiState`() = runTest {
+        viewModel.updateNoteSearchQuery("夏目漱石")
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("夏目漱石", state.noteSearchQuery)
+        }
+    }
 }
 
 

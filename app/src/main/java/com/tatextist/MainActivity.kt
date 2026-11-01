@@ -86,6 +86,10 @@ class MainActivity : ComponentActivity() {
                         com.tatextist.ui.ScreenMode.LIST -> {
                             com.tatextist.ui.NoteListScreen(
                                 notes = uiState.notes,
+                                searchQuery = uiState.noteSearchQuery,
+                                onSearchQueryChange = { query ->
+                                    viewModel.updateNoteSearchQuery(query)
+                                },
                                 onNoteClick = { noteId ->
                                     viewModel.openNote(noteId)
                                 },

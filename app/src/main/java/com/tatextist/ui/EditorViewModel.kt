@@ -689,6 +689,13 @@ class EditorViewModel(
             noteRepository?.deleteNote(noteId)
         }
     }
+
+    /**
+     * メモ一覧の検索キーワードを更新する
+     */
+    fun updateNoteSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(noteSearchQuery = query)
+    }
 }
 
 

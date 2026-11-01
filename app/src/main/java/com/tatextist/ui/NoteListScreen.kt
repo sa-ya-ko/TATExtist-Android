@@ -9,8 +9,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.*
@@ -40,54 +42,127 @@ fun NoteListScreen(
     onTogglePin: (String) -> Unit,
     onToggleArchive: (String) -> Unit,
     onDeleteNote: (String) -> Unit,
+    searchQuery: String = "",
+    onSearchQueryChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 表示モード: 通常の一覧 or アーカイブ一覧
     var showArchivedOnly by remember { mutableStateOf(false) }
 
-    // フィルタリング
-    val activeNotes = remember(notes, showArchivedOnly) {
-        if (showArchivedOnly) {
+    // フィルタリング（アーカイブ状態 ＆ 検索キーワードによる絞り込み）
+    val activeNotes = remember(notes, showArchivedOnly, searchQuery) {
+        val base = if (showArchivedOnly) {
             notes.filter { it.isArchived }
         } else {
             notes.filter { !it.isArchived }
         }
+        if (searchQuery.isBlank()) {
+            base
+        } else {
+            val query = searchQuery.trim().lowercase()
+            base.filter { note ->
+                note.title.lowercase().contains(query) ||
+                HtmlTextConverter.extractPlainText(note.content).lowercase().contains(query)
+            }
+        }
     }
 
-    val pinnedNotes = remember(activeNotes, showArchivedOnly) {
-        if (showArchivedOnly) emptyList() else activeNotes.filter { it.isPinned }
+    val pinnedNotes = remember(activeNotes, showArchivedOnly, searchQuery) {
+        if (showArchivedOnly || searchQuery.isNotBlank()) emptyList() else activeNotes.filter { it.isPinned }
     }
 
-    val otherNotes = remember(activeNotes, showArchivedOnly) {
-        if (showArchivedOnly) activeNotes else activeNotes.filter { !it.isPinned }
+    val otherNotes = remember(activeNotes, showArchivedOnly, searchQuery) {
+        if (showArchivedOnly || searchQuery.isNotBlank()) activeNotes else activeNotes.filter { !it.isPinned }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (showArchivedOnly) "アーカイブ" else "TATExtist",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                actions = {
-                    // アーカイブ切り替えアイコンボタン
-                    IconButton(onClick = { showArchivedOnly = !showArchivedOnly }) {
+            // Google Keep スタイルのフローティング検索バー
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                androidx.compose.material3.Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 虫眼鏡アイコン
                         Icon(
-                            imageVector = if (showArchivedOnly) Icons.Default.Unarchive else Icons.Default.Archive,
-                            contentDescription = if (showArchivedOnly) "メモ一覧に戻る" else "アーカイブを見る",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "検索",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
                         )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        // 検索入力テキストフィールド
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { innerTextField ->
+                                Box(contentAlignment = Alignment.CenterStart) {
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            text = if (showArchivedOnly) "アーカイブを検索" else "メモを検索",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+
+                        // 検索クリアボタン（文字入力時のみ表示）
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { onSearchQueryChange("") },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "検索クリア",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        // アーカイブ切り替えアイコンボタン
+                        IconButton(
+                            onClick = { showArchivedOnly = !showArchivedOnly },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (showArchivedOnly) Icons.Default.Unarchive else Icons.Default.Archive,
+                                contentDescription = if (showArchivedOnly) "メモ一覧に戻る" else "アーカイブを見る",
+                                tint = if (showArchivedOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
+                }
+            }
         },
         floatingActionButton = {
             // 新規作成ボタン（Keep風 Extended FAB）
@@ -110,8 +185,13 @@ fun NoteListScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
+                val emptyMessage = when {
+                    searchQuery.isNotBlank() -> "一致するメモは見つかりませんでした"
+                    showArchivedOnly -> "アーカイブされたメモはありません"
+                    else -> "メモがありません。\n右下のボタンから執筆を始めましょう。"
+                }
                 Text(
-                    text = if (showArchivedOnly) "アーカイブされたメモはありません" else "メモがありません。\n右下のボタンから執筆を始めましょう。",
+                    text = emptyMessage,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
