@@ -114,6 +114,15 @@ object HtmlTextConverter {
     }
 
     /**
+     * HTMLから装飾タグを完全除去し、純粋な青空文庫形式のテキスト（|漢字《かんじ》）に変換する。
+     * クリップボードの text/plain コピー時や外部共有時に使用する。
+     */
+    fun convertToAozoraText(html: String): String {
+        val textWithTags = convertFromHtml(html)
+        return textWithTags.replace(Regex("""<[^>]+>"""), "")
+    }
+
+    /**
      * 文字数カウント・行数計算用の純粋な可視プレーンテキストを抽出する。
      * - ルビ記法 (|漢字《かんじ》) は親文字「漢字」のみを抽出
      * - 残存しているすべてのHTMLタグ (<font>, <span>, <b>, <i> 等) を完全除去

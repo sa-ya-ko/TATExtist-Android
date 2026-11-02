@@ -377,6 +377,101 @@ fun VerticalEditor(
                                 AndroidBridge.onTextChanged(editor.innerHTML);
                             });
 
+                            // クリップボードへのコピー・カット処理（ルビ構造の完全保持）
+                            function handleRubyCopy(e) {
+                                var sel = window.getSelection();
+                                if (!sel || !sel.rangeCount || sel.isCollapsed) return false;
+
+                                var range = sel.getRangeAt(0);
+                                var container = document.createElement('div');
+
+                                // 選択範囲の開始または終了ノードが <ruby> の内側にあるかチェック
+                                var startNode = range.startContainer;
+                                var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
+                                var rubyParent = startEl ? startEl.closest('ruby') : null;
+
+                                if (rubyParent && editor.contains(rubyParent)) {
+                                    // ルビ文字そのもの（またはルビの内側の親文字・ふりがな）を選択してコピーした場合
+                                    // ルビ要素全体をコピー対象にする
+                                    container.appendChild(rubyParent.cloneNode(true));
+                                } else {
+                                    // 複数要素・通常の選択範囲
+                                    container.appendChild(range.cloneContents());
+                                }
+
+                                var rubies = container.querySelectorAll('ruby');
+                                if (rubies.length > 0) {
+                                    var htmlData = container.innerHTML;
+
+                                    // text/plain 用に <ruby> を青空文庫形式 |親文字《ルビ》 に置換
+                                    rubies.forEach(function(rb) {
+                                        var rt = rb.querySelector('rt');
+                                        var rtText = rt ? rt.textContent.replace(/\u200B/g, '').trim() : '';
+                                        var cloneRb = rb.cloneNode(true);
+                                        var cloneRts = cloneRb.querySelectorAll('rt');
+                                        cloneRts.forEach(function(r) { r.remove(); });
+                                        var baseText = cloneRb.textContent.replace(/\u200B/g, '').trim();
+
+                                        var aozoraText = (baseText.length > 0 && rtText.length > 0)
+                                            ? ('|' + baseText + '《' + rtText + '》')
+                                            : baseText;
+                                        var textNode = document.createTextNode(aozoraText);
+                                        rb.parentNode.replaceChild(textNode, rb);
+                                    });
+
+                                    var plainText = container.textContent.replace(/\u200B/g, '');
+
+                                    if (e.clipboardData) {
+                                        e.clipboardData.setData('text/html', htmlData);
+                                        e.clipboardData.setData('text/plain', plainText);
+                                        e.preventDefault();
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            }
+
+                            editor.addEventListener('copy', function(e) {
+                                handleRubyCopy(e);
+                            });
+
+                            editor.addEventListener('cut', function(e) {
+                                if (handleRubyCopy(e)) {
+                                    var sel = window.getSelection();
+                                    if (sel && sel.rangeCount) {
+                                        sel.getRangeAt(0).deleteContents();
+                                        AndroidBridge.onTextChanged(editor.innerHTML);
+                                    }
+                                }
+                            });
+
+                            // クリップボードからの貼り付け処理（ルビの完全復元・青空文庫形式からの自動変換）
+                            editor.addEventListener('paste', function(e) {
+                                if (!e.clipboardData) return;
+
+                                var htmlData = e.clipboardData.getData('text/html');
+                                var plainData = e.clipboardData.getData('text/plain');
+
+                                var rubyHtmlToInsert = null;
+
+                                if (htmlData && /<ruby\b[^>]*>/i.test(htmlData)) {
+                                    // 1. クリップボードにHTMLがあり、かつ <ruby> が含まれている場合
+                                    var tempDiv = document.createElement('div');
+                                    tempDiv.innerHTML = htmlData;
+                                    rubyHtmlToInsert = tempDiv.innerHTML;
+                                } else if (plainData && /\|.+?《.+?》/.test(plainData)) {
+                                    // 2. プレーンテキスト内に青空文庫形式 |漢字《かんじ》 が含まれている場合
+                                    rubyHtmlToInsert = plainData.replace(/\|(.+?)《(.+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+                                    rubyHtmlToInsert = rubyHtmlToInsert.replace(/\r?\n/g, '<br>');
+                                }
+
+                                if (rubyHtmlToInsert !== null) {
+                                    e.preventDefault();
+                                    document.execCommand('insertHTML', false, rubyHtmlToInsert);
+                                    AndroidBridge.onTextChanged(editor.innerHTML);
+                                }
+                            });
+
                             // インデント幅に応じたスペース文字列（全角＋半角）を生成する関数
                             function getIndentSpaces(w) {
                                 if (w <= 0) return '';

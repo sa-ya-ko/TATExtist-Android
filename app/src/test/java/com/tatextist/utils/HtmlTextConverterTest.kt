@@ -294,5 +294,23 @@ class HtmlTextConverterTest {
         val expected = "これはタイトル\n　これは見出し一です。"
         assertEquals(expected, plain)
     }
+
+    @Test
+    fun test_clipboard_paste_plain_text_with_ruby_converts_to_ruby_html() {
+        // クリップボードから貼り付けられた青空文庫テキストが <ruby> HTML に変換されることを検証
+        val clipboardText = "我々は|未来《みらい》へ向かう"
+        val expectedHtml = "我々は<ruby>未来<rt>みらい</rt></ruby>へ向かう"
+        val actualHtml = HtmlTextConverter.convertToHtml(clipboardText)
+        assertEquals(expectedHtml, actualHtml)
+    }
+
+    @Test
+    fun test_clipboard_copy_ruby_html_fragment_converts_to_aozora_plain_text() {
+        // コピー時に選択範囲のHTMLからクリップボード用テキストに変換されることを検証
+        val selectedHtml = "<span>我々は</span><ruby>未来<rt>みらい</rt></ruby><span>へ向かう</span>"
+        val expectedText = "我々は|未来《みらい》へ向かう"
+        val actualText = HtmlTextConverter.convertToAozoraText(selectedHtml)
+        assertEquals(expectedText, actualText)
+    }
 }
 
