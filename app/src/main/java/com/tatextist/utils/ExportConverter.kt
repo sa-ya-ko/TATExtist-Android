@@ -79,7 +79,7 @@ object ExportConverter {
         backgroundColor: String = "#FAF8F5",
         textColor: String = "#212121"
     ): String {
-        val displayTitle = if (title.isNotBlank()) title else "無題のドキュメント"
+        val displayTitle = if (title.isNotBlank()) title else "名称未定"
         val fontCss = when (fontFamily.lowercase()) {
             "sans-serif", "sans_serif" -> "sans-serif, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo"
             else -> "serif, 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho'"

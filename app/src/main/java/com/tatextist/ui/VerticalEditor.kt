@@ -40,7 +40,7 @@ fun VerticalEditor(
     indentWidth: Float = 0.0f,
     paperSize: PaperSize = PaperSize.FIT,
     margins: EditorMargins = EditorMargins(),
-    documentTitle: String = "無題のドキュメント",
+    documentTitle: String = "名称未定",
     printRequest: Long? = null,
     onPrintConsumed: () -> Unit = {},
     paragraphStyleRequest: ParagraphStyle? = null,

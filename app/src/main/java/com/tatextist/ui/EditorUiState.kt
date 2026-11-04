@@ -39,7 +39,7 @@ data class EditorUiState(
     val notes: List<com.tatextist.data.NoteItem> = emptyList(),
     val noteSearchQuery: String = "",
     val currentNoteId: String? = null,
-    val documentTitle: String = "無題のドキュメント",
+    val documentTitle: String = "名称未定",
     val content: TextFieldValue = TextFieldValue(),
     val currentHtmlContent: String = "",
     val isDarkMode: Boolean = false,

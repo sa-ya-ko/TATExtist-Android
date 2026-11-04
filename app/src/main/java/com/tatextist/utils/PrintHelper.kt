@@ -56,7 +56,7 @@ object PrintHelper {
         paperSize: PaperSize
     ): Boolean {
         val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return false
-        val jobName = if (documentTitle.isNotBlank() && documentTitle != "無題のドキュメント") {
+        val jobName = if (documentTitle.isNotBlank() && documentTitle != "名称未定") {
             "TATExtist - $documentTitle"
         } else {
             "TATExtist - 原稿"

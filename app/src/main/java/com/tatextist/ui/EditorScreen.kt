@@ -1,5 +1,8 @@
 package com.tatextist.ui
 
+import com.tatextist.config.AppConfig
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -142,6 +145,7 @@ fun EditorScreen(
     
     // ツールボトムシートの開閉状態
     var showToolsBottomSheet by remember { mutableStateOf(false) }
+    var proFeatureNotice by remember { mutableStateOf<String?>(null) }
 
     // 2. WebViewにルビ挿入を命令するためのリクエスト用変数
     var rubyRequest by remember { mutableStateOf<String?>(null) }
@@ -181,19 +185,21 @@ fun EditorScreen(
                         value = uiState.documentTitle,
                         onValueChange = onTitleChange,
                         singleLine = true,
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                         textStyle = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                         ),
                         decorationBox = { innerTextField ->
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 if (uiState.documentTitle.isEmpty()) {
                                     Text(
-                                        text = "無題のドキュメント",
+                                        text = "名称未定",
                                         style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                                         color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                     )
@@ -215,7 +221,13 @@ fun EditorScreen(
                         )
                     }
                     androidx.compose.material3.FilledTonalButton(
-                        onClick = onSaveToCloud,
+                        onClick = {
+                            if (!AppConfig.IS_PRO_VERSION) {
+                                proFeatureNotice = "Google Drive連携"
+                            } else {
+                                onSaveToCloud()
+                            }
+                        },
                         enabled = !uiState.isCloudLoading,
                         shape = androidx.compose.foundation.shape.CircleShape,
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
@@ -513,7 +525,7 @@ fun EditorScreen(
                     onClick = {
                         showToolsBottomSheet = false
                         pendingExportFormat = com.tatextist.utils.ExportFormat.TXT
-                        val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") uiState.documentTitle else "無題"
+                        val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "名称未定") uiState.documentTitle else "無題"
                         saveLocalFileLauncher.launch("$title.txt")
                     },
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
@@ -572,9 +584,13 @@ fun EditorScreen(
                             onClick = {
                                 showDownloadMenu = false
                                 showToolsBottomSheet = false
-                                pendingExportFormat = com.tatextist.utils.ExportFormat.HTML
-                                val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") uiState.documentTitle else "無題"
-                                saveLocalFileLauncher.launch("$title.html")
+                                if (!AppConfig.IS_PRO_VERSION) {
+                                    proFeatureNotice = "Webページ出力 (.html)"
+                                } else {
+                                    pendingExportFormat = com.tatextist.utils.ExportFormat.HTML
+                                    val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "名称未定") uiState.documentTitle else "無題"
+                                    saveLocalFileLauncher.launch("$title.html")
+                                }
                             }
                         )
                         androidx.compose.material3.DropdownMenuItem(
@@ -583,7 +599,7 @@ fun EditorScreen(
                                 showDownloadMenu = false
                                 showToolsBottomSheet = false
                                 pendingExportFormat = com.tatextist.utils.ExportFormat.MARKDOWN
-                                val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "無題のドキュメント") uiState.documentTitle else "無題"
+                                val title = if (uiState.documentTitle.isNotBlank() && uiState.documentTitle != "名称未定") uiState.documentTitle else "無題"
                                 saveLocalFileLauncher.launch("$title.md")
                             }
                         )
@@ -592,7 +608,11 @@ fun EditorScreen(
                             onClick = {
                                 showDownloadMenu = false
                                 showToolsBottomSheet = false
-                                onPrintRequest()
+                                if (!AppConfig.IS_PRO_VERSION) {
+                                    proFeatureNotice = "PDFドキュメント出力 (.pdf) / 印刷"
+                                } else {
+                                    onPrintRequest()
+                                }
                             }
                         )
                     }
@@ -600,11 +620,44 @@ fun EditorScreen(
 
                 androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                // 3. Google Driveから開く（読込）
+                // Google Driveに保存
                 androidx.compose.material3.Surface(
                     onClick = {
                         showToolsBottomSheet = false
-                        onLoadFromCloud()
+                        if (!AppConfig.IS_PRO_VERSION) {
+                            proFeatureNotice = "Google Drive連携"
+                        } else {
+                            onSaveToCloud()
+                        }
+                    },
+                    enabled = !uiState.isCloudLoading,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Google Driveに保存",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // Google Driveから開く
+                androidx.compose.material3.Surface(
+                    onClick = {
+                        showToolsBottomSheet = false
+                        if (!AppConfig.IS_PRO_VERSION) {
+                            proFeatureNotice = "Google Drive連携"
+                        } else {
+                            onLoadFromCloud()
+                        }
                     },
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -617,7 +670,7 @@ fun EditorScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Google Driveから開く（読込）",
+                            text = "Google Driveから開く",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -811,6 +864,37 @@ fun EditorScreen(
                     shape = androidx.compose.foundation.shape.CircleShape
                 ) {
                     Text("キャンセル")
+                }
+            }
+        )
+    }
+
+    // 6. 有料版（Pro）提供予定機能の案内ダイアログ
+    if (proFeatureNotice != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { proFeatureNotice = null },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = "有料版（Pro）提供予定機能",
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "「${proFeatureNotice}」は、今後の有料版（Pro版）にて提供予定の機能です。\n\n無料版では「端末に保存 (.txt)」や「マークダウン出力 (.md)」をご利用いただけます。",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { proFeatureNotice = null },
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ) {
+                    Text("OK")
                 }
             }
         )

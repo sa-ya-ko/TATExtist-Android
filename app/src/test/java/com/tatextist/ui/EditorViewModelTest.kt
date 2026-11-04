@@ -56,7 +56,7 @@ class EditorViewModelTest {
     fun `when title is updated, state should reflect the new title`() = runTest {
         viewModel.uiState.test {
             // Initial state
-            assertEquals("無題のドキュメント", awaitItem().documentTitle)
+            assertEquals("名称未定", awaitItem().documentTitle)
 
             // Action
             viewModel.updateTitle("新しいタイトル")
@@ -459,7 +459,7 @@ class EditorViewModelTest {
             assertEquals(null, state.localFileError)
         }
 
-        val expectedHeader = "［＃レイアウト設定：title=無題のドキュメント,paper=A4,top=32,bottom=28,right=16,left=24］\n"
+        val expectedHeader = "［＃レイアウト設定：title=名称未定,paper=A4,top=32,bottom=28,right=16,left=24］\n"
         org.junit.Assert.assertTrue(capturedText.captured.startsWith(expectedHeader))
         org.junit.Assert.assertTrue(capturedText.captured.endsWith("テスト本文"))
     }
