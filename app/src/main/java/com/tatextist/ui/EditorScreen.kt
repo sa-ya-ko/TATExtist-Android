@@ -185,8 +185,7 @@ fun EditorScreen(
                         value = uiState.documentTitle,
                         onValueChange = onTitleChange,
                         singleLine = true,
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
-                        textStyle = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
+                        textStyle = androidx.compose.material3.MaterialTheme.typography.titleSmall.copy(
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                         ),
@@ -194,20 +193,31 @@ fun EditorScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
+                                    .background(
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant,
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 if (uiState.documentTitle.isEmpty()) {
                                     Text(
                                         text = "名称未定",
-                                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                                        style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
                                         color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                     )
                                 }
                                 innerTextField()
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 4.dp)
                     )
                 },
                 actions = {
