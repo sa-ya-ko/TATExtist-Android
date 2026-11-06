@@ -529,8 +529,9 @@ fun VerticalEditor(
                                 return false;
                             }
 
-                            // スマホのIME（ソフトウェアキーボード）でのスペース入力を行頭で捕捉
+                            // スマホのIME（ソフトウェアキーボード）でのスペース入力および改行を捕捉
                             editor.addEventListener('beforeinput', function(e) {
+                                AndroidBridge.logDebug('beforeinput', 'inputType=' + e.inputType + ', data=' + e.data + ', cancelable=' + e.cancelable);
                                 var width = (window.indentWidth !== undefined) ? window.indentWidth : 0;
                                 if (width > 0 && (e.data === ' ' || e.data === '　')) {
                                     var sel = window.getSelection();
@@ -544,6 +545,10 @@ fun VerticalEditor(
                                             AndroidBridge.onTextChanged(editor.innerHTML);
                                         }
                                     }
+                                } else if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') {
+                                    // スマホキーボードの改行キー（↩）押下時
+                                    e.preventDefault();
+                                    performEnterSplit();
                                 }
                             });
                             
@@ -660,6 +665,233 @@ fun VerticalEditor(
                             window.indentWidth = $indentWidth;
                             window.bulletIndentWidth = 1.5;
 
+                            // 共通改行処理（PCのEnterキーおよびスマホの↩キー両方で呼び出し）
+                            function performEnterSplit() {
+                                try {
+                                    var sel = window.getSelection();
+                                    if (!sel || !sel.rangeCount) return;
+                                    var width = (window.indentWidth !== undefined) ? window.indentWidth : 0;
+                                    var range = sel.getRangeAt(0);
+
+                                    // 改行時は過去のテキスト選択を完全にリセット
+                                    window.frozenSelection = null;
+                                    window.lastSelectionRange = null;
+
+                                    // 選択範囲がある状態でEnterを押した場合は先に選択文字を削除
+                                    if (!range.collapsed) {
+                                        range.deleteContents();
+                                    }
+
+                                    var startNode = range.startContainer;
+                                    var startOff = range.startOffset;
+
+                                    // 【最優先処理】文字がまだ「箱（div）」に入っていないむき出しの状態の改行
+                                    if (startNode.nodeType === 3 && startNode.parentElement === editor) {
+                                        // 1. カーソル位置で文字を前後に2分割（前半: 吾輩は猫である。 / 後半: 名前はまだない。）
+                                        var afterText = startNode.splitText(startOff);
+
+                                        // 2. 1行目用の箱と2行目用の箱を作成
+                                        var div1 = document.createElement('div');
+                                        var div2 = document.createElement('div');
+
+                                        // 3. エディタに配置して中身を入れる
+                                        editor.insertBefore(div1, startNode);
+                                        if (startNode.textContent.trim().length === 0) {
+                                            div1.appendChild(document.createElement('br'));
+                                        } else {
+                                            div1.appendChild(startNode);
+                                        }
+
+                                        editor.insertBefore(div2, afterText);
+                                        if (afterText.textContent.trim().length === 0) {
+                                            div2.appendChild(document.createElement('br'));
+                                        } else {
+                                            div2.appendChild(afterText);
+                                        }
+
+                                        // 4. カーソルを2行目の先頭に移動
+                                        var newRange = document.createRange();
+                                        if (div2.firstChild && div2.firstChild.nodeType === 3) {
+                                            newRange.setStart(div2.firstChild, 0);
+                                        } else {
+                                            newRange.selectNodeContents(div2);
+                                        }
+                                        newRange.collapse(true);
+                                        sel.removeAllRanges();
+                                        sel.addRange(newRange);
+                                        window.lastCaretRange = newRange.cloneRange();
+                                        window.savedRange = newRange.cloneRange();
+
+                                        AndroidBridge.onTextChanged(editor.innerHTML);
+                                        window.checkAndReportFormatState();
+                                        return;
+                                    }
+
+                                // 現在の行ブロック（editor直下の子要素）を特定する
+                                var node = range.startContainer;
+                                var curLine = (node === editor) ? null : node;
+                                while (curLine && curLine.parentElement !== editor) {
+                                    curLine = curLine.parentElement;
+                                }
+
+                                // エディタ直下にテキストノードがある場合、安全にdivでラップして正規化
+                                if (curLine && curLine.nodeType === 3 && curLine.parentElement === editor) {
+                                    var wrapDiv = document.createElement('div');
+                                    editor.insertBefore(wrapDiv, curLine);
+                                    wrapDiv.appendChild(curLine);
+                                    curLine = wrapDiv;
+                                } else if (!curLine || curLine === editor) {
+                                    var childIdx = (node === editor) ? range.startOffset : Array.prototype.indexOf.call(editor.childNodes, node);
+                                    if (childIdx < 0) childIdx = 0;
+                                    var existingChild = editor.childNodes[childIdx];
+                                    if (existingChild && existingChild.nodeType === 3) {
+                                        var wrapDiv = document.createElement('div');
+                                        existingChild.replaceWith(wrapDiv);
+                                        wrapDiv.appendChild(existingChild);
+                                        curLine = wrapDiv;
+                                    } else if (!existingChild) {
+                                        curLine = document.createElement('div');
+                                        curLine.appendChild(document.createElement('br'));
+                                        editor.appendChild(curLine);
+                                    } else {
+                                        curLine = existingChild;
+                                    }
+                                }
+
+                                var lineText = curLine.textContent || '';
+                                var isCurrentBullet = /^[ 　]*・/.test(lineText);
+                                var trimmedLine = lineText.trim();
+
+                                // 現在行の先頭の空白（全角スペースまたは半角スペース）を検出
+                                var leadingSpacesMatch = lineText.match(/^[ 　]+/);
+                                var curLineSpaces = leadingSpacesMatch ? leadingSpacesMatch[0] : '';
+                                var hasIndent = curLineSpaces.length > 0;
+
+                                // 箇条書き記号「・」だけで中身が空の場合、箇条書きを終了して通常の空行に戻す
+                                if (isCurrentBullet && (trimmedLine === '・' || trimmedLine.length === 0)) {
+                                    curLine.classList.remove('bullet-line');
+                                    curLine.innerHTML = '<br>';
+                                    AndroidBridge.onTextChanged(editor.innerHTML);
+                                    window.checkAndReportFormatState();
+                                    return;
+                                }
+
+                                // インデントスペースのみで文字が空の場合、インデントを解除して通常の空行に戻す
+                                if (!isCurrentBullet && hasIndent && trimmedLine.length === 0) {
+                                    curLine.innerHTML = '<br>';
+                                    AndroidBridge.onTextChanged(editor.innerHTML);
+                                    window.checkAndReportFormatState();
+                                    return;
+                                }
+
+                                // 新しい段落DIV要素を作成
+                                var newDiv = document.createElement('div');
+
+                                // 箇条書きやインデントの引き継ぎ
+                                if (isCurrentBullet) {
+                                    newDiv.classList.add('bullet-line');
+                                    newDiv.appendChild(document.createTextNode('・'));
+                                } else if (hasIndent) {
+                                    newDiv.appendChild(document.createTextNode(curLineSpaces));
+                                } else if (width > 0) {
+                                    newDiv.appendChild(document.createTextNode(getIndentSpaces(width)));
+                                }
+
+                                // キャレット位置の要素を安全に分割し、ルビ構造（親文字＋rt）を絶対に破壊しないよう保護
+                                var startNode = range.startContainer;
+                                var startOff = range.startOffset;
+
+                                // カーソルが ruby の内部（親文字や rt 要素の中）にあるか判定
+                                var el = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
+                                var insideRuby = el ? el.closest('ruby') : null;
+
+                                var topSplitChild = null; // curLine の直下で分割の起点となる子要素
+
+                                if (insideRuby && curLine.contains(insideRuby)) {
+                                    // ルビの内部で改行された場合は、ルビ要素をバラバラにせず、
+                                    // ルビ全体を現在の行に残し、ルビの直後以降を次の行へ移動する
+                                    var cur = insideRuby;
+                                    while (cur.parentElement && cur.parentElement !== curLine) {
+                                        cur = cur.parentElement;
+                                    }
+                                    topSplitChild = cur.nextSibling;
+                                } else if (startNode.nodeType === 3) {
+                                    // 通常のテキストノード内で改行された場合: splitText で安全に2分割
+                                    var afterTextNode = startNode.splitText(startOff);
+
+                                    // afterTextNode の祖先を curLine 直下まで遡る
+                                    var cur = afterTextNode;
+                                    while (cur.parentElement && cur.parentElement !== curLine) {
+                                        cur = cur.parentElement;
+                                    }
+                                    topSplitChild = (cur === afterTextNode) ? afterTextNode : cur.nextSibling;
+                                    // afterTextNode 自体が装飾インライン要素内にある場合、それを newDiv へ移す
+                                    if (cur !== afterTextNode) {
+                                        newDiv.appendChild(afterTextNode);
+                                    }
+                                } else if (startNode.nodeType === 1) {
+                                    // 要素ノードの境界で改行された場合
+                                    var cur = (startOff < startNode.childNodes.length) ? startNode.childNodes[startOff] : null;
+                                    if (cur) {
+                                        while (cur.parentElement && cur.parentElement !== curLine) {
+                                            cur = cur.parentElement;
+                                        }
+                                        topSplitChild = cur;
+                                    }
+                                }
+
+                                // topSplitChild 以降の全兄弟ノード（後半の文章・ルビ・タグ）を順番に newDiv へ移動
+                                var sibling = topSplitChild;
+                                while (sibling) {
+                                    var next = sibling.nextSibling;
+                                    newDiv.appendChild(sibling);
+                                    sibling = next;
+                                }
+
+                                // 現在の行（前半）が空になった場合（行頭でEnterを押した時など）は <br> を補完
+                                var remainingText = (curLine.textContent || '').replace(/\u200B/g, '');
+                                if (curLine.childNodes.length === 0 || remainingText.length === 0) {
+                                    curLine.innerHTML = '<br>';
+                                }
+
+                                // 新しい行（後半）が空文字の場合（行末でEnterを押した時など）は <br> を補完
+                                var newDivText = (newDiv.textContent || '').replace(/\u200B/g, '');
+                                var hasNewDivContent = newDiv.childNodes.length > 0 && newDivText.length > (isCurrentBullet ? 1 : (hasIndent ? curLineSpaces.length : (width > 0 ? getIndentSpaces(width).length : 0)));
+                                if (!hasNewDivContent) {
+                                    newDiv.appendChild(document.createElement('br'));
+                                }
+
+                                // 現在の行の直後に新しい段落を挿入
+                                if (curLine && curLine.nextSibling) {
+                                    editor.insertBefore(newDiv, curLine.nextSibling);
+                                } else {
+                                    editor.appendChild(newDiv);
+                                }
+
+                                // 新しい行へキャレットを確実に移動
+                                var newRange = document.createRange();
+                                if (newDiv.firstChild && newDiv.firstChild.nodeType === 3) {
+                                    var indentLen = (isCurrentBullet ? 1 : (hasIndent ? curLineSpaces.length : (width > 0 ? getIndentSpaces(width).length : 0)));
+                                    newRange.setStart(newDiv.firstChild, Math.min(indentLen, newDiv.firstChild.length));
+                                    newRange.collapse(true);
+                                } else {
+                                    newRange.selectNodeContents(newDiv);
+                                    newRange.collapse(true);
+                                }
+                                sel.removeAllRanges();
+                                sel.addRange(newRange);
+                                window.lastCaretRange = newRange.cloneRange();
+                                window.savedRange = newRange.cloneRange();
+                                window.frozenSelection = null;
+                                window.lastSelectionRange = null;
+
+                                AndroidBridge.onTextChanged(editor.innerHTML);
+                                window.checkAndReportFormatState();
+                            } catch (err) {
+                                console.error('performEnterSplit error:', err);
+                            }
+                        }
+
                             // キーボードによる字下げ・字上げ（Tab, Shift+Tab, Backspace, Delete, Enter）
                             editor.addEventListener('keydown', function(e) {
                                 var sel = window.getSelection();
@@ -667,105 +899,9 @@ fun VerticalEditor(
                                 var width = (window.indentWidth !== undefined) ? window.indentWidth : 0;
                                 var bIndent = 1.5;
 
-
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
-                                    // 改行時は過去のテキスト選択を完全にリセット
-                                    window.frozenSelection = null;
-                                    window.lastSelectionRange = null;
-                                    var range = sel.getRangeAt(0);
-                                    var node = range.startContainer;
-
-                                    // 現在行のテキストブロックと箇条書き有無を判定
-                                    var curLine = (node.nodeType === 3 ? node.parentElement : node);
-                                    while (curLine && curLine.parentElement !== editor && curLine.parentElement) {
-                                        curLine = curLine.parentElement;
-                                    }
-                                    if (!curLine || curLine === editor) {
-                                        curLine = (node.nodeType === 3 ? node.parentElement : node);
-                                    }
-
-                                    var lineText = curLine ? (curLine.textContent || '') : '';
-                                    var isCurrentBullet = /^[ 　]*・/.test(lineText);
-                                    var trimmedLine = lineText.trim();
-
-                                    // 現在行の先頭の空白（全角スペースまたは半角スペース）を検出
-                                    var leadingSpacesMatch = lineText.match(/^[ 　]+/);
-                                    var curLineSpaces = leadingSpacesMatch ? leadingSpacesMatch[0] : '';
-                                    var hasIndent = curLineSpaces.length > 0;
-
-                                    // 箇条書き記号「・」だけで中身が空の場合、箇条書きを終了して通常の空行に戻す
-                                    if (isCurrentBullet && (trimmedLine === '・' || trimmedLine.length === 0)) {
-                                        if (curLine && curLine !== editor) {
-                                            curLine.classList.remove('bullet-line');
-                                            curLine.textContent = '';
-                                            curLine.appendChild(document.createElement('br'));
-                                        } else {
-                                            document.execCommand('delete', false, null);
-                                        }
-                                        AndroidBridge.onTextChanged(editor.innerHTML);
-                                        window.checkAndReportFormatState();
-                                        return;
-                                    }
-
-                                    // インデントスペースのみで文字が空の場合、インデントを解除して通常の空行に戻す
-                                    if (!isCurrentBullet && hasIndent && trimmedLine.length === 0) {
-                                        if (curLine && curLine !== editor) {
-                                            curLine.textContent = '';
-                                            curLine.appendChild(document.createElement('br'));
-                                        } else {
-                                            document.execCommand('delete', false, null);
-                                        }
-                                        AndroidBridge.onTextChanged(editor.innerHTML);
-                                        window.checkAndReportFormatState();
-                                        return;
-                                    }
-
-                                    // 新しい段落DIV要素を作成
-                                    var newDiv = document.createElement('div');
-
-                                    if (isCurrentBullet) {
-                                        newDiv.classList.add('bullet-line');
-                                        var bulletPrefixStr = '・';
-                                        
-                                        // 前の行の文字色スタイルがあれば継承
-                                        var curColorEl = curLine.closest('[style*="color"], font[color]') || curLine.querySelector('[style*="color"], font[color]');
-                                        var curColor = curColorEl ? (curColorEl.style.color || curColorEl.getAttribute('color')) : null;
-                                        if (curColor) {
-                                            newDiv.innerHTML = '<span style="color: ' + curColor + '">' + bulletPrefixStr + '</span>';
-                                        } else {
-                                            newDiv.textContent = bulletPrefixStr;
-                                        }
-                                    } else if (hasIndent) {
-                                        // 前の行にインデント（全角・半角スペース）が存在する場合、そのまま引き継ぐ
-                                        newDiv.textContent = curLineSpaces;
-                                    } else if (width > 0) {
-                                        newDiv.textContent = getIndentSpaces(width);
-                                    } else {
-                                        newDiv.appendChild(document.createElement('br'));
-                                    }
-
-                                    // 現在の行の直後に新しい段落を挿入（必ずeditor直下に限定してHierarchyRequestErrorを防止）
-                                    var targetLine = (curLine && curLine.parentElement === editor) ? curLine : null;
-                                    if (targetLine && targetLine.nextSibling) {
-                                        editor.insertBefore(newDiv, targetLine.nextSibling);
-                                    } else {
-                                        editor.appendChild(newDiv);
-                                    }
-
-                                    // 新しい行へキャレットを確実に移動
-                                    var newRange = document.createRange();
-                                    newRange.selectNodeContents(newDiv);
-                                    newRange.collapse(false);
-                                    sel.removeAllRanges();
-                                    sel.addRange(newRange);
-                                    window.lastCaretRange = newRange.cloneRange();
-                                    window.savedRange = newRange.cloneRange();
-                                    window.frozenSelection = null;
-                                    window.lastSelectionRange = null;
-
-                                    AndroidBridge.onTextChanged(editor.innerHTML);
-                                    window.checkAndReportFormatState();
+                                    performEnterSplit();
                                 } else if ((e.key === ' ' || e.key === '　') && width > 0 && sel.isCollapsed) {
                                     // 物理キーボード等のスペースキー押下時
                                     var range = sel.getRangeAt(0);
