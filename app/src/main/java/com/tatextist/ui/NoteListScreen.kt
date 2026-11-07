@@ -49,6 +49,9 @@ fun NoteListScreen(
     // 表示モード: 通常の一覧 or アーカイブ一覧
     var showArchivedOnly by remember { mutableStateOf(false) }
 
+    // 削除確認ダイアログの表示対象メモ（null のときは非表示）
+    var noteToDelete by remember { mutableStateOf<NoteItem?>(null) }
+
     // フィルタリング（アーカイブ状態 ＆ 検索キーワードによる絞り込み）
     val activeNotes = remember(notes, showArchivedOnly, searchQuery) {
         val base = if (showArchivedOnly) {
@@ -226,7 +229,7 @@ fun NoteListScreen(
                             onClick = { onNoteClick(note.id) },
                             onTogglePin = { onTogglePin(note.id) },
                             onToggleArchive = { onToggleArchive(note.id) },
-                            onDelete = { onDeleteNote(note.id) }
+                            onDelete = { noteToDelete = note }
                         )
                     }
                 }
@@ -249,11 +252,52 @@ fun NoteListScreen(
                             onClick = { onNoteClick(note.id) },
                             onTogglePin = { onTogglePin(note.id) },
                             onToggleArchive = { onToggleArchive(note.id) },
-                            onDelete = { onDeleteNote(note.id) }
+                            onDelete = { noteToDelete = note }
                         )
                     }
                 }
             }
+        }
+
+        // 削除確認ダイアログ
+        noteToDelete?.let { targetNote ->
+            AlertDialog(
+                onDismissRequest = { noteToDelete = null },
+                title = {
+                    Text(
+                        text = "メモを削除しますか？",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                },
+                text = {
+                    Text(
+                        text = "この操作は取り消せません。",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onDeleteNote(targetNote.id)
+                            noteToDelete = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("削除")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { noteToDelete = null }
+                    ) {
+                        Text("キャンセル")
+                    }
+                },
+                shape = RoundedCornerShape(28.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
         }
     }
 }
