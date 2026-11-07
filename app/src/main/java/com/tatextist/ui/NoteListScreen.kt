@@ -263,38 +263,62 @@ fun NoteListScreen(
         noteToDelete?.let { targetNote ->
             AlertDialog(
                 onDismissRequest = { noteToDelete = null },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
                 title = {
                     Text(
                         text = "メモを削除しますか？",
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 text = {
                     Text(
                         text = "この操作は取り消せません。",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onDeleteNote(targetNote.id)
-                            noteToDelete = null
-                        },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("削除")
+                        FilledTonalButton(
+                            onClick = { noteToDelete = null },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("キャンセル")
+                        }
+
+                        Button(
+                            onClick = {
+                                onDeleteNote(targetNote.id)
+                                noteToDelete = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("削除", fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
-                dismissButton = {
-                    TextButton(
-                        onClick = { noteToDelete = null }
-                    ) {
-                        Text("キャンセル")
-                    }
-                },
+                dismissButton = null,
                 shape = RoundedCornerShape(28.dp),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
