@@ -434,7 +434,7 @@ fun EditorScreen(
         RubyManagementBottomSheet(
             rubyList = uiState.rubyList,
             onApplyRuby = { reading ->
-                rubyRequest = reading
+                rubyRequest = "${reading}_${System.currentTimeMillis()}"
             },
             onRemoveRubyCurrentSelection = {
                 formatCommand = "removeRuby"

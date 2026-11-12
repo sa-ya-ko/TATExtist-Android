@@ -166,6 +166,12 @@ fun VerticalEditor(
                 webViewClient = WebViewClient()
                 
                 // 縦書きエディタ用のHTMLテンプレート
+                val initialContent = if (initialHtml.isNotBlank()) {
+                    initialHtml
+                } else {
+                    val converted = HtmlTextConverter.convertToHtml(value.text)
+                    if (converted.isNotBlank()) converted else "<div><br></div>"
+                }
                 val html = """
                     <!DOCTYPE html>
                     <html>
@@ -334,7 +340,7 @@ fun VerticalEditor(
                         </style>
                     </head>
                     <body>
-                        <div id="editor" class="$paperClass" contenteditable="true">${if (initialHtml.isNotBlank()) initialHtml else HtmlTextConverter.convertToHtml(value.text)}</div>
+                        <div id="editor" class="$paperClass" contenteditable="true">$initialContent</div>
                         <script>
                             const editor = document.getElementById('editor');
                             
@@ -580,15 +586,22 @@ fun VerticalEditor(
 
                                 var node = range.startContainer;
                                 var el = (node.nodeType === 3) ? node.parentElement : node;
+                                if (node.nodeType === 1) {
+                                    var targetChild = (range.startOffset < node.childNodes.length) ? node.childNodes[range.startOffset] : node.firstChild;
+                                    if (targetChild) {
+                                        el = (targetChild.nodeType === 3) ? targetChild.parentElement : targetChild;
+                                    }
+                                }
 
                                 var isBold = false;
                                 var isItalic = false;
                                 var isUnderline = false;
                                 var isBullet = false;
                                 if (el && editor.contains(el)) {
-                                    isBold = !!el.closest('b, strong');
-                                    isItalic = !!el.closest('i, em');
-                                    isUnderline = !!el.closest('u');
+                                    var comp = window.getComputedStyle(el);
+                                    isBold = (comp.fontWeight === 'bold' || parseInt(comp.fontWeight, 10) >= 600) || !!el.closest('b, strong') || !!(el.querySelector && el.querySelector('b, strong'));
+                                    isItalic = (comp.fontStyle === 'italic') || !!el.closest('i, em') || !!(el.querySelector && el.querySelector('i, em'));
+                                    isUnderline = (comp.textDecorationLine && comp.textDecorationLine.indexOf('underline') !== -1) || !!el.closest('u') || !!(el.querySelector && el.querySelector('u'));
 
                                     var curLine = null;
                                     if (el === editor) {
@@ -622,10 +635,8 @@ fun VerticalEditor(
                                 }
 
                                 if (el && editor.contains(el)) {
-                                    // フォント判定: 親要素に明示的な sans-serif 指定があるかチェック
-                                    var sansEl = el.closest('[style*="sans-serif"], [face*="sans-serif"]');
-                                    var family = sansEl ? 'sans-serif' : 'serif';
                                     var comp = window.getComputedStyle(el);
+                                    var family = (comp.fontFamily && (comp.fontFamily.toLowerCase().indexOf('sans-serif') !== -1 || comp.fontFamily.indexOf('Noto Sans') !== -1)) ? 'sans-serif' : 'serif';
                                     var size = parseInt(comp.fontSize, 10) || 20;
                                     AndroidBridge.onSelectionStyle(family, size);
 
@@ -688,8 +699,37 @@ fun VerticalEditor(
                                     }
                                 }
                                 window.checkAndReportFormatState();
+                                if (window.saveHistory) window.saveHistory();
                             });
 
+                            // --- アプリ側スナップショットUndo/Redo履歴管理（編集中セッション限定・上限50件） ---
+                            window.editorUndoStack = [];
+                            window.editorRedoStack = [];
+
+                            // 編集セッション開始時（メモ読み込み・新規作成時）に履歴を初期化する関数
+                            window.resetHistory = function() {
+                                if (!editor) return;
+                                window.editorUndoStack = [editor.innerHTML];
+                                window.editorRedoStack = [];
+                            };
+
+                            window.saveHistory = function() {
+                                if (!editor) return;
+                                var currentHtml = editor.innerHTML;
+                                if (window.editorUndoStack.length > 0 && window.editorUndoStack[window.editorUndoStack.length - 1] === currentHtml) {
+                                    return; // 内容に変化がなければ二重保存しない
+                                }
+                                window.editorUndoStack.push(currentHtml);
+                                if (window.editorUndoStack.length > 50) {
+                                    window.editorUndoStack.shift(); // 最大50件保持
+                                }
+                                window.editorRedoStack = []; // 新しい操作が入ったらRedoスタックはクリア
+                            };
+
+                            // メモが開かれた直後の初期HTMLを編集セッションのスタート地点として確定
+                            setTimeout(function() {
+                                if (window.resetHistory) window.resetHistory();
+                            }, 100);
 
                             window.indentWidth = $indentWidth;
                             window.bulletIndentWidth = 1.5;
@@ -715,39 +755,89 @@ fun VerticalEditor(
                                     var startOff = range.startOffset;
 
                                     // 【最優先処理】文字がまだ「箱（div）」に入っていないむき出しの状態の改行
-                                    if (startNode.nodeType === 3 && startNode.parentElement === editor) {
-                                        // 1. カーソル位置で文字を前後に2分割
-                                        var afterText = startNode.splitText(startOff);
-
-                                        // 2. 1行目用の箱と2行目用の箱を作成
-                                        var div1 = document.createElement('div');
-                                        var div2 = document.createElement('div');
-
-                                        // 3. エディタに配置して中身を入れる
-                                        editor.insertBefore(div1, startNode);
-                                        if (startNode.textContent.length === 0) {
-                                            div1.appendChild(document.createElement('br'));
-                                        } else {
-                                            div1.appendChild(startNode);
+                                    // ルビ（ruby）や複数の文字部品がエディタ直下に並んでいる場合もすべて回収して行を構築します
+                                    var hasDirectText = false;
+                                    for (var i = 0; i < editor.childNodes.length; i++) {
+                                        var cn = editor.childNodes[i];
+                                        if (cn.nodeType === 3 || cn.nodeName === 'RUBY') {
+                                            hasDirectText = true;
+                                            break;
                                         }
+                                    }
 
-                                        editor.insertBefore(div2, afterText);
+                                    if (hasDirectText) {
                                         var indentSpaces = width > 0 ? getIndentSpaces(width) : '';
-                                        // 後半テキストの先頭にある重複空白を除去
-                                        if (afterText.textContent.length > 0 && indentSpaces.length > 0) {
-                                            afterText.textContent = afterText.textContent.replace(/^[ 　]+/, '');
+                                        var nodesBefore = [];
+                                        var nodesAfter = [];
+                                        var reachedCaret = false;
+
+                                        // ルビタグの内部にカーソルがある場合、ルビ要素そのものを基準にする
+                                        var effectiveStart = startNode;
+                                        if (effectiveStart.parentElement && effectiveStart.parentElement.nodeName === 'RUBY') {
+                                            effectiveStart = effectiveStart.parentElement;
                                         }
 
+                                        var childList = Array.prototype.slice.call(editor.childNodes);
+                                        for (var ci = 0; ci < childList.length; ci++) {
+                                            var child = childList[ci];
+                                            if (!reachedCaret) {
+                                                if (child === effectiveStart || (child.contains && child.contains(effectiveStart))) {
+                                                    reachedCaret = true;
+                                                    if (child === startNode && startNode.nodeType === 3) {
+                                                        // テキストノードの途中にカーソルがある場合は前後に2分割
+                                                        if (startOff < startNode.length) {
+                                                            var afterText = startNode.splitText(startOff);
+                                                            nodesBefore.push(startNode);
+                                                            nodesAfter.push(afterText);
+                                                        } else {
+                                                            nodesBefore.push(startNode);
+                                                        }
+                                                    } else {
+                                                        // ルビ要素または末尾の場合、その要素全体を1行目に格納
+                                                        nodesBefore.push(child);
+                                                    }
+                                                } else {
+                                                    // カーソルより手前の部品（ルビや文字）をすべて1行目に格納
+                                                    nodesBefore.push(child);
+                                                }
+                                            } else {
+                                                // カーソルより後ろの部品を2行目に格納
+                                                nodesAfter.push(child);
+                                            }
+                                        }
+
+                                        // 1行目の箱を作成して手前の部品を格納
+                                        var div1 = document.createElement('div');
+                                        nodesBefore.forEach(function(n) { div1.appendChild(n); });
+                                        if (div1.childNodes.length === 0) {
+                                            div1.appendChild(document.createElement('br'));
+                                        }
+
+                                        // 2行目の箱を作成してインデントと後ろの部品を格納
+                                        var div2 = document.createElement('div');
                                         if (indentSpaces.length > 0) {
                                             div2.appendChild(document.createTextNode(indentSpaces));
                                         }
-                                        if (afterText.textContent.length > 0) {
-                                            div2.appendChild(afterText);
-                                        } else if (indentSpaces.length === 0) {
+                                        nodesAfter.forEach(function(n) {
+                                            if (n.nodeType === 3 && indentSpaces.length > 0) {
+                                                n.textContent = n.textContent.replace(/^[ 　]+/, '');
+                                            }
+                                            if (n.textContent && n.textContent.length > 0) {
+                                                div2.appendChild(n);
+                                            } else if (n.nodeType === 1) {
+                                                div2.appendChild(n);
+                                            }
+                                        });
+                                        if (div2.childNodes.length === 0) {
                                             div2.appendChild(document.createElement('br'));
                                         }
 
-                                        // 4. カーソルを2行目のインデント末尾に移動
+                                        // エディタをクリアし、正しい順序（1行目→2行目）で配置
+                                        editor.innerHTML = '';
+                                        editor.appendChild(div1);
+                                        editor.appendChild(div2);
+
+                                        // カーソルを2行目のインデント末尾に移動
                                         var newRange = document.createRange();
                                         if (div2.firstChild && div2.firstChild.nodeType === 3) {
                                             newRange.setStart(div2.firstChild, Math.min(indentSpaces.length, div2.firstChild.length));
@@ -812,7 +902,21 @@ fun VerticalEditor(
                                     // 新しい段落DIV要素を作成
                                     var newDiv = document.createElement('div');
 
-                                    // 新しい行に適用するインデント幅（箇条書きの場合は記号、それ以外は設定インデント幅）
+                                    // 直前の行（curLine）のスタイル（フォントファミリー、文字サイズ、文字色）を次行に確実に引き継ぐ
+                                    if (curLine) {
+                                        if (curLine.style.fontFamily) newDiv.style.fontFamily = curLine.style.fontFamily;
+                                        if (curLine.style.fontSize) newDiv.style.fontSize = curLine.style.fontSize;
+                                        if (curLine.style.color) newDiv.style.color = curLine.style.color;
+
+                                        var lastStyledEl = curLine.querySelector('[style*="font-family"], [style*="font-size"], [style*="color"]');
+                                        if (lastStyledEl) {
+                                            if (!newDiv.style.fontFamily && lastStyledEl.style.fontFamily) newDiv.style.fontFamily = lastStyledEl.style.fontFamily;
+                                            if (!newDiv.style.fontSize && lastStyledEl.style.fontSize) newDiv.style.fontSize = lastStyledEl.style.fontSize;
+                                            if (!newDiv.style.color && lastStyledEl.style.color) newDiv.style.color = lastStyledEl.style.color;
+                                        }
+                                    }
+
+                                    // 新しい行に適用するインデント幅および箇条書き中点の設定
                                     var indentToApply = '';
                                     if (isCurrentBullet) {
                                         newDiv.classList.add('bullet-line');
@@ -924,8 +1028,8 @@ fun VerticalEditor(
                                     // 新しい行へキャレットを確実に移動
                                     var newRange = document.createRange();
                                     if (newDiv.firstChild && newDiv.firstChild.nodeType === 3) {
-                                        var indentLen = isCurrentBullet ? 1 : indentToApply.length;
-                                        newRange.setStart(newDiv.firstChild, Math.min(indentLen, newDiv.firstChild.length));
+                                        var targetOffset = isCurrentBullet ? 1 : indentToApply.length;
+                                        newRange.setStart(newDiv.firstChild, Math.min(targetOffset, newDiv.firstChild.length));
                                         newRange.collapse(true);
                                     } else {
                                         newRange.selectNodeContents(newDiv);
@@ -940,6 +1044,7 @@ fun VerticalEditor(
 
                                     AndroidBridge.onTextChanged(editor.innerHTML);
                                     window.checkAndReportFormatState();
+                                    if (window.saveHistory) window.saveHistory();
                                 } catch (err) {
                                     console.error('performEnterSplit error:', err);
                                 }
@@ -1181,39 +1286,46 @@ fun VerticalEditor(
                             });
                             
                             AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
-                            // 適用完了後、過去の古い選択記憶をリセットして他所への誤爆を防止
-                            window.savedRange = null;
-                            window.frozenSelection = null;
-                            window.lastSelectionRange = null;
+                            // 連続で操作できるよう、最新の選択範囲を維持
+                            window.savedRange = targetRange.cloneRange();
+                            window.frozenSelection = targetRange.cloneRange();
+                            window.lastSelectionRange = targetRange.cloneRange();
                             window.isFormatting = false;
                             window.ignoreSelectionChange = false;
                             window.checkAndReportFormatState && window.checkAndReportFormatState(true);
                         } else {
                             // 範囲選択がない場合（キャレットのみ、またはエディタが空の場合）
+                            // 過去の文章は変更せず、キャレット位置から新しく入力する文字にのみスタイルを適用
                             var ed = document.getElementById('editor');
                             if (ed) {
                                 ed.focus();
-                                ${if (applyColor) """
-                                if ('$targetColor'.length > 0) {
-                                    document.execCommand('foreColor', false, '$targetColor');
+                                var isEditorEmpty = (ed.textContent || '').trim().length === 0;
+                                if (isEditorEmpty) {
+                                    ${if (applyFamily) "ed.style.fontFamily = \"$targetFamilyCss\";" else ""}
+                                    ${if (applySize) "ed.style.fontSize = '${targetSize}px';" else ""}
+                                } else {
+                                    ${if (applyColor) """
+                                    if ('$targetColor'.length > 0) {
+                                        document.execCommand('foreColor', false, '$targetColor');
+                                    }
+                                    """ else ""}
+                                    ${if (applyFamily) """
+                                    document.execCommand('fontName', false, '__CUSTOM_FONT_FAMILY__');
+                                    var fList = ed.querySelectorAll('font[face="__CUSTOM_FONT_FAMILY__"]');
+                                    fList.forEach(function(el) {
+                                        el.removeAttribute('face');
+                                        el.style.fontFamily = "$targetFamilyCss";
+                                    });
+                                    """ else ""}
+                                    ${if (applySize) """
+                                    document.execCommand('fontSize', false, '7');
+                                    var sList = ed.querySelectorAll('font[size="7"], [style*="xxx-large"]');
+                                    sList.forEach(function(el) {
+                                        el.removeAttribute('size');
+                                        el.style.fontSize = '${targetSize}px';
+                                    });
+                                    """ else ""}
                                 }
-                                """ else ""}
-                                ${if (applyFamily) """
-                                document.execCommand('fontName', false, '__CUSTOM_FONT_FAMILY__');
-                                var fList = ed.querySelectorAll('font[face="__CUSTOM_FONT_FAMILY__"]');
-                                fList.forEach(function(el) {
-                                    el.removeAttribute('face');
-                                    el.style.fontFamily = "$targetFamilyCss";
-                                });
-                                """ else ""}
-                                ${if (applySize) """
-                                document.execCommand('fontSize', false, '7');
-                                var sList = ed.querySelectorAll('font[size="7"], [style*="xxx-large"]');
-                                sList.forEach(function(el) {
-                                    el.removeAttribute('size');
-                                    el.style.fontSize = '${targetSize}px';
-                                });
-                                """ else ""}
                                 AndroidBridge.onTextChanged(ed.innerHTML);
                             }
                         }
@@ -1225,12 +1337,19 @@ fun VerticalEditor(
             
             if (rubyRequest != null && rubyRequest != lastHandledRubyRequestRef[0]) {
                 lastHandledRubyRequestRef[0] = rubyRequest
+                val actualRuby = rubyRequest.substringBeforeLast("_")
                 // ルビリクエストが来た場合、保存しておいた選択範囲を使ってルビを挿入する
                 val js = """
                     (function() {
                         try {
-                            if (window.savedRange && !window.savedRange.collapsed) {
-                                var range = window.savedRange;
+                            var curSel = window.getSelection();
+                            var activeRange = (curSel && curSel.rangeCount > 0 && !curSel.isCollapsed) ? curSel.getRangeAt(0) : null;
+                            var range = (window.savedRange && !window.savedRange.collapsed ? window.savedRange : null) ||
+                                        (window.frozenSelection && !window.frozenSelection.collapsed ? window.frozenSelection : null) ||
+                                        (window.lastSelectionRange && !window.lastSelectionRange.collapsed ? window.lastSelectionRange : null) ||
+                                        activeRange;
+
+                            if (range) {
                                 var baseText = range.toString();
                                 if (baseText.length > 0) {
                                     // ルビタグの直後に確実な踏み台として \u200B を付与
@@ -1260,18 +1379,19 @@ fun VerticalEditor(
                                         styledBase = '<span style="' + innerStyle + '">' + baseText + '</span>';
                                     }
 
-                                    var rubyHtml = '<ruby>' + styledBase + '<rt>${rubyRequest}</rt></ruby>\u200B';
+                                    var rubyHtml = '<ruby>' + styledBase + '<rt>${actualRuby}</rt></ruby>';
                                     var html = parentU ? "<u>" + rubyHtml + "</u>" : rubyHtml;
-                                    
+
                                     window.ignoreSelectionChange = true;
-                                    
+
                                     // 保存された範囲をブラウザのアクティブな選択状態として復元
                                     var sel = window.getSelection();
                                     sel.removeAllRanges();
                                     sel.addRange(range);
 
-                                    // ブラウザの編集履歴（Undoスタック）に正しく記録させながらルビを挿入
-                                    document.execCommand('insertHTML', false, html);
+                                    // ブラウザのUndo履歴スタックを切断しないよう insertHTML を使用
+                                    // Chromiumが末尾の </ruby> を剥ぎ取らないよう一時的な安全ピンとして \u200B を添える
+                                    document.execCommand('insertHTML', false, html + '\u200B');
                                     
                                     // 挿入後、キャレットをルビの外側に確実に倒す
                                     var edEl = document.getElementById('editor');
@@ -1285,19 +1405,31 @@ fun VerticalEditor(
                                         });
                                     }
 
-                                    if (sel.rangeCount > 0) {
+                                    // 挿入された最新のルビ要素の直後（外側）にキャレットを確実に移動
+                                    var allRubies = edEl.querySelectorAll('ruby');
+                                    var insertedRuby = allRubies[allRubies.length - 1];
+                                    if (insertedRuby) {
+                                        var afterRubyRange = document.createRange();
+                                        afterRubyRange.setStartAfter(insertedRuby);
+                                        afterRubyRange.collapse(true);
+                                        sel.removeAllRanges();
+                                        sel.addRange(afterRubyRange);
+                                        window.lastCaretRange = afterRubyRange.cloneRange();
+                                        window.savedRange = afterRubyRange.cloneRange();
+                                    } else if (sel.rangeCount > 0) {
                                         var curRange = sel.getRangeAt(0);
                                         curRange.collapse(false);
                                         sel.removeAllRanges();
                                         sel.addRange(curRange);
                                     }
                                     
-                                    // 挿入後、変更されたHTMLからゼロ幅スペース（\u200B）を除去してAndroid側に送信
-                                    // （エディタDOMの直接改変を避けてUndoスタックを保護しつつ、保存データと文字数カウントへの混入を完全防止）
+                                    // Android側へ通知する際はゼロ幅スペースを完全に除去して文字カウントや保存データを保護
                                     AndroidBridge.onTextChanged(edEl.innerHTML.replace(/\u200B/g, ''));
                                     
                                     // 範囲をリセットし、ロックを解除
                                     window.savedRange = null;
+                                    window.frozenSelection = null;
+                                    window.lastSelectionRange = null;
                                     setTimeout(function() { window.ignoreSelectionChange = false; }, 100);
                                 }
                             }
@@ -1362,17 +1494,70 @@ fun VerticalEditor(
                         var formatToggledOff = false;
 
                         if ('$cmdName' === 'undo') {
-                            document.execCommand('undo', false, null);
+                            if (window.editorUndoStack && window.editorUndoStack.length > 1) {
+                                // 現在の状態をRedoスタックに退避
+                                var currentHtml = targetEd ? targetEd.innerHTML : '';
+                                if (!window.editorRedoStack) window.editorRedoStack = [];
+                                window.editorRedoStack.push(currentHtml);
+
+                                // 1つ前の状態を取り出して復元
+                                window.editorUndoStack.pop(); // 現在の状態を捨てる
+                                var prevHtml = window.editorUndoStack[window.editorUndoStack.length - 1];
+                                if (targetEd) {
+                                    targetEd.innerHTML = prevHtml;
+                                }
+
+                                // カーソルをエディタ末尾の要素へ安全に復元
+                                var sel = window.getSelection();
+                                if (sel && targetEd && targetEd.lastChild) {
+                                    var r = document.createRange();
+                                    r.selectNodeContents(targetEd.lastChild);
+                                    r.collapse(false);
+                                    sel.removeAllRanges();
+                                    sel.addRange(r);
+                                    window.savedRange = r.cloneRange();
+                                    window.lastCaretRange = r.cloneRange();
+                                }
+                            } else {
+                                // 履歴スタックが空の場合はブラウザ標準のundoをフォールバック実行
+                                if (targetEd) targetEd.focus();
+                                document.execCommand('undo', false, null);
+                            }
                             window.frozenSelection = null;
                             window.lastSelectionRange = null;
-                            window.savedRange = null;
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
+                            window.checkAndReportFormatState();
                         } else if ('$cmdName' === 'redo') {
-                            document.execCommand('redo', false, null);
+                            if (window.editorRedoStack && window.editorRedoStack.length > 0) {
+                                // 次の状態を取り出して復元
+                                var nextHtml = window.editorRedoStack.pop();
+                                var currentHtml = targetEd ? targetEd.innerHTML : '';
+                                if (window.editorUndoStack) window.editorUndoStack.push(nextHtml);
+
+                                if (targetEd) {
+                                    targetEd.innerHTML = nextHtml;
+                                }
+
+                                // カーソルをエディタ末尾の要素へ安全に復元
+                                var sel = window.getSelection();
+                                if (sel && targetEd && targetEd.lastChild) {
+                                    var r = document.createRange();
+                                    r.selectNodeContents(targetEd.lastChild);
+                                    r.collapse(false);
+                                    sel.removeAllRanges();
+                                    sel.addRange(r);
+                                    window.savedRange = r.cloneRange();
+                                    window.lastCaretRange = r.cloneRange();
+                                }
+                            } else {
+                                // Redoスタックが空の場合はブラウザ標準のredoをフォールバック実行
+                                if (targetEd) targetEd.focus();
+                                document.execCommand('redo', false, null);
+                            }
                             window.frozenSelection = null;
                             window.lastSelectionRange = null;
-                            window.savedRange = null;
                             AndroidBridge.onTextChanged(targetEd ? targetEd.innerHTML : '');
+                            window.checkAndReportFormatState();
                         } else if ('$cmdName' === 'bulletList') {
                             // 箇条書きは文字範囲選択ではなく、最新のキャレット行を最優先
                             if (caretRange) {
@@ -1415,33 +1600,42 @@ fun VerticalEditor(
 
                                 if (lineBlock && lineBlock !== editor) {
                                     var rawText = (lineBlock.textContent || '').replace(/\u200B/g, '');
-                                    var textWithoutIndent = rawText.replace(/^[ 　]*/, '');
+                                    var hasBullet = /^[ 　]*・/.test(rawText);
 
-                                    // 現在の行またはコンテナ内の文字色（color）を取得
-                                    var existingColorEl = lineBlock.closest('[style*="color"], font[color]') || lineBlock.querySelector('[style*="color"], font[color]');
-                                    var currentColor = existingColorEl ? (existingColorEl.style.color || existingColorEl.getAttribute('color')) : null;
-
-                                    if (/^・/.test(textWithoutIndent)) {
-                                        // 箇条書き解除: 基本インデント + 中点を除いたテキスト
+                                    // Undo履歴スタックに記録させるため、行頭にカーソルを合わせて insertText / delete を実行
+                                    if (hasBullet) {
+                                        // 箇条書き解除: 先頭の中点「・」を選択して削除
                                         lineBlock.classList.remove('bullet-line');
-                                        var newText = getIndentSpaces(baseIndent) + textWithoutIndent.replace(/^・/, '');
-                                        if (currentColor) {
-                                            lineBlock.innerHTML = '<span style="color: ' + currentColor + '">' + (newText.length > 0 ? newText : '<br>') + '</span>';
-                                        } else {
-                                            lineBlock.textContent = newText.length > 0 ? newText : '';
-                                            if (lineBlock.textContent === '') {
-                                                lineBlock.appendChild(document.createElement('br'));
+                                        var textNode = null;
+                                        // 行内の先頭テキストノードを検索
+                                        var walker = document.createTreeWalker(lineBlock, NodeFilter.SHOW_TEXT, null, false);
+                                        var n = walker.nextNode();
+                                        while (n) {
+                                            var idx = n.nodeValue.indexOf('・');
+                                            if (idx !== -1) {
+                                                var delRange = document.createRange();
+                                                delRange.setStart(n, idx);
+                                                delRange.setEnd(n, idx + 1);
+                                                sel.removeAllRanges();
+                                                sel.addRange(delRange);
+                                                document.execCommand('delete', false, null);
+                                                break;
                                             }
+                                            n = walker.nextNode();
                                         }
                                     } else {
-                                        // 箇条書き付与: 箇条書きインデント + 中点 + テキスト（中点も含めて文字色を適用）
+                                        // 箇条書き付与: 行の先頭にキャレットを置き、insertText で中点を挿入
                                         lineBlock.classList.add('bullet-line');
-                                        var newText = bulletPrefix + textWithoutIndent;
-                                        if (currentColor) {
-                                            lineBlock.innerHTML = '<span style="color: ' + currentColor + '">' + newText + '</span>';
+                                        var startR = document.createRange();
+                                        if (lineBlock.firstChild) {
+                                            startR.setStart(lineBlock.firstChild, 0);
                                         } else {
-                                            lineBlock.textContent = newText;
+                                            startR.selectNodeContents(lineBlock);
                                         }
+                                        startR.collapse(true);
+                                        sel.removeAllRanges();
+                                        sel.addRange(startR);
+                                        document.execCommand('insertText', false, '・');
                                     }
 
                                     // キャレットを行末（テキストの直後）に配置
@@ -1468,53 +1662,59 @@ fun VerticalEditor(
                                 sel.addRange(textRange);
 
                                 var cmd = '$cmdName';
-                                if (cmd === 'italic') {
-                                    var startNode = textRange.startContainer;
-                                    var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
-                                    var existingItalic = startEl ? startEl.closest('i, em') : null;
+                                var targetTags = (cmd === 'italic') ? 'i, em' : (cmd === 'bold') ? 'b, strong' : (cmd === 'underline') ? 'u' : null;
 
-                                    if (existingItalic) {
-                                        // すでに斜体がある場合は解体（解除）
-                                        var parent = existingItalic.parentNode;
-                                        while (existingItalic.firstChild) {
-                                            parent.insertBefore(existingItalic.firstChild, existingItalic);
-                                        }
-                                        parent.removeChild(existingItalic);
-                                        formatToggledOff = true;
-                                    } else {
-                                        document.execCommand('italic', false, null);
+                                if (targetTags) {
+                                    // 選択範囲に含まれる、または親要素にある該当装飾タグをすべて検索
+                                    var commonAncestor = textRange.commonAncestorContainer;
+                                    if (commonAncestor.nodeType === 3) commonAncestor = commonAncestor.parentElement;
+
+                                    var matchedTags = [];
+                                    // 1. 祖先要素にある該当タグをチェック
+                                    var ancestorTag = commonAncestor.closest(targetTags);
+                                    if (ancestorTag && editor.contains(ancestorTag)) {
+                                        matchedTags.push(ancestorTag);
                                     }
-                                } else if (cmd === 'bold') {
-                                    var startNode = textRange.startContainer;
-                                    var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
-                                    var existingBold = startEl ? startEl.closest('b, strong') : null;
-
-                                    if (existingBold) {
-                                        // すでに太字がある場合は解体（解除）
-                                        var parent = existingBold.parentNode;
-                                        while (existingBold.firstChild) {
-                                            parent.insertBefore(existingBold.firstChild, existingBold);
+                                    // 2. 選択範囲内部（ルビ内部を含む）にある該当タグをすべて収集
+                                    var innerTags = commonAncestor.querySelectorAll(targetTags);
+                                    innerTags.forEach(function(t) {
+                                        if (sel.containsNode(t, true) || textRange.intersectsNode(t)) {
+                                            if (matchedTags.indexOf(t) === -1) {
+                                                matchedTags.push(t);
+                                            }
                                         }
-                                        parent.removeChild(existingBold);
-                                        formatToggledOff = true;
-                                    } else {
-                                        document.execCommand('bold', false, null);
-                                    }
-                                } else if (cmd === 'underline') {
-                                    var startNode = textRange.startContainer;
-                                    var startEl = (startNode.nodeType === 3) ? startNode.parentElement : startNode;
-                                    var existingUnderline = startEl ? startEl.closest('u') : null;
+                                    });
 
-                                    if (existingUnderline) {
-                                        // すでに下線がある場合は解体（解除）
-                                        var parent = existingUnderline.parentNode;
-                                        while (existingUnderline.firstChild) {
-                                            parent.insertBefore(existingUnderline.firstChild, existingUnderline);
-                                        }
-                                        parent.removeChild(existingUnderline);
+                                    if (matchedTags.length > 0) {
+                                        // 解除処理: 該当するすべてのタグ（ルビ内部を含む）を解体
+                                        var firstKept = null;
+                                        var lastKept = null;
+                                        matchedTags.forEach(function(tagEl) {
+                                            var p = tagEl.parentNode;
+                                            var f = tagEl.firstChild;
+                                            var l = tagEl.lastChild;
+                                            if (!firstKept && f) firstKept = f;
+                                            if (l) lastKept = l;
+                                            while (tagEl.firstChild) {
+                                                p.insertBefore(tagEl.firstChild, tagEl);
+                                            }
+                                            p.removeChild(tagEl);
+                                        });
                                         formatToggledOff = true;
+                                        sel.removeAllRanges();
+                                        if (firstKept && lastKept && editor.contains(firstKept) && editor.contains(lastKept)) {
+                                            var keepRange = document.createRange();
+                                            keepRange.setStartBefore(firstKept);
+                                            keepRange.setEndAfter(lastKept);
+                                            sel.addRange(keepRange);
+                                            window.frozenSelection = keepRange.cloneRange();
+                                            window.lastSelectionRange = keepRange.cloneRange();
+                                            window.lastCaretRange = keepRange.cloneRange();
+                                            window.savedRange = keepRange.cloneRange();
+                                        }
                                     } else {
-                                        document.execCommand('underline', false, null);
+                                        // 新規適用処理
+                                        document.execCommand(cmd, false, null);
                                     }
                                 }
 
@@ -1527,9 +1727,10 @@ fun VerticalEditor(
                                     window.lastCaretRange = newR.cloneRange();
                                     window.savedRange = newR.cloneRange();
                                 } else {
-                                    // 解除された場合は無理に過去の選択範囲を強制適用しない
                                     window.lastCaretRange = textRange.cloneRange();
                                     window.savedRange = textRange.cloneRange();
+                                    window.frozenSelection = textRange.cloneRange();
+                                    window.lastSelectionRange = textRange.cloneRange();
                                 }
                             } catch (e) {
                                 console.error('Format command error:', e);
@@ -1558,6 +1759,9 @@ fun VerticalEditor(
                         
                         // 変更をAndroidに通知
                         AndroidBridge.onTextChanged(document.getElementById('editor').innerHTML);
+                        if (window.saveHistory && '$cmdName' !== 'undo' && '$cmdName' !== 'redo') {
+                            window.saveHistory();
+                        }
 
                         // 最新のフォーマット状態を判定してAndroid側に通知（ボタンのアクティブ色反映）
                         var isB = false;
@@ -1567,12 +1771,20 @@ fun VerticalEditor(
 
                         var checkSel = window.getSelection();
                         if (checkSel.rangeCount > 0) {
-                            var checkNode = checkSel.getRangeAt(0).startContainer;
+                            var checkRange = checkSel.getRangeAt(0);
+                            var checkNode = checkRange.startContainer;
                             var checkEl = (checkNode.nodeType === 3) ? checkNode.parentElement : checkNode;
+                            if (checkNode.nodeType === 1) {
+                                var targetChild = (checkRange.startOffset < checkNode.childNodes.length) ? checkNode.childNodes[checkRange.startOffset] : checkNode.firstChild;
+                                if (targetChild) {
+                                    checkEl = (targetChild.nodeType === 3) ? targetChild.parentElement : targetChild;
+                                }
+                            }
                             if (checkEl && editor.contains(checkEl)) {
-                                isB = !!checkEl.closest('b, strong');
-                                isI = !!checkEl.closest('i, em');
-                                isU = !!checkEl.closest('u');
+                                var comp = window.getComputedStyle(checkEl);
+                                isB = (comp.fontWeight === 'bold' || parseInt(comp.fontWeight, 10) >= 600) || !!checkEl.closest('b, strong') || !!(checkEl.querySelector && checkEl.querySelector('b, strong'));
+                                isI = (comp.fontStyle === 'italic') || !!checkEl.closest('i, em') || !!(checkEl.querySelector && checkEl.querySelector('i, em'));
+                                isU = (comp.textDecorationLine && comp.textDecorationLine.indexOf('underline') !== -1) || !!checkEl.closest('u') || !!(checkEl.querySelector && checkEl.querySelector('u'));
 
                                 var line = (checkEl === editor) ? null : checkEl;
                                 while (line && line.parentElement !== editor && line.parentElement) {
@@ -1581,9 +1793,7 @@ fun VerticalEditor(
                                 var lTxt = line ? (line.textContent || '') : '';
                                 isBul = /^[ 　]*・/.test(lTxt);
 
-                                var sansEl = checkEl.closest('[style*="sans-serif"], [face*="sans-serif"]');
-                                var family = sansEl ? 'sans-serif' : 'serif';
-                                var comp = window.getComputedStyle(checkEl);
+                                var family = (comp.fontFamily && (comp.fontFamily.toLowerCase().indexOf('sans-serif') !== -1 || comp.fontFamily.indexOf('Noto Sans') !== -1)) ? 'sans-serif' : 'serif';
                                 var size = parseInt(comp.fontSize, 10) || 20;
                                 AndroidBridge.onSelectionStyle(family, size);
 
@@ -1724,11 +1934,12 @@ fun VerticalEditor(
                     isInternalUpdateRef[0] = false
                 } else if (value.text != lastKnownTextRef[0]) {
                     lastKnownTextRef[0] = value.text
-                    val htmlToLoad = if (initialHtml.isNotBlank() && HtmlTextConverter.convertFromHtml(initialHtml) == value.text) {
+                    val rawHtml = if (initialHtml.isNotBlank() && HtmlTextConverter.convertFromHtml(initialHtml) == value.text) {
                         initialHtml
                     } else {
                         HtmlTextConverter.convertToHtml(value.text)
                     }
+                    val htmlToLoad = if (rawHtml.isNotBlank()) rawHtml else "<div><br></div>"
                     val escapedHtml = htmlToLoad
                         .replace("\\", "\\\\")
                         .replace("'", "\\'")
