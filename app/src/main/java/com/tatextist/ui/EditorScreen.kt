@@ -90,10 +90,25 @@ fun EditorScreen(
     onParagraphStyleChange: (ParagraphStyle) -> Unit = {},
     onParagraphStyleDetected: (String?) -> Unit = {},
     onParagraphStyleConsumed: () -> Unit = {},
+    onSaveCurrentNote: () -> Unit = {},
     onNavigateBack: () -> Unit = {}
 ) {
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // アプリの一時停止（バックグラウンド移行・タスクキル前）時に最新の執筆内容を自動保存
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
+                onSaveCurrentNote()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // エラーが出た時はスナックバーで表示する
     LaunchedEffect(uiState.cloudError) {

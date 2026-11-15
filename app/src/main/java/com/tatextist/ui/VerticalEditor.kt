@@ -76,8 +76,8 @@ fun VerticalEditor(
         PaperSize.FIT -> "paper-fit"
     }
     val printPageSizeCss = when (paperSize) {
-        PaperSize.A4 -> "A4 landscape"
-        PaperSize.B5 -> "B5 landscape"
+        PaperSize.A4 -> "297mm 210mm"
+        PaperSize.B5 -> "257mm 182mm"
         PaperSize.FIT -> "auto landscape"
     }
 
@@ -282,7 +282,7 @@ fun VerticalEditor(
                             @media print {
                                 @page {
                                     size: $printPageSizeCss;
-                                    margin: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px;
+                                    margin: 0;
                                 }
                                 html, body {
                                     display: block;
@@ -290,8 +290,6 @@ fun VerticalEditor(
                                     direction: ltr;
                                     margin: 0;
                                     padding: 0;
-                                    width: 100%;
-                                    height: 100%;
                                     background-color: #ffffff;
                                     overflow: visible;
                                 }
@@ -301,9 +299,7 @@ fun VerticalEditor(
                                     direction: ltr;
                                     box-sizing: border-box;
                                     margin: 0;
-                                    padding: 0;
-                                    width: auto;
-                                    height: 100%;
+                                    padding: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px;
                                     background-color: #ffffff;
                                     color: #000000;
                                     font-family: $fontFamilyCss;
@@ -318,6 +314,10 @@ fun VerticalEditor(
                                     white-space: pre-wrap;
                                     -webkit-print-color-adjust: exact;
                                     print-color-adjust: exact;
+                                }
+                                #editor > div, #editor > p, #editor > h1, #editor > h2, #editor > h3, #editor > h4 {
+                                    break-inside: avoid;
+                                    page-break-inside: avoid;
                                 }
                                 #editor .bullet-line {
                                     padding-top: 2.5em;
@@ -1175,9 +1175,10 @@ fun VerticalEditor(
                                 '#editor .bullet-line { padding-top: 2.5em; text-indent: -1em; } ' +
                             '} ' +
                             '@media print { ' +
-                                '@page { size: $printPageSizeCss; margin: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px; } ' +
-                                'html, body { display: block; writing-mode: vertical-rl; direction: ltr; margin: 0; padding: 0; width: 100%; height: 100%; background-color: #ffffff; overflow: visible; } ' +
-                                '#editor { display: block; writing-mode: vertical-rl; direction: ltr; box-sizing: border-box; margin: 0; padding: 0; width: auto; height: 100%; background-color: #ffffff; color: #000000; font-family: ' + fontFam + '; font-size: ${fontSize}px; line-height: 2; outline: none; border: none; border-radius: 0; box-shadow: none; overflow: visible; word-break: break-all; white-space: pre-wrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; } ' +
+                                '@page { size: $printPageSizeCss; margin: 0; } ' +
+                                'html, body { display: block; writing-mode: vertical-rl; direction: ltr; margin: 0; padding: 0; background-color: #ffffff; overflow: visible; } ' +
+                                '#editor { display: block; writing-mode: vertical-rl; direction: ltr; box-sizing: border-box; margin: 0; padding: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px; background-color: #ffffff; color: #000000; font-family: ' + fontFam + '; font-size: ${fontSize}px; line-height: 2; outline: none; border: none; border-radius: 0; box-shadow: none; overflow: visible; word-break: break-all; white-space: pre-wrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; } ' +
+                                '#editor > div, #editor > p, #editor > h1, #editor > h2, #editor > h3, #editor > h4 { break-inside: avoid; page-break-inside: avoid; } ' +
                                 '.highlight-all-rubies ruby { background-color: transparent; box-shadow: none; } ' +
                                 '#editor ruby rt { color: #000000; } ' +
                                 '#editor u { text-decoration-color: #000000; } ' +

@@ -670,3 +670,35 @@
      - Undo時は1つ前の過去HTMLを復元（改行前の状態に丸ごと巻き戻るため中点も完全に消滅）。
      - Redo時は進むべき未来HTMLを復元（改行後の状態に丸ごと進むため2行目の中点も100%復元）。
      - メモ起動時や新規作成時には `resetHistory()` で現在のメモ状態のみをスタート地点として初期化し、メモ間の履歴混同を防止。
+
+
+---
+
+## Bug 052: PDF出力時の余白不反映・B5用紙分割消失、新規メモへの余白引継ぎ、およびタスクキル時のデータ未保存不具合
+- **現象 (What):**
+  1. エディタで余白を設定していても、PDF出力（印刷）を行うとプレビューや保存されたPDFに余白が一切反映されない。
+  2. 用紙サイズをB5横長にしてPDF出力した際、ページの左端が途中で切れ、かつ1ページ目と最終ページのみが表示されて中間のページが消失する。
+  3. 新規メモ（「＋」）を作成した際、前回のメモで設定したB5/A4の用紙サイズや変更後の余白が引き継がれてしまう。
+  4. メモを執筆中に「←（一覧に戻る）」ボタンを押さずにそのままホーム画面に戻ってタスクキル（強制終了）すると、直前の入力内容が保存されず消えてしまう。
+- **原因 (Why):**
+  1. **`@page` マージンの無視とエディタ `padding` のリセット:**
+     - Androidの `PrintDocumentAdapter`（WebView印刷）は `@page { margin: ... }` を無視またはゼロに強制上書きする挙動がある。一方で `@media print` 内の `#editor` の `padding` を `0` にリセットしていたため、余白が完全に消失していた。
+  2. **JIS規格とISO規格の寸法不一致、および `height: 100%` による縦書き改ページ計算の破綻:**
+     - `@page { size: B5 landscape }` は国際規格ISO B5（250mm×176mm）として解釈され、Android印刷属性のJIS B5（257mm×182mm）と実寸法がズレていた。
+     - また、`html, body` および `#editor` に `height: 100%` が指定されていたため、Chromiumの縦書きレンダラーが用紙高さを超えた横方向への自動改ページ（Page Break）を正しく計算できず、中間ページをスキップして最初と最後のページのみ出力し、左端を枠外へ突き落としていた。
+  3. **`createNewNote()` での初期化プロパティ漏れ:**
+     - `EditorViewModel.createNewNote()` において、`paperSize` と `margins` が初期化されずに前のメモの値を保持していた。
+  4. **保存契機が「一覧に戻る」ボタンのみに限定されていたこと:**
+     - 自動保存が `navigateToList()` にしか実装されておらず、アプリのライフサイクル（バックグラウンド移行・タスクキル）や入力確定時と連動していなかった。
+- **対策 (How):**
+  1. **厳密な実寸法指定とエディタ `padding` への余白直接適用:**
+     - `printPageSizeCss` において、A4は `297mm 210mm`、B5は `257mm 182mm` と実寸法を明示。
+     - `@page { margin: 0; }` とし、`#editor` の印刷スタイルに `padding: ${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px;` を適用。
+     - `html, body` の `height: 100%` を解除し、各行要素に `break-inside: avoid;` を付与して全ページの正常なページ分割と文字切れ防止を実現。
+  2. **新規メモ作成時の初期化徹底と余白「標準に戻す」ボタンの追加:**
+     - `createNewNote()` で `paperSize = PaperSize.FIT`、`margins = EditorMargins(20, 20, 20, 20)` に明示的リセット。
+     - 余白設定ボトムシートの入力欄直下に「標準に戻す」ボタンを追加し、ワンタップで20pxに復帰可能に。
+  3. **リアルタイムDebounce自動保存とライフサイクル（`ON_PAUSE`）連動保存の実装:**
+     - `saveCurrentNote()` を独立した共通関数として切り出し。
+     - 文字入力時（`updateTitle`, `updateContent`）に500msのDebounce自動保存を導入。
+     - `EditorScreen` に `DisposableEffect` と `LifecycleEventObserver` を配置し、ホーム画面移行やタスクキル前の `ON_PAUSE` を検知して即座に `saveCurrentNote()` を強制実行。直前の入力データ消失を完全に防止。

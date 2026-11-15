@@ -221,6 +221,9 @@ class MainActivity : ComponentActivity() {
                                 onParagraphStyleConsumed = {
                                     viewModel.onParagraphStyleConsumed()
                                 },
+                                onSaveCurrentNote = {
+                                    viewModel.saveCurrentNote()
+                                },
                                 onNavigateBack = {
                                     viewModel.navigateToList()
                                 }

@@ -27,6 +27,17 @@ class EditorViewModel(
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
 
+    // 執筆中のリアルタイム自動保存用ジョブ（入力が止まった500ms後に自動保存）
+    private var autoSaveJob: kotlinx.coroutines.Job? = null
+
+    private fun scheduleAutoSave() {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(500)
+            saveCurrentNote()
+        }
+    }
+
     init {
         val initialSignedIn = driveRepository?.isSignedIn() ?: false
         _uiState.value = _uiState.value.copy(isDriveSignedIn = initialSignedIn)
@@ -43,6 +54,7 @@ class EditorViewModel(
 
     fun updateTitle(newTitle: String) {
         _uiState.value = _uiState.value.copy(documentTitle = newTitle)
+        scheduleAutoSave()
     }
 
     fun updateContent(newContent: TextFieldValue, rawHtml: String? = null) {
@@ -60,6 +72,7 @@ class EditorViewModel(
             lineCount = lineCount,
             rubyList = rubies
         )
+        scheduleAutoSave()
     }
 
     fun removeRubyItem(item: RubyItem) {
@@ -589,7 +602,9 @@ class EditorViewModel(
             fontSize = 20,
             selectedTextColor = null,
             fontApplyRequest = null,
-            indentWidth = 0.0f
+            indentWidth = 0.0f,
+            paperSize = PaperSize.FIT,
+            margins = EditorMargins(top = 20, right = 20, bottom = 20, left = 20)
         )
     }
 
@@ -630,32 +645,41 @@ class EditorViewModel(
     }
 
     /**
-     * エディタからメモ一覧画面に戻る（編集中メモの自動保存を実施）
+     * 編集中メモの内容を即時ローカルへ自動保存する（タスクキル・アプリ一時停止時のデータ消失防止）
      */
-    fun navigateToList() {
-        val currentId = _uiState.value.currentNoteId
+    fun saveCurrentNote() {
+        val currentId = _uiState.value.currentNoteId ?: return
         val currentTitle = _uiState.value.documentTitle
         val currentContent = _uiState.value.content.text
         val currentHtml = _uiState.value.currentHtmlContent
         val currentFontFamilyStr = if (_uiState.value.fontFamily == EditorFontFamily.SANS_SERIF) "SANS_SERIF" else "SERIF"
 
-        if (currentId != null && noteRepository != null) {
-            viewModelScope.launch {
-                val existingNote = noteRepository.getNoteById(currentId)
-                val noteToSave = NoteItem(
-                    id = currentId,
-                    title = currentTitle,
-                    content = currentContent,
-                    htmlContent = if (currentHtml.isNotBlank()) currentHtml else (existingNote?.htmlContent ?: ""),
-                    isPinned = existingNote?.isPinned ?: false,
-                    isArchived = existingNote?.isArchived ?: false,
-                    fontFamily = currentFontFamilyStr,
-                    indentWidth = _uiState.value.indentWidth,
-                    updatedAt = System.currentTimeMillis()
-                )
-                noteRepository.saveNote(noteToSave)
-            }
+        // タイトルも本文もHTMLもすべて完全に空の場合は空メモの増殖を防ぐためスキップ
+        if (currentTitle.isBlank() && currentContent.isBlank() && currentHtml.isBlank()) return
+
+        val repo = noteRepository ?: return
+        viewModelScope.launch {
+            val existingNote = repo.getNoteById(currentId)
+            val noteToSave = NoteItem(
+                id = currentId,
+                title = currentTitle,
+                content = currentContent,
+                htmlContent = if (currentHtml.isNotBlank()) currentHtml else (existingNote?.htmlContent ?: ""),
+                isPinned = existingNote?.isPinned ?: false,
+                isArchived = existingNote?.isArchived ?: false,
+                fontFamily = currentFontFamilyStr,
+                indentWidth = _uiState.value.indentWidth,
+                updatedAt = System.currentTimeMillis()
+            )
+            repo.saveNote(noteToSave)
         }
+    }
+
+    /**
+     * エディタからメモ一覧画面に戻る（編集中メモの自動保存を実施）
+     */
+    fun navigateToList() {
+        saveCurrentNote()
 
         _uiState.value = _uiState.value.copy(
             screenMode = ScreenMode.LIST,

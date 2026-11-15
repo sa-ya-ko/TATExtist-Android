@@ -557,6 +557,21 @@ fun StyleSettingsBottomSheet(
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 余白入力欄の下に「標準に戻す」ボタンを右寄せで配置
+            androidx.compose.material3.TextButton(
+                onClick = { onMarginChange(20, 20, 20, 20) },
+                modifier = Modifier.align(Alignment.End),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = "標準に戻す",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
